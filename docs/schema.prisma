@@ -1,0 +1,692 @@
+// =============================================================================
+// GRANULOMETRIA SOLVER PRO — Prisma Schema v1.0
+// Stack: Next.js 14 + Supabase (PostgreSQL)
+// =============================================================================
+// Notas importantes:
+//   • O Supabase gerencia auth.users internamente. O model Profile
+//     referencia o UUID do usuário via @db.Uuid sem FK direta ao Prisma.
+//   • UUIDs gerados pelo banco com gen_random_uuid() via @default(dbgenerated()).
+//   • Enums garantem consistência sem depender de CHECK constraints extras.
+//   • shadowDatabaseUrl é necessário para migrations em Supabase.
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider          = "postgresql"
+  url               = env("DATABASE_URL")
+  directUrl         = env("DIRECT_URL")
+  // DATABASE_URL      = pooled connection (Supabase connection pooler porta 6543)
+  // DIRECT_URL        = direct connection (Supabase porta 5432, para migrations)
+}
+
+// =============================================================================
+// ENUMS
+// =============================================================================
+
+enum UserRole {
+  admin
+  gestor
+  laboratorio
+  producao
+  visualizador
+}
+
+enum Tema {
+  dark
+  light
+  system
+}
+
+enum MaterialTipo {
+  areia_fina
+  areia_grossa
+  po_pedra
+  brita
+  granilha
+  outro
+}
+
+enum TipoProduto {
+  bloco_estrutural
+  bloco_vedacao
+  paver
+  cp
+}
+
+enum AnalysisStatus {
+  rascunho
+  em_analise
+  aprovado
+  liberado_producao
+  arquivado
+}
+
+enum BatchStatus {
+  aguardando_rompimentos
+  em_andamento
+  aprovado
+  aprovado_com_ressalva
+  reprovado
+}
+
+enum ScheduleStatus {
+  pendente
+  em_andamento
+  concluido
+  atrasado
+}
+
+enum TestStatus {
+  pendente
+  conforme
+  nao_conforme
+}
+
+enum SampleStatus {
+  conforme
+  nao_conforme
+}
+
+enum ReportFinalStatus {
+  aprovado
+  aprovado_com_ressalva
+  reprovado
+}
+
+enum WebhookEvento {
+  trace_approved
+  trace_released
+  batch_created
+  rupture_scheduled
+  rupture_completed
+  sample_nonconformity
+  report_generated
+  batch_rejected
+}
+
+enum NotificacaoTipo {
+  rupture_due_today
+  rupture_overdue
+  trace_approved
+  trace_released
+  batch_created
+  sample_nonconformity
+  report_ready
+  batch_rejected
+  user_invited
+  system
+}
+
+enum Plano {
+  trial
+  pro
+  enterprise
+}
+
+// =============================================================================
+// ORGANIZAÇÃO
+// =============================================================================
+
+model Organization {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nome       String
+  cnpj       String?
+  logo_url   String?
+  plano      Plano    @default(trial)
+  created_at DateTime @default(now()) @db.Timestamptz
+
+  // Relações
+  profiles               Profile[]
+  user_invites           UserInvite[]
+  materials              Material[]
+  standard_curves        StandardCurve[]
+  analyses               Analysis[]
+  production_batches     ProductionBatch[]
+  quality_reports        QualityReport[]
+  webhook_configs        WebhookConfig[]
+  notifications          Notification[]
+  technical_settings     TechnicalSettings?
+
+  @@map("organizations")
+}
+
+// =============================================================================
+// USUÁRIOS
+// =============================================================================
+
+/// Estende auth.users do Supabase. O campo `id` é o UUID do usuário Supabase Auth.
+model Profile {
+  id              String       @id @db.Uuid
+  // Referencia auth.users(id) — gerenciado pelo Supabase fora do Prisma
+  organization_id String?      @db.Uuid
+  nome            String
+  cargo           String?
+  telefone        String?
+  avatar_url      String?
+  role            UserRole     @default(laboratorio)
+  ativo           Boolean      @default(true)
+  tema            Tema         @default(dark)
+  created_at      DateTime     @default(now()) @db.Timestamptz
+  updated_at      DateTime     @updatedAt @db.Timestamptz
+
+  // Relações
+  organization               Organization?           @relation(fields: [organization_id], references: [id])
+  invites_enviados           UserInvite[]            @relation("ConvidadoPor")
+  materials_criados          Material[]
+  standard_curves_criados    StandardCurve[]
+  analyses_como_analista     Analysis[]              @relation("Analista")
+  analyses_aprovadas         Analysis[]              @relation("AprovadoPor")
+  analyses_liberadas         Analysis[]              @relation("LiberadoPor")
+  analyses_criadas           Analysis[]              @relation("CriadoPor")
+  batches_operados           ProductionBatch[]       @relation("Operador")
+  batches_criados            ProductionBatch[]       @relation("BatchCriadoPor")
+  schedules_responsavel      RuptureSchedule[]
+  samples_registradas        RuptureSample[]
+  reports_emitidos           QualityReport[]
+  webhooks_criados           WebhookConfig[]
+  notifications              Notification[]
+  notification_preferences   NotificationPreferences?
+
+  @@map("profiles")
+}
+
+model UserInvite {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String    @db.Uuid
+  email           String
+  role            UserRole
+  token           String    @unique @default(dbgenerated("gen_random_uuid()::text"))
+  convidado_por   String?   @db.Uuid
+  aceito_em       DateTime? @db.Timestamptz
+  expira_em       DateTime  @db.Timestamptz
+  created_at      DateTime  @default(now()) @db.Timestamptz
+
+  // Relações
+  organization  Organization @relation(fields: [organization_id], references: [id])
+  convidante    Profile?     @relation("ConvidadoPor", fields: [convidado_por], references: [id])
+
+  @@map("user_invites")
+}
+
+// =============================================================================
+// PENEIRAS
+// =============================================================================
+
+/// Seed fixo: 10 peneiras na ordem correta para cálculo granulométrico.
+/// Aberturas: 12.7, 9.5, 6.3, 4.8, 2.4, 1.2, 0.6, 0.3, 0.15, 0 (FUNDO)
+model Sieve {
+  id          Int     @id @default(autoincrement())
+  abertura_mm Decimal @db.Decimal(6, 3)
+  nome        String  // "12,7 mm", "FUNDO"
+  ordem       Int     @unique
+  usa_no_mf   Boolean @default(true)
+  // Peneiras que entram no MF: 4.8, 2.4, 1.2, 0.6, 0.3, 0.15
+
+  // Relações
+  material_gradations        MaterialGradation[]
+  standard_curve_items       StandardCurveItem[]
+  analysis_gradation_results AnalysisGradationResult[]
+
+  @@map("sieves")
+}
+
+// =============================================================================
+// MATERIAIS
+// =============================================================================
+
+model Material {
+  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String       @db.Uuid
+  nome            String
+  tipo            MaterialTipo
+  fornecedor      String?
+  densidade       Decimal?     @db.Decimal(5, 3)
+  ativo           Boolean      @default(true)
+  observacoes     String?
+  created_by      String?      @db.Uuid
+  created_at      DateTime     @default(now()) @db.Timestamptz
+  updated_at      DateTime     @updatedAt @db.Timestamptz
+
+  // Relações
+  organization       Organization        @relation(fields: [organization_id], references: [id])
+  creator            Profile?            @relation(fields: [created_by], references: [id])
+  gradations         MaterialGradation[]
+  analysis_materials AnalysisMaterial[]
+
+  @@map("materials")
+}
+
+/// Curva granulométrica de cada material por peneira.
+/// % individual e acumulado são calculados pela Edge Function granulometry-calculate.
+model MaterialGradation {
+  id             String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  material_id    String  @db.Uuid
+  sieve_id       Int
+  massa_retida   Decimal @default(0) @db.Decimal(10, 4)
+  pct_individual Decimal? @db.Decimal(10, 8) // calculado
+  pct_acumulado  Decimal? @db.Decimal(10, 8) // calculado
+
+  // Relações
+  material Material @relation(fields: [material_id], references: [id], onDelete: Cascade)
+  sieve    Sieve    @relation(fields: [sieve_id], references: [id])
+
+  @@unique([material_id, sieve_id])
+  @@map("material_gradations")
+}
+
+// =============================================================================
+// DNA / CURVAS PADRÃO
+// =============================================================================
+
+/// DNA técnico de referência para cada tipo de produto.
+/// Pré-populados: Bloco Estrutural 4MPa (MF:3.483), Bloco Vedação 3MPa (MF:3.712),
+/// Paver H8 35MPa (MF:3.198), Bloco Estrutural Ótimo (MF:3.227)
+model StandardCurve {
+  id               String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id  String      @db.Uuid
+  nome             String
+  tipo_produto     TipoProduto
+  resistencia_alvo Decimal?    @db.Decimal(6, 2) // MPa alvo
+  modulo_finura    Decimal?    @db.Decimal(6, 4)
+  descricao        String?
+  ativo            Boolean     @default(true)
+  created_by       String?     @db.Uuid
+  created_at       DateTime    @default(now()) @db.Timestamptz
+
+  // Relações
+  organization Organization        @relation(fields: [organization_id], references: [id])
+  creator      Profile?            @relation(fields: [created_by], references: [id])
+  items        StandardCurveItem[]
+  analyses     Analysis[]
+
+  @@map("standard_curves")
+}
+
+/// Itens da curva padrão: % retido e limites por peneira.
+model StandardCurveItem {
+  id            String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  curve_id      String  @db.Uuid
+  sieve_id      Int
+  pct_retido    Decimal? @db.Decimal(10, 8)
+  pct_acumulado Decimal? @db.Decimal(10, 8)
+  limite_min    Decimal? @db.Decimal(10, 8)
+  limite_max    Decimal? @db.Decimal(10, 8)
+
+  // Relações
+  curve StandardCurve @relation(fields: [curve_id], references: [id], onDelete: Cascade)
+  sieve Sieve         @relation(fields: [sieve_id], references: [id])
+
+  @@unique([curve_id, sieve_id])
+  @@map("standard_curve_items")
+}
+
+// =============================================================================
+// ANÁLISES (WIZARD 5 ETAPAS)
+// =============================================================================
+
+/// Cabeçalho da análise técnica. Gerado no wizard de 5 etapas.
+/// Código auto-gerado: ANL-YYYY-###
+model Analysis {
+  id                   String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id      String         @db.Uuid
+  codigo               String
+  nome                 String
+  tipo                 TipoProduto
+  produto              String?
+  resistencia_prevista Decimal?       @db.Decimal(6, 2)
+  unidade              String?
+  analista_id          String?        @db.Uuid
+  standard_curve_id    String?        @db.Uuid
+  status               AnalysisStatus @default(rascunho)
+  wizard_step          Int            @default(1)
+  observacoes          String?
+  aprovado_por         String?        @db.Uuid
+  aprovado_em          DateTime?      @db.Timestamptz
+  liberado_por         String?        @db.Uuid
+  liberado_em          DateTime?      @db.Timestamptz
+  data_analise         DateTime       @default(now()) @db.Date
+  created_by           String?        @db.Uuid
+  created_at           DateTime       @default(now()) @db.Timestamptz
+  updated_at           DateTime       @updatedAt @db.Timestamptz
+
+  // Relações
+  organization        Organization              @relation(fields: [organization_id], references: [id])
+  analista            Profile?                  @relation("Analista", fields: [analista_id], references: [id])
+  aprovador           Profile?                  @relation("AprovadoPor", fields: [aprovado_por], references: [id])
+  liberador           Profile?                  @relation("LiberadoPor", fields: [liberado_por], references: [id])
+  creator             Profile?                  @relation("CriadoPor", fields: [created_by], references: [id])
+  standard_curve      StandardCurve?            @relation(fields: [standard_curve_id], references: [id])
+  materials           AnalysisMaterial[]
+  gradation_results   AnalysisGradationResult[]
+  dosage              AnalysisDosage?
+  production_batches  ProductionBatch[]
+  quality_reports     QualityReport[]
+
+  @@unique([organization_id, codigo])
+  @@map("analyses")
+}
+
+/// Materiais e proporções usados em uma análise.
+model AnalysisMaterial {
+  id            String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  analysis_id   String  @db.Uuid
+  material_id   String  @db.Uuid
+  proporcao_pct Decimal @db.Decimal(8, 6) // 0 a 1 — ex: 0.35 = 35%
+  massa_kg      Decimal? @db.Decimal(10, 3)
+  ordem         Int?
+
+  // Relações
+  analysis Analysis @relation(fields: [analysis_id], references: [id], onDelete: Cascade)
+  material Material @relation(fields: [material_id], references: [id])
+
+  @@map("analysis_materials")
+}
+
+/// Resultado granulométrico combinado por peneira, calculado pela Edge Function.
+model AnalysisGradationResult {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  analysis_id     String   @db.Uuid
+  sieve_id        Int
+  pct_combinado   Decimal? @db.Decimal(10, 8)
+  pct_acumulado   Decimal? @db.Decimal(10, 8)
+  target_pct      Decimal? @db.Decimal(10, 8)
+  limite_min      Decimal? @db.Decimal(10, 8)
+  limite_max      Decimal? @db.Decimal(10, 8)
+  desvio_absoluto Decimal? @db.Decimal(10, 8)
+  fora_da_faixa   Boolean  @default(false)
+
+  // Relações
+  analysis Analysis @relation(fields: [analysis_id], references: [id], onDelete: Cascade)
+  sieve    Sieve    @relation(fields: [sieve_id], references: [id])
+
+  @@unique([analysis_id, sieve_id])
+  @@map("analysis_gradation_results")
+}
+
+/// Dosagem calculada na Etapa 3 do wizard.
+model AnalysisDosage {
+  id                     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  analysis_id            String   @unique @db.Uuid
+  relacao_cimento        Decimal? @db.Decimal(8, 4)
+  relacao_ac             Decimal? @db.Decimal(6, 4) // relação água/cimento
+  volume_batelada_litros Decimal  @default(550) @db.Decimal(10, 3)
+  densidade_cimento      Decimal  @default(3.15) @db.Decimal(5, 3)
+  consumo_cimento_kg     Decimal? @db.Decimal(10, 3)
+  massa_total_kg         Decimal? @db.Decimal(10, 3)
+  agua_litros            Decimal? @db.Decimal(8, 3)
+  agregado_kg            Decimal? @db.Decimal(10, 3)
+  aditivos_ml            Decimal  @default(0) @db.Decimal(8, 2)
+  traco_final            String?  // ex: "1:5.2"
+  ordem_mistura          Json?    // ex: ["cimento","areia","agua","aditivo"]
+
+  // Relações
+  analysis Analysis @relation(fields: [analysis_id], references: [id], onDelete: Cascade)
+
+  @@map("analysis_dosage")
+}
+
+// =============================================================================
+// PRODUÇÃO
+// =============================================================================
+
+/// Lote de produção gerado a partir de uma análise aprovada.
+/// Código auto-gerado: LOTE-YYYY-###
+/// Ao ser criado, um DB Trigger cria automaticamente os 4 rupture_schedules.
+model ProductionBatch {
+  id               String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id  String      @db.Uuid
+  analysis_id      String      @db.Uuid
+  batch_code       String      @unique // LOTE-2026-001
+  operador_id      String?     @db.Uuid
+  operador_nome    String?     // desnormalizado para rastreabilidade histórica
+  maquina          String?
+  volume_produzido Decimal?    @db.Decimal(10, 3)
+  status           BatchStatus @default(aguardando_rompimentos)
+  notas            String?
+  produced_at      DateTime    @default(now()) @db.Timestamptz
+  created_by       String?     @db.Uuid
+  created_at       DateTime    @default(now()) @db.Timestamptz
+
+  // Relações
+  organization      Organization      @relation(fields: [organization_id], references: [id])
+  analysis          Analysis          @relation(fields: [analysis_id], references: [id])
+  operador          Profile?          @relation("Operador", fields: [operador_id], references: [id])
+  creator           Profile?          @relation("BatchCriadoPor", fields: [created_by], references: [id])
+  rupture_schedules RuptureSchedule[]
+  quality_reports   QualityReport[]
+
+  @@map("production_batches")
+}
+
+// =============================================================================
+// ROMPIMENTOS
+// =============================================================================
+
+/// Cronograma de rompimentos por lote. 
+/// Criado automaticamente pelo DB Trigger on_batch_created:
+/// 4 registros por lote — idades: 1, 3, 7 e 28 dias.
+model RuptureSchedule {
+  id               String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  batch_id         String         @db.Uuid
+  idade_dias       Int            // 1 | 3 | 7 | 28
+  data_prevista    DateTime       @db.Date
+  data_executada   DateTime?      @db.Date
+  status           ScheduleStatus @default(pendente)
+  responsavel_id   String?        @db.Uuid
+  responsavel_nome String?        // desnormalizado
+  created_at       DateTime       @default(now()) @db.Timestamptz
+
+  // Relações
+  batch        ProductionBatch @relation(fields: [batch_id], references: [id], onDelete: Cascade)
+  responsavel  Profile?        @relation(fields: [responsavel_id], references: [id])
+  rupture_tests RuptureTest[]
+
+  @@map("rupture_schedules")
+}
+
+/// Ensaio de rompimento por tipo de amostra (Bloco, Paver, CP).
+/// Até 3 ensaios por schedule (um por tipo).
+model RuptureTest {
+  id            String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  schedule_id   String     @db.Uuid
+  tipo_amostra  String     // bloco | paver | cp
+  meta_mpa      Decimal?   @db.Decimal(6, 2) // buscada de technical_settings
+  media_mpa     Decimal?   @db.Decimal(8, 4) // calculado
+  min_mpa       Decimal?   @db.Decimal(8, 4) // calculado
+  max_mpa       Decimal?   @db.Decimal(8, 4) // calculado
+  desvio_padrao Decimal?   @db.Decimal(8, 4) // calculado
+  status        TestStatus @default(pendente)
+  notas         String?
+
+  // Relações
+  schedule RuptureSchedule @relation(fields: [schedule_id], references: [id], onDelete: Cascade)
+  samples  RuptureSample[]
+
+  @@map("rupture_tests")
+}
+
+/// Amostras individuais de cada ensaio (3 por ensaio).
+/// Tensão calculada pela Edge Function: forca / 0.0546 / 98.0665
+model RuptureSample {
+  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  test_id        String        @db.Uuid
+  numero         Int           // 1 | 2 | 3
+  forca_kn       Decimal?      @db.Decimal(10, 3)
+  tensao_mpa     Decimal?      @db.Decimal(8, 4) // calculado
+  status         SampleStatus?
+  registrado_por String?       @db.Uuid
+  registrado_em  DateTime      @default(now()) @db.Timestamptz
+
+  // Relações
+  test        RuptureTest @relation(fields: [test_id], references: [id], onDelete: Cascade)
+  registrador Profile?    @relation(fields: [registrado_por], references: [id])
+
+  @@map("rupture_samples")
+}
+
+// =============================================================================
+// RELATÓRIOS
+// =============================================================================
+
+/// Relatório final consolidado do processo (emitido após os 28 dias).
+/// PDF gerado pela Edge Function pdf-generate e salvo no Supabase Storage.
+model QualityReport {
+  id              String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String             @db.Uuid
+  batch_id        String             @db.Uuid
+  analysis_id     String             @db.Uuid
+  final_status    ReportFinalStatus?
+  conclusion      String?
+  recommendations String?
+  pdf_url         String?            // URL Supabase Storage
+  assinatura_lab  String?
+  assinatura_prod String?
+  assinatura_resp String?
+  emitido_por     String?            @db.Uuid
+  emitido_em      DateTime           @default(now()) @db.Timestamptz
+
+  // Relações
+  organization Organization    @relation(fields: [organization_id], references: [id])
+  batch        ProductionBatch @relation(fields: [batch_id], references: [id])
+  analysis     Analysis        @relation(fields: [analysis_id], references: [id])
+  emissor      Profile?        @relation(fields: [emitido_por], references: [id])
+
+  @@map("quality_reports")
+}
+
+// =============================================================================
+// WEBHOOKS
+// =============================================================================
+
+/// Configuração de um webhook para um evento específico.
+/// Secret gerado automaticamente: encode(gen_random_bytes(32), 'hex')
+/// Assinatura HMAC-SHA256 enviada no header X-Granulometria-Signature.
+model WebhookConfig {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String        @db.Uuid
+  nome            String
+  url             String        // HTTPS obrigatório
+  evento          WebhookEvento
+  secret          String        @default(dbgenerated("encode(gen_random_bytes(32), 'hex')"))
+  ativo           Boolean       @default(true)
+  headers         Json          @default("{}")
+  retry_count     Int           @default(3) // 1 a 5
+  timeout_seconds Int           @default(30) // 10 a 60
+  created_by      String?       @db.Uuid
+  created_at      DateTime      @default(now()) @db.Timestamptz
+
+  // Relações
+  organization Organization  @relation(fields: [organization_id], references: [id])
+  creator      Profile?      @relation(fields: [created_by], references: [id])
+  logs         WebhookLog[]
+
+  @@map("webhook_configs")
+}
+
+/// Log de cada disparo de webhook (sucesso ou falha).
+model WebhookLog {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  webhook_id      String    @db.Uuid
+  evento          String
+  payload         Json?
+  response_status Int?
+  response_body   String?
+  tentativas      Int       @default(1)
+  sucesso         Boolean?
+  disparado_em    DateTime  @default(now()) @db.Timestamptz
+
+  // Relações
+  webhook WebhookConfig @relation(fields: [webhook_id], references: [id])
+
+  @@map("webhook_logs")
+}
+
+// =============================================================================
+// NOTIFICAÇÕES
+// =============================================================================
+
+/// Notificações in-app. Atualizadas em tempo real via Supabase Realtime.
+model Notification {
+  id              String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String          @db.Uuid
+  user_id         String          @db.Uuid
+  tipo            NotificacaoTipo
+  titulo          String
+  mensagem        String
+  link            String?         // rota interna: ex "/ruptures/uuid"
+  lida            Boolean         @default(false)
+  dados           Json            @default("{}")
+  created_at      DateTime        @default(now()) @db.Timestamptz
+
+  // Relações
+  organization Organization @relation(fields: [organization_id], references: [id])
+  user         Profile      @relation(fields: [user_id], references: [id])
+
+  @@map("notifications")
+}
+
+/// Preferências de notificação por usuário (por tipo e canal).
+model NotificationPreferences {
+  id                    String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id               String  @unique @db.Uuid
+  rupture_due_email     Boolean @default(true)
+  rupture_due_push      Boolean @default(true)
+  rupture_overdue_email Boolean @default(true)
+  rupture_overdue_push  Boolean @default(true)
+  trace_approved_email  Boolean @default(true)
+  batch_rejected_email  Boolean @default(true)
+  report_ready_email    Boolean @default(true)
+  report_ready_push     Boolean @default(true)
+  antecedencia_horas    Int     @default(24) // 2 | 4 | 8 | 24
+
+  // Relações
+  user Profile @relation(fields: [user_id], references: [id])
+
+  @@map("notification_preferences")
+}
+
+// =============================================================================
+// CONFIGURAÇÕES TÉCNICAS
+// =============================================================================
+
+/// Parâmetros técnicos e de cálculo por organização.
+/// Um registro por organização (1-to-1 com Organization).
+model TechnicalSettings {
+  id                       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id          String   @unique @db.Uuid
+
+  // Parâmetros de cálculo
+  volume_batelada_padrao   Decimal  @default(550) @db.Decimal(10, 3)
+  densidade_cimento_padrao Decimal  @default(3.15) @db.Decimal(5, 3)
+  formula_tensao_a         Decimal  @default(0.0546) @db.Decimal(10, 6)
+  // Tensão = Força ÷ formula_tensao_a ÷ formula_tensao_b
+  formula_tensao_b         Decimal  @default(98.0665) @db.Decimal(10, 4)
+
+  // Metas de rompimento — Bloco Estrutural (MPa)
+  bloco_meta_1d            Decimal  @default(2.8) @db.Decimal(6, 2)
+  bloco_meta_3d            Decimal  @default(3.5) @db.Decimal(6, 2)
+  bloco_meta_7d            Decimal  @default(4.0) @db.Decimal(6, 2)
+  bloco_meta_28d           Decimal  @default(4.0) @db.Decimal(6, 2)
+
+  // Metas de rompimento — Paver (MPa)
+  paver_meta_1d            Decimal  @default(22.0) @db.Decimal(6, 2)
+  paver_meta_3d            Decimal  @default(28.0) @db.Decimal(6, 2)
+  paver_meta_7d            Decimal  @default(35.0) @db.Decimal(6, 2)
+  paver_meta_28d           Decimal  @default(35.0) @db.Decimal(6, 2)
+
+  // Identidade visual e rodapé dos PDFs
+  logo_url                 String?
+  rodape_endereco          String?
+  rodape_cnpj              String?
+  rodape_responsavel       String?
+
+  updated_at               DateTime @updatedAt @db.Timestamptz
+
+  // Relações
+  organization Organization @relation(fields: [organization_id], references: [id])
+
+  @@map("technical_settings")
+}
