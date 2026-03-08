@@ -17,9 +17,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Plus, Search, Eye, Pencil, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { TIPOS_ANALISE } from "@/lib/analysis-data";
 import { useAppStore } from "@/store/useAppStore";
 import { toast } from "sonner";
@@ -36,16 +46,25 @@ const AnalysesPage = () => {
   const navigate = useNavigate();
   const { analyses: storedAnalyses, deleteAnalysis } = useAppStore();
   const [deletedMockCodes, setDeletedMockCodes] = useState<string[]>([]);
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean; codigo: string; nome: string; isFromStore: boolean }>({
+    open: false,
+    codigo: "",
+    nome: "",
+    isFromStore: false,
+  });
 
-  const handleDelete = (codigo: string, isFromStore: boolean) => {
-    if (window.confirm("Tem certeza que deseja excluir esta análise?")) {
-      if (isFromStore) {
-        deleteAnalysis(codigo);
-      } else {
-        setDeletedMockCodes((prev) => [...prev, codigo]);
-      }
-      toast.success("Análise excluída com sucesso!");
+  const openDeleteModal = (codigo: string, nome: string, isFromStore: boolean) => {
+    setDeleteModal({ open: true, codigo, nome, isFromStore });
+  };
+
+  const handleConfirmDelete = () => {
+    if (deleteModal.isFromStore) {
+      deleteAnalysis(deleteModal.codigo);
+    } else {
+      setDeletedMockCodes((prev) => [...prev, deleteModal.codigo]);
     }
+    toast.success("Análise excluída com sucesso!");
+    setDeleteModal({ open: false, codigo: "", nome: "", isFromStore: false });
   };
 
   const [search, setSearch] = useState("");
@@ -171,7 +190,7 @@ const AnalysesPage = () => {
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/analyses/${a.codigo}`)} title="Visualizar">
                           <Eye className="h-4 w-4 text-muted-foreground hover:text-foreground" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); handleDelete(a.codigo, a.fromStore); }} title="Excluir">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openDeleteModal(a.codigo, a.nome, a.fromStore); }} title="Excluir">
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
@@ -189,6 +208,29 @@ const AnalysesPage = () => {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Modal de Confirmação de Exclusão */}
+      <AlertDialog open={deleteModal.open} onOpenChange={(open) => setDeleteModal((prev) => ({ ...prev, open }))}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-destructive" />
+              Excluir Análise
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir a análise <strong>{deleteModal.codigo}</strong> — {deleteModal.nome}?
+              <br />
+              <span className="text-destructive">Esta ação não pode ser desfeita.</span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
