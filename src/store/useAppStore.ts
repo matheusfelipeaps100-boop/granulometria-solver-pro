@@ -72,9 +72,9 @@ function generateId(): string {
   return crypto.randomUUID();
 }
 
-function createRuptureSchedules(batchId: string, producedAt: string): RuptureSchedule[] {
+function createRuptureSchedules(batchId: string, producedAt: string, ruptureDays: number[]): RuptureSchedule[] {
   const baseDate = new Date(producedAt);
-  return [1, 3, 7, 28].map((dias) => {
+  return ruptureDays.map((dias) => {
     const dataPrevista = new Date(baseDate);
     dataPrevista.setDate(dataPrevista.getDate() + dias);
     return {
