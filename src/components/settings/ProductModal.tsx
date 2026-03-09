@@ -102,7 +102,7 @@ export function ProductModal({ open, onOpenChange, editId }: ProductModalProps) 
           </div>
 
           <div className="space-y-2">
-            <Label>Tipo de Produto *</Label>
+            <Label>Tipo de Análise *</Label>
             <Select
               value={form.tipo_produto}
               onValueChange={(v) =>
