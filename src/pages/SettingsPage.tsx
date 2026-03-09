@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { ProductsTab } from "@/components/settings/ProductsTab";
 import { ProductTypesTab } from "@/components/settings/ProductTypesTab";
+import { RuptureDaysTab } from "@/components/settings/RuptureDaysTab";
 
 const SettingsPage = () => {
   return (

@@ -224,7 +224,7 @@ export const useAppStore = create<AppState>()(persist((set, get) => ({
       status: "aguardando_rompimentos",
       notas: data.notas,
       produced_at: data.produced_at,
-      rupture_schedules: createRuptureSchedules(batchId, data.produced_at),
+      rupture_schedules: createRuptureSchedules(batchId, data.produced_at, get().ruptureDays),
     };
     set((state) => ({ batches: [...state.batches, batch] }));
     return batch;
