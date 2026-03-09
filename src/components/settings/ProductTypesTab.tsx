@@ -16,14 +16,14 @@ import {
 import { toast } from "sonner";
 
 export function ProductTypesTab() {
-  const { productTypes, products, deleteProductType } = useAppStore();
+  const { analysisTypes, products, deleteAnalysisType } = useAppStore();
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const filtered = productTypes.filter(
-    (pt) => pt.label.toLowerCase().includes(search.toLowerCase())
+  const filtered = analysisTypes.filter(
+    (at) => at.label.toLowerCase().includes(search.toLowerCase())
   );
 
   const countProducts = (value: string) =>
@@ -41,15 +41,15 @@ export function ProductTypesTab() {
 
   const handleDelete = () => {
     if (deleteId) {
-      const pt = productTypes.find((t) => t.id === deleteId);
-      const count = pt ? countProducts(pt.value) : 0;
+      const at = analysisTypes.find((t) => t.id === deleteId);
+      const count = at ? countProducts(at.value) : 0;
       if (count > 0) {
         toast.error(`Não é possível remover. Existem ${count} produto(s) vinculado(s).`);
         setDeleteId(null);
         return;
       }
-      deleteProductType(deleteId);
-      toast.success("Tipo de produto removido");
+      deleteAnalysisType(deleteId);
+      toast.success("Tipo de análise removido");
       setDeleteId(null);
     }
   };
