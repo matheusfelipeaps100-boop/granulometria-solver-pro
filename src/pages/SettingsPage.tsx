@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ProductsTab } from "@/components/settings/ProductsTab";
 import { ProductTypesTab } from "@/components/settings/ProductTypesTab";
 import { RuptureDaysTab } from "@/components/settings/RuptureDaysTab";
+import { WebhooksTab } from "@/components/settings/WebhooksTab";
 
 const SettingsPage = () => {
   return (
@@ -106,14 +107,7 @@ const SettingsPage = () => {
         </TabsContent>
 
         <TabsContent value="webhooks">
-          <Card className="shadow-sm mt-4">
-            <CardHeader>
-              <CardTitle className="text-base">Webhooks</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">Configuração de webhooks para integrações externas.</p>
-            </CardContent>
-          </Card>
+          <WebhooksTab />
         </TabsContent>
 
         <TabsContent value="ruptures">

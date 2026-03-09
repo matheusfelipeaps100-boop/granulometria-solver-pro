@@ -99,6 +99,29 @@ const SEED_MATERIALS: Omit<Material, "id" | "created_at">[] = [
   { nome: "Brita 00 Duro", tipo: "brita", fornecedor: "Duro", mf: "7,068", ativo: true },
 ];
 
+// Webhook types based on schema.prisma
+export type WebhookEvento = 
+  | "trace_approved"
+  | "trace_released"
+  | "batch_created"
+  | "rupture_scheduled"
+  | "rupture_completed"
+  | "sample_nonconformity"
+  | "report_generated"
+  | "batch_rejected";
+
+export interface WebhookConfig {
+  id: string;
+  nome: string;
+  url: string;
+  evento: WebhookEvento;
+  secret: string;
+  ativo: boolean;
+  retry_count: number;
+  timeout_seconds: number;
+  created_at: string;
+}
+
 interface AppState {
   analyses: StoredAnalysis[];
   batches: ProductionBatch[];
@@ -107,9 +130,15 @@ interface AppState {
   analysisTypes: AnalysisType[];
   materials: Material[];
   ruptureDays: number[];
+  webhooks: WebhookConfig[];
 
   // Rupture days actions
   setRuptureDays: (days: number[]) => void;
+
+  // Webhook actions
+  addWebhook: (data: Omit<WebhookConfig, "id" | "secret" | "created_at">) => void;
+  updateWebhook: (id: string, data: Partial<Omit<WebhookConfig, "id" | "secret" | "created_at">>) => void;
+  deleteWebhook: (id: string) => void;
 
   // Analysis actions
   addAnalysis: (formData: AnalysisFormData) => void;
@@ -145,6 +174,12 @@ interface AppState {
   getBatchByAnalysisId: (analysisId: string) => ProductionBatch | undefined;
 }
 
+function generateWebhookSecret(): string {
+  const array = new Uint8Array(32);
+  crypto.getRandomValues(array);
+  return Array.from(array, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 export const useAppStore = create<AppState>()(persist((set, get) => ({
   analyses: [],
   batches: [],
@@ -153,6 +188,7 @@ export const useAppStore = create<AppState>()(persist((set, get) => ({
   analysisTypes: TIPOS_ANALISE.map((t, i) => ({ id: `at-${i}`, label: t.label, value: t.value, ativo: true })),
   materials: SEED_MATERIALS.map((m, i) => ({ ...m, id: `mat-${i}`, created_at: new Date().toISOString() })),
   ruptureDays: [1, 3, 7, 28],
+  webhooks: [],
 
   setRuptureDays: (days) => set({ ruptureDays: [...days].sort((a, b) => a - b) }),
 
@@ -355,6 +391,31 @@ export const useAppStore = create<AppState>()(persist((set, get) => ({
   deleteMaterial: (id) => {
     set((state) => ({
       materials: state.materials.filter((m) => m.id !== id),
+    }));
+  },
+
+  // ── Webhook Actions ──
+  addWebhook: (data) => {
+    const webhook: WebhookConfig = {
+      ...data,
+      id: generateId(),
+      secret: generateWebhookSecret(),
+      created_at: new Date().toISOString(),
+    };
+    set((state) => ({ webhooks: [...state.webhooks, webhook] }));
+  },
+
+  updateWebhook: (id, data) => {
+    set((state) => ({
+      webhooks: state.webhooks.map((w) =>
+        w.id === id ? { ...w, ...data } : w
+      ),
+    }));
+  },
+
+  deleteWebhook: (id) => {
+    set((state) => ({
+      webhooks: state.webhooks.filter((w) => w.id !== id),
     }));
   },
 
