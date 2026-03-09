@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAppStore } from "@/store/useAppStore";
-import { TIPOS_ANALISE, type Product } from "@/lib/analysis-data";
+import { type Product } from "@/lib/analysis-data";
 import { toast } from "sonner";
 
 interface ProductModalProps {

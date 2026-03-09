@@ -13,7 +13,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Plus, Pencil, Trash2, Search, Package } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
-import { TIPOS_ANALISE } from "@/lib/analysis-data";
 import { ProductModal } from "./ProductModal";
 import {
   AlertDialog,
