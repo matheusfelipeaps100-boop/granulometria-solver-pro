@@ -116,6 +116,18 @@ export const useAppStore = create<AppState>()(persist((set, get) => ({
     set((state) => ({ analyses: [...state.analyses, analysis] }));
   },
 
+  saveStandardTrace: (nome, data) => {
+    const standardTrace = {
+      id: generateId(),
+      nome,
+      tipo_produto: data.tipo_analise,
+      resistencia_alvo: data.resistencia_prevista,
+      created_at: new Date().toISOString(),
+      data,
+    };
+    set((state) => ({ standardTraces: [...state.standardTraces, standardTrace] }));
+  },
+
   approveAnalysis: (codigo) => {
     set((state) => ({
       analyses: state.analyses.map((a) =>
