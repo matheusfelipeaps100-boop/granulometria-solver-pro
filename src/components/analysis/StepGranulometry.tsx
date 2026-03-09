@@ -272,59 +272,8 @@ export function StepGranulometry({ data, onChange }: StepGranulometryProps) {
         </Card>
       </div>
 
-      {/* Chart */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Curva Granulométrica Combinada</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis dataKey="label" fontSize={10} />
-              <YAxis domain={[0, 100]} fontSize={10} unit="%" />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: "8px",
-                  fontSize: 12,
-                }}
-              />
-              <Line
-                type="monotone"
-                dataKey="acumulado"
-                stroke="hsl(var(--primary))"
-                strokeWidth={2.5}
-                dot={{ r: 4 }}
-                name="Curva Combinada"
-              />
-              {limits && (
-                <>
-                  <Line
-                    type="monotone"
-                    dataKey="limiteMin"
-                    stroke="hsl(var(--warning))"
-                    strokeWidth={1.5}
-                    strokeDasharray="6 3"
-                    dot={false}
-                    name="Limite Inferior"
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="limiteMax"
-                    stroke="hsl(var(--warning))"
-                    strokeWidth={1.5}
-                    strokeDasharray="6 3"
-                    dot={false}
-                    name="Limite Superior"
-                  />
-                </>
-              )}
-            </LineChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+      {/* Chart — 3 layers */}
+      <GranulometryChart curveResults={curveResults} hasLimits={!!limits} />
 
       {/* Proportion sliders */}
       <Card>
