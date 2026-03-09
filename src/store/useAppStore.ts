@@ -73,6 +73,8 @@ interface AppState {
   analyses: StoredAnalysis[];
   batches: ProductionBatch[];
 
+  standardTraces: { id: string; nome: string; tipo_produto: string; resistencia_alvo: number; created_at: string; data: AnalysisFormData }[];
+  
   // Analysis actions
   addAnalysis: (formData: AnalysisFormData) => void;
   approveAnalysis: (codigo: string) => void;
