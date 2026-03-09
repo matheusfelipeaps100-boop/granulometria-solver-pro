@@ -123,7 +123,14 @@ export function WebhooksTab() {
     }
 
     if (editingId) {
-      updateWebhook(editingId, formData);
+      updateWebhook(editingId, {
+        nome: formData.nome,
+        url: formData.url,
+        evento: formData.evento as WebhookEvento,
+        retry_count: formData.retry_count,
+        timeout_seconds: formData.timeout_seconds,
+        ativo: formData.ativo,
+      });
       toast.success("Webhook atualizado com sucesso.");
     } else {
       addWebhook({
