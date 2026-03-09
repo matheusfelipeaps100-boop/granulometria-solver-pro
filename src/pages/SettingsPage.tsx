@@ -107,14 +107,7 @@ const SettingsPage = () => {
         </TabsContent>
 
         <TabsContent value="webhooks">
-          <Card className="shadow-sm mt-4">
-            <CardHeader>
-              <CardTitle className="text-base">Webhooks</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">Configuração de webhooks para integrações externas.</p>
-            </CardContent>
-          </Card>
+          <WebhooksTab />
         </TabsContent>
 
         <TabsContent value="ruptures">

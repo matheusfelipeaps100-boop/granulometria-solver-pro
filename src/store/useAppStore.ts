@@ -394,6 +394,31 @@ export const useAppStore = create<AppState>()(persist((set, get) => ({
     }));
   },
 
+  // ── Webhook Actions ──
+  addWebhook: (data) => {
+    const webhook: WebhookConfig = {
+      ...data,
+      id: generateId(),
+      secret: generateWebhookSecret(),
+      created_at: new Date().toISOString(),
+    };
+    set((state) => ({ webhooks: [...state.webhooks, webhook] }));
+  },
+
+  updateWebhook: (id, data) => {
+    set((state) => ({
+      webhooks: state.webhooks.map((w) =>
+        w.id === id ? { ...w, ...data } : w
+      ),
+    }));
+  },
+
+  deleteWebhook: (id) => {
+    set((state) => ({
+      webhooks: state.webhooks.filter((w) => w.id !== id),
+    }));
+  },
+
   // ── Helpers ──
   getAnalysesByStatus: (status) => get().analyses.filter((a) => a.status === status),
   getReleasedAnalyses: () => get().analyses.filter((a) => a.status === "liberado_producao"),
