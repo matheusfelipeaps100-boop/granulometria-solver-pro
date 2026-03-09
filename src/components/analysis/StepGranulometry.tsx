@@ -18,16 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  ReferenceLine,
-} from "recharts";
+import { GranulometryChart } from "./GranulometryChart";
 import { cn } from "@/lib/utils";
 import {
   calcCombinedCurve,
@@ -83,18 +74,6 @@ export function StepGranulometry({ data, onChange }: StepGranulometryProps) {
       return sum + (mfPerMaterial[i].mf * m.proporcao_pct) / totalProp;
     }, 0);
   }, [materials, mfPerMaterial]);
-
-  // Chart data
-  const chartData = useMemo(() => {
-    return curveResults.map((r) => ({
-      abertura: r.abertura_mm,
-      label: PENEIRAS_PADRAO.find((p) => p.sieve_id === r.sieve_id)?.label ?? "",
-      acumulado: Math.round(r.pct_acumulado * 10000) / 100,
-      limiteMin: r.limite_min ? Math.round(r.limite_min * 10000) / 100 : undefined,
-      limiteMax: r.limite_max ? Math.round(r.limite_max * 10000) / 100 : undefined,
-      fora: r.fora_da_faixa,
-    }));
-  }, [curveResults]);
 
   const handleMassChange = useCallback(
     (materialIndex: number, sieveId: number, value: number) => {
@@ -281,59 +260,8 @@ export function StepGranulometry({ data, onChange }: StepGranulometryProps) {
         </Card>
       </div>
 
-      {/* Chart */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Curva Granulométrica Combinada</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis dataKey="label" fontSize={10} />
-              <YAxis domain={[0, 100]} fontSize={10} unit="%" />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: "8px",
-                  fontSize: 12,
-                }}
-              />
-              <Line
-                type="monotone"
-                dataKey="acumulado"
-                stroke="hsl(var(--primary))"
-                strokeWidth={2.5}
-                dot={{ r: 4 }}
-                name="Curva Combinada"
-              />
-              {limits && (
-                <>
-                  <Line
-                    type="monotone"
-                    dataKey="limiteMin"
-                    stroke="hsl(var(--warning))"
-                    strokeWidth={1.5}
-                    strokeDasharray="6 3"
-                    dot={false}
-                    name="Limite Inferior"
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="limiteMax"
-                    stroke="hsl(var(--warning))"
-                    strokeWidth={1.5}
-                    strokeDasharray="6 3"
-                    dot={false}
-                    name="Limite Superior"
-                  />
-                </>
-              )}
-            </LineChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+      {/* Chart — 3 layers */}
+      <GranulometryChart curveResults={curveResults} hasLimits={!!limits} />
 
       {/* Proportion sliders */}
       <Card>
