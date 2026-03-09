@@ -75,18 +75,6 @@ export function StepGranulometry({ data, onChange }: StepGranulometryProps) {
     }, 0);
   }, [materials, mfPerMaterial]);
 
-  // Chart data
-  const chartData = useMemo(() => {
-    return curveResults.map((r) => ({
-      abertura: r.abertura_mm,
-      label: PENEIRAS_PADRAO.find((p) => p.sieve_id === r.sieve_id)?.label ?? "",
-      acumulado: Math.round(r.pct_acumulado * 10000) / 100,
-      limiteMin: r.limite_min ? Math.round(r.limite_min * 10000) / 100 : undefined,
-      limiteMax: r.limite_max ? Math.round(r.limite_max * 10000) / 100 : undefined,
-      fora: r.fora_da_faixa,
-    }));
-  }, [curveResults]);
-
   const handleMassChange = useCallback(
     (materialIndex: number, sieveId: number, value: number) => {
       const updated = materials.map((m, i) => {
