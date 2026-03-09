@@ -87,12 +87,25 @@ function createRuptureSchedules(batchId: string, producedAt: string): RuptureSch
   });
 }
 
+const SEED_MATERIALS: Omit<Material, "id" | "created_at">[] = [
+  { nome: "Areia de Cava BMW", tipo: "areia_fina", fornecedor: "BMW", mf: "2,699", ativo: true },
+  { nome: "Pó de Pedra Britasul", tipo: "po_pedra", fornecedor: "Britasul", mf: "2,721", ativo: true },
+  { nome: "Brita Britasul", tipo: "brita", fornecedor: "Britasul", mf: "6,559", ativo: true },
+  { nome: "Areia de Rio Rafael", tipo: "areia_grossa", fornecedor: "Rafael", mf: "2,905", ativo: true },
+  { nome: "Pó de Pedra 1 Rafael", tipo: "po_pedra", fornecedor: "Rafael", mf: "3,178", ativo: true },
+  { nome: "Granilha 01 Duro", tipo: "granilha", fornecedor: "Duro", mf: "4,723", ativo: true },
+  { nome: "Granilha 02 Duro", tipo: "granilha", fornecedor: "Duro", mf: "5,017", ativo: true },
+  { nome: "Pó de Pedra Fino Duro", tipo: "po_pedra", fornecedor: "Duro", mf: "1,840", ativo: true },
+  { nome: "Brita 00 Duro", tipo: "brita", fornecedor: "Duro", mf: "7,068", ativo: true },
+];
+
 interface AppState {
   analyses: StoredAnalysis[];
   batches: ProductionBatch[];
   standardTraces: { id: string; nome: string; tipo_produto: string; resistencia_alvo: number; created_at: string; data: AnalysisFormData }[];
   products: Product[];
   analysisTypes: AnalysisType[];
+  materials: Material[];
 
   // Analysis actions
   addAnalysis: (formData: AnalysisFormData) => void;
@@ -116,6 +129,11 @@ interface AppState {
   addAnalysisType: (data: Omit<AnalysisType, "id">) => void;
   updateAnalysisType: (id: string, data: Partial<Omit<AnalysisType, "id">>) => void;
   deleteAnalysisType: (id: string) => void;
+
+  // Material actions
+  addMaterial: (data: Omit<Material, "id" | "created_at">) => void;
+  updateMaterial: (id: string, data: Partial<Omit<Material, "id" | "created_at">>) => void;
+  deleteMaterial: (id: string) => void;
 
   // Helpers
   getAnalysesByStatus: (status: AnalysisStatus) => StoredAnalysis[];
