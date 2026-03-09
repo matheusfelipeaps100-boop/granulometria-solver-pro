@@ -15,6 +15,21 @@ const mockTraces = [
 ];
 
 const StandardTracesPage = () => {
+  const standardTraces = useAppStore((s) => s.standardTraces);
+  
+  // Combine mock traces with saved traces
+  const allTraces = [
+    ...mockTraces,
+    ...standardTraces.map(t => ({
+      nome: t.nome,
+      tipo: t.tipo_produto,
+      resistencia: `${t.resistencia_alvo} MPa`,
+      mf: "—", // MF can be calculated later
+      ativo: true,
+      isSaved: true,
+    }))
+  ];
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
