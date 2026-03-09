@@ -9,7 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { TIPOS_ANALISE, ANALISTAS, type AnalysisFormData } from "@/lib/analysis-data";
+import { ANALISTAS, type AnalysisFormData } from "@/lib/analysis-data";
 import { useAppStore } from "@/store/useAppStore";
 import { useMemo } from "react";
 
