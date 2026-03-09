@@ -1,7 +1,14 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { AnalysisFormData, Product } from "@/lib/analysis-data";
-import { PRODUTOS_DISPONIVEIS } from "@/lib/analysis-data";
+import { PRODUTOS_DISPONIVEIS, TIPOS_ANALISE } from "@/lib/analysis-data";
+
+export interface ProductType {
+  id: string;
+  label: string;
+  value: string;
+  ativo: boolean;
+}
 
 // Enums from schema.prisma
 export type AnalysisStatus = "rascunho" | "em_analise" | "aprovado" | "liberado_producao" | "arquivado";
@@ -75,6 +82,7 @@ interface AppState {
   batches: ProductionBatch[];
   standardTraces: { id: string; nome: string; tipo_produto: string; resistencia_alvo: number; created_at: string; data: AnalysisFormData }[];
   products: Product[];
+  productTypes: ProductType[];
 
   // Analysis actions
   addAnalysis: (formData: AnalysisFormData) => void;
@@ -94,6 +102,11 @@ interface AppState {
   updateProduct: (id: string, data: Partial<Omit<Product, "id" | "created_at">>) => void;
   deleteProduct: (id: string) => void;
 
+  // Product Type actions
+  addProductType: (data: Omit<ProductType, "id">) => void;
+  updateProductType: (id: string, data: Partial<Omit<ProductType, "id">>) => void;
+  deleteProductType: (id: string) => void;
+
   // Helpers
   getAnalysesByStatus: (status: AnalysisStatus) => StoredAnalysis[];
   getReleasedAnalyses: () => StoredAnalysis[];
@@ -105,6 +118,7 @@ export const useAppStore = create<AppState>()(persist((set, get) => ({
   batches: [],
   standardTraces: [],
   products: [...PRODUTOS_DISPONIVEIS],
+  productTypes: TIPOS_ANALISE.map((t, i) => ({ id: `pt-${i}`, label: t.label, value: t.value, ativo: true })),
 
   // ── Analysis Actions ──
   addAnalysis: (formData) => {
@@ -261,6 +275,26 @@ export const useAppStore = create<AppState>()(persist((set, get) => ({
   deleteProduct: (id) => {
     set((state) => ({
       products: state.products.filter((p) => p.id !== id),
+    }));
+  },
+
+  // ── Product Type Actions ──
+  addProductType: (data) => {
+    const pt: ProductType = { ...data, id: generateId() };
+    set((state) => ({ productTypes: [...state.productTypes, pt] }));
+  },
+
+  updateProductType: (id, data) => {
+    set((state) => ({
+      productTypes: state.productTypes.map((pt) =>
+        pt.id === id ? { ...pt, ...data } : pt
+      ),
+    }));
+  },
+
+  deleteProductType: (id) => {
+    set((state) => ({
+      productTypes: state.productTypes.filter((pt) => pt.id !== id),
     }));
   },
 
