@@ -99,6 +99,29 @@ const SEED_MATERIALS: Omit<Material, "id" | "created_at">[] = [
   { nome: "Brita 00 Duro", tipo: "brita", fornecedor: "Duro", mf: "7,068", ativo: true },
 ];
 
+// Webhook types based on schema.prisma
+export type WebhookEvento = 
+  | "trace_approved"
+  | "trace_released"
+  | "batch_created"
+  | "rupture_scheduled"
+  | "rupture_completed"
+  | "sample_nonconformity"
+  | "report_generated"
+  | "batch_rejected";
+
+export interface WebhookConfig {
+  id: string;
+  nome: string;
+  url: string;
+  evento: WebhookEvento;
+  secret: string;
+  ativo: boolean;
+  retry_count: number;
+  timeout_seconds: number;
+  created_at: string;
+}
+
 interface AppState {
   analyses: StoredAnalysis[];
   batches: ProductionBatch[];
@@ -107,9 +130,15 @@ interface AppState {
   analysisTypes: AnalysisType[];
   materials: Material[];
   ruptureDays: number[];
+  webhooks: WebhookConfig[];
 
   // Rupture days actions
   setRuptureDays: (days: number[]) => void;
+
+  // Webhook actions
+  addWebhook: (data: Omit<WebhookConfig, "id" | "secret" | "created_at">) => void;
+  updateWebhook: (id: string, data: Partial<Omit<WebhookConfig, "id" | "secret" | "created_at">>) => void;
+  deleteWebhook: (id: string) => void;
 
   // Analysis actions
   addAnalysis: (formData: AnalysisFormData) => void;
