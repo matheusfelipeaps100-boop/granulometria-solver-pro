@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { AnalysisFormData } from "@/lib/analysis-data";
+import type { AnalysisFormData, Product } from "@/lib/analysis-data";
+import { PRODUTOS_DISPONIVEIS } from "@/lib/analysis-data";
 
 // Enums from schema.prisma
 export type AnalysisStatus = "rascunho" | "em_analise" | "aprovado" | "liberado_producao" | "arquivado";
@@ -72,9 +73,9 @@ function createRuptureSchedules(batchId: string, producedAt: string): RuptureSch
 interface AppState {
   analyses: StoredAnalysis[];
   batches: ProductionBatch[];
-
   standardTraces: { id: string; nome: string; tipo_produto: string; resistencia_alvo: number; created_at: string; data: AnalysisFormData }[];
-  
+  products: Product[];
+
   // Analysis actions
   addAnalysis: (formData: AnalysisFormData) => void;
   saveStandardTrace: (nome: string, data: AnalysisFormData) => void;
@@ -88,6 +89,11 @@ interface AppState {
   // Rupture actions
   completeRuptureSchedule: (scheduleId: string, dataExecutada: string) => void;
 
+  // Product actions
+  addProduct: (data: Omit<Product, "id" | "created_at">) => void;
+  updateProduct: (id: string, data: Partial<Omit<Product, "id" | "created_at">>) => void;
+  deleteProduct: (id: string) => void;
+
   // Helpers
   getAnalysesByStatus: (status: AnalysisStatus) => StoredAnalysis[];
   getReleasedAnalyses: () => StoredAnalysis[];
@@ -97,9 +103,10 @@ interface AppState {
 export const useAppStore = create<AppState>()(persist((set, get) => ({
   analyses: [],
   batches: [],
-
   standardTraces: [],
+  products: [...PRODUTOS_DISPONIVEIS],
 
+  // ── Analysis Actions ──
   addAnalysis: (formData) => {
     const analysis: StoredAnalysis = {
       id: generateId(),
@@ -154,6 +161,7 @@ export const useAppStore = create<AppState>()(persist((set, get) => ({
     }));
   },
 
+  // ── Production Actions ──
   registerBatch: (analysisId, data) => {
     const batchId = generateId();
     const batch: ProductionBatch = {
@@ -174,11 +182,9 @@ export const useAppStore = create<AppState>()(persist((set, get) => ({
 
   completeRuptureSchedule: (scheduleId, dataExecutada) => {
     set((state) => {
-      // Find the batch that contains this schedule
-      const batchToUpdate = state.batches.find(b => 
+      const batchToUpdate = state.batches.find(b =>
         b.rupture_schedules.some(s => s.id === scheduleId)
       );
-
       if (!batchToUpdate) return state;
 
       const updatedSchedules = batchToUpdate.rupture_schedules.map((s) =>
@@ -187,10 +193,9 @@ export const useAppStore = create<AppState>()(persist((set, get) => ({
           : s
       );
 
-      // Check if this is the first completed test, update batch status to em_andamento
       const hasCompletedTests = updatedSchedules.some(s => s.status === "concluido");
       const allCompleted = updatedSchedules.every(s => s.status === "concluido");
-      
+
       let newBatchStatus = batchToUpdate.status;
       if (allCompleted) {
         newBatchStatus = "aprovado";
@@ -198,8 +203,6 @@ export const useAppStore = create<AppState>()(persist((set, get) => ({
         newBatchStatus = "em_andamento";
       }
 
-      // AUTO-CREATE STANDARD TRACE when batch is approved (all ruptures completed)
-      // Conforme PRD: criação automática de traço padrão ao aprovar nos rompimentos
       if (allCompleted && newBatchStatus === "aprovado") {
         const analysis = state.analyses.find(a => a.id === batchToUpdate.analysis_id);
         if (analysis) {
@@ -228,7 +231,7 @@ export const useAppStore = create<AppState>()(persist((set, get) => ({
       }
 
       return {
-        batches: state.batches.map((batch) => 
+        batches: state.batches.map((batch) =>
           batch.id === batchToUpdate.id
             ? { ...batch, status: newBatchStatus, rupture_schedules: updatedSchedules }
             : batch
@@ -237,6 +240,31 @@ export const useAppStore = create<AppState>()(persist((set, get) => ({
     });
   },
 
+  // ── Product Actions ──
+  addProduct: (data) => {
+    const product: Product = {
+      ...data,
+      id: generateId(),
+      created_at: new Date().toISOString(),
+    };
+    set((state) => ({ products: [...state.products, product] }));
+  },
+
+  updateProduct: (id, data) => {
+    set((state) => ({
+      products: state.products.map((p) =>
+        p.id === id ? { ...p, ...data } : p
+      ),
+    }));
+  },
+
+  deleteProduct: (id) => {
+    set((state) => ({
+      products: state.products.filter((p) => p.id !== id),
+    }));
+  },
+
+  // ── Helpers ──
   getAnalysesByStatus: (status) => get().analyses.filter((a) => a.status === status),
   getReleasedAnalyses: () => get().analyses.filter((a) => a.status === "liberado_producao"),
   getBatchByAnalysisId: (analysisId) => get().batches.find((b) => b.analysis_id === analysisId),

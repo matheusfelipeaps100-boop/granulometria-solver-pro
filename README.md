@@ -51,6 +51,16 @@
 - [x] **Etapa 5 — Resultado** — Banner aprovado, gráfico final, tabela batelada, resumo técnico, botões (PDF, Liberar, Salvar DNA)
 - [x] **Lista de Análises** — Filtros por tipo, status e busca por texto
 
+### ✅ Fase 3 — Sistema de Produtos Dinâmico
+
+- [x] **Interface Product** — ID, nome, tipo, dimensões, resistência referência
+- [x] **Catalog Mock Data** — 8 produtos pré-cadastrados por tipo (bloco estrutural, vedação, paver, cp)
+- [x] **Store CRUD** — addProduct, updateProduct, deleteProduct no Zustand
+- [x] **Settings Integration** — Aba "Produtos" com tabela, filtro e modal CRUD
+- [x] **Wizard Update** — Select dinâmico filtrado por tipo_analise com auto-fill resistência
+- [x] **Field Migration** — produto (string) → produto_id + produto_nome
+- [x] **Compatibilidade** — PDF e Review compatíveis com nova estrutura
+
 ---
 
 ## Estrutura de Arquivos
@@ -63,11 +73,14 @@ src/
 │   └── utils.ts                  # Utilitários CN
 ├── components/
 │   ├── analysis/
-│   │   ├── StepIdentification.tsx
+│   │   ├── StepIdentification.tsx    # Select dinâmico de produtos
 │   │   ├── StepGranulometry.tsx
 │   │   ├── StepDosage.tsx
-│   │   ├── StepReview.tsx
+│   │   ├── StepReview.tsx            # Usa produto_nome
 │   │   └── StepResult.tsx
+│   ├── settings/
+│   │   ├── ProductsTab.tsx           # Aba produtos com CRUD
+│   │   └── ProductModal.tsx          # Modal criar/editar produto
 │   ├── WizardStepper.tsx
 │   ├── StatusBadge.tsx
 │   ├── AppLayout.tsx
@@ -83,13 +96,24 @@ src/
 │   ├── ProductionPage.tsx
 │   ├── RupturesPage.tsx
 │   ├── ReportsPage.tsx
-│   └── SettingsPage.tsx
+│   └── SettingsPage.tsx              # Aba Produtos como primeira aba
+└── store/
+    └── useAppStore.ts                # Products CRUD actions
 └── App.tsx                       # Rotas
 ```
 
 ---
 
 ## Roadmap
+
+### ✅ Implementado
+
+- [x] **Catálogo de Produtos Dinâmico** — CRUD completo integrado no Settings
+- [x] **Select de Produtos** — Filtro dinâmico por tipo de análise
+- [x] **Auto-fill Resistência** — Pré-carrega baseado no produto selecionado
+- [x] **Migração Dados** — produto (string) → produto_id + produto_nome
+- [x] **Compatibilidade** — PDF e Review adaptados
+- [x] **8 Produtos Mock** — Pré-cadastrados (bloco estrutural, vedação, paver, cp)
 
 ### Próximas Etapas
 

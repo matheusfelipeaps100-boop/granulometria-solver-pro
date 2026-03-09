@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { ProductsTab } from "@/components/settings/ProductsTab";
 
 const SettingsPage = () => {
   return (
@@ -12,14 +13,19 @@ const SettingsPage = () => {
         <p className="text-sm text-muted-foreground">Configurações técnicas da organização</p>
       </div>
 
-      <Tabs defaultValue="identity">
+      <Tabs defaultValue="products">
         <TabsList>
+          <TabsTrigger value="products">Produtos</TabsTrigger>
           <TabsTrigger value="identity">Identidade</TabsTrigger>
           <TabsTrigger value="params">Parâmetros</TabsTrigger>
           <TabsTrigger value="goals">Metas</TabsTrigger>
           <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
           <TabsTrigger value="sieves">Peneiras</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="products">
+          <ProductsTab />
+        </TabsContent>
 
         <TabsContent value="identity">
           <Card className="shadow-sm mt-4">

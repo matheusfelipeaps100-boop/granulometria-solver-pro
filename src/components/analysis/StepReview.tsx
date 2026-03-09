@@ -89,7 +89,7 @@ export function StepReview({ data, onApprove }: StepReviewProps) {
             <Row label="Código" value={data.codigo} />
             <Row label="Nome" value={data.nome} />
             <Row label="Tipo" value={tipoLabel} />
-            <Row label="Produto" value={data.produto || "—"} />
+            <Row label="Produto" value={data.produto_nome || "—"} />
             <Row label="Analista" value={analistaLabel} />
             <Row label="Data" value={data.data} />
             <Row label="Resistência" value={`${data.resistencia_prevista} MPa`} />
