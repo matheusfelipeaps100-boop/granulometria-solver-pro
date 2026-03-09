@@ -59,9 +59,9 @@ export function ProductTypesTab() {
       <Card className="shadow-sm mt-4">
         <CardHeader className="flex flex-row items-center justify-between pb-4">
           <div>
-            <CardTitle className="text-base">Tipos de Produto</CardTitle>
+            <CardTitle className="text-base">Tipos de Análise</CardTitle>
             <p className="text-sm text-muted-foreground mt-1">
-              Gerencie os tipos de produto disponíveis no sistema
+              Gerencie os tipos de análise disponíveis para vincular aos produtos
             </p>
           </div>
           <Button onClick={handleNew} size="sm" className="gap-2">
