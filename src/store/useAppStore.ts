@@ -152,6 +152,9 @@ export const useAppStore = create<AppState>()(persist((set, get) => ({
   products: [...PRODUTOS_DISPONIVEIS],
   analysisTypes: TIPOS_ANALISE.map((t, i) => ({ id: `at-${i}`, label: t.label, value: t.value, ativo: true })),
   materials: SEED_MATERIALS.map((m, i) => ({ ...m, id: `mat-${i}`, created_at: new Date().toISOString() })),
+  ruptureDays: [1, 3, 7, 28],
+
+  setRuptureDays: (days) => set({ ruptureDays: [...days].sort((a, b) => a - b) }),
 
   // ── Analysis Actions ──
   addAnalysis: (formData) => {
