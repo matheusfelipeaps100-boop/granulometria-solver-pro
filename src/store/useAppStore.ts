@@ -82,7 +82,7 @@ interface AppState {
   batches: ProductionBatch[];
   standardTraces: { id: string; nome: string; tipo_produto: string; resistencia_alvo: number; created_at: string; data: AnalysisFormData }[];
   products: Product[];
-  productTypes: ProductType[];
+  analysisTypes: AnalysisType[];
 
   // Analysis actions
   addAnalysis: (formData: AnalysisFormData) => void;
@@ -102,10 +102,10 @@ interface AppState {
   updateProduct: (id: string, data: Partial<Omit<Product, "id" | "created_at">>) => void;
   deleteProduct: (id: string) => void;
 
-  // Product Type actions
-  addProductType: (data: Omit<ProductType, "id">) => void;
-  updateProductType: (id: string, data: Partial<Omit<ProductType, "id">>) => void;
-  deleteProductType: (id: string) => void;
+  // Analysis Type actions
+  addAnalysisType: (data: Omit<AnalysisType, "id">) => void;
+  updateAnalysisType: (id: string, data: Partial<Omit<AnalysisType, "id">>) => void;
+  deleteAnalysisType: (id: string) => void;
 
   // Helpers
   getAnalysesByStatus: (status: AnalysisStatus) => StoredAnalysis[];
