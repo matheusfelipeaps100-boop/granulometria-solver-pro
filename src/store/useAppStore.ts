@@ -174,6 +174,12 @@ interface AppState {
   getBatchByAnalysisId: (analysisId: string) => ProductionBatch | undefined;
 }
 
+function generateWebhookSecret(): string {
+  const array = new Uint8Array(32);
+  crypto.getRandomValues(array);
+  return Array.from(array, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 export const useAppStore = create<AppState>()(persist((set, get) => ({
   analyses: [],
   batches: [],
@@ -182,6 +188,7 @@ export const useAppStore = create<AppState>()(persist((set, get) => ({
   analysisTypes: TIPOS_ANALISE.map((t, i) => ({ id: `at-${i}`, label: t.label, value: t.value, ativo: true })),
   materials: SEED_MATERIALS.map((m, i) => ({ ...m, id: `mat-${i}`, created_at: new Date().toISOString() })),
   ruptureDays: [1, 3, 7, 28],
+  webhooks: [],
 
   setRuptureDays: (days) => set({ ruptureDays: [...days].sort((a, b) => a - b) }),
 
