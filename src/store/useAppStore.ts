@@ -3,7 +3,7 @@ import { persist } from "zustand/middleware";
 import type { AnalysisFormData, Product } from "@/lib/analysis-data";
 import { PRODUTOS_DISPONIVEIS, TIPOS_ANALISE } from "@/lib/analysis-data";
 
-export interface ProductType {
+export interface AnalysisType {
   id: string;
   label: string;
   value: string;
