@@ -77,6 +77,7 @@ interface AppState {
   
   // Analysis actions
   addAnalysis: (formData: AnalysisFormData) => void;
+  saveStandardTrace: (nome: string, data: AnalysisFormData) => void;
   approveAnalysis: (codigo: string) => void;
   deleteAnalysis: (codigo: string) => void;
   releaseForProduction: (codigo: string) => void;
