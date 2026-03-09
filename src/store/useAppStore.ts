@@ -106,6 +106,10 @@ interface AppState {
   products: Product[];
   analysisTypes: AnalysisType[];
   materials: Material[];
+  ruptureDays: number[];
+
+  // Rupture days actions
+  setRuptureDays: (days: number[]) => void;
 
   // Analysis actions
   addAnalysis: (formData: AnalysisFormData) => void;
