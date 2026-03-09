@@ -102,6 +102,11 @@ interface AppState {
   updateProduct: (id: string, data: Partial<Omit<Product, "id" | "created_at">>) => void;
   deleteProduct: (id: string) => void;
 
+  // Product Type actions
+  addProductType: (data: Omit<ProductType, "id">) => void;
+  updateProductType: (id: string, data: Partial<Omit<ProductType, "id">>) => void;
+  deleteProductType: (id: string) => void;
+
   // Helpers
   getAnalysesByStatus: (status: AnalysisStatus) => StoredAnalysis[];
   getReleasedAnalyses: () => StoredAnalysis[];
