@@ -4,6 +4,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Plus, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { useAppStore } from "@/store/useAppStore";
+import { TIPOS_ANALISE } from "@/lib/analysis-data";
 
 const mockTraces = [
   { nome: "DNA Bloco Estrutural 14x19x39 4MPa", tipo: "bloco_estrutural", resistencia: "4,0 MPa", mf: "3,483", ativo: true },
