@@ -18,16 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  ReferenceLine,
-} from "recharts";
+import { GranulometryChart } from "./GranulometryChart";
 import { cn } from "@/lib/utils";
 import {
   calcCombinedCurve,
