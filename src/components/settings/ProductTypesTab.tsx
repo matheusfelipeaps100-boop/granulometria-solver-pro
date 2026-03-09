@@ -144,7 +144,7 @@ export function ProductTypesTab() {
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remover tipo de produto?</AlertDialogTitle>
+            <AlertDialogTitle>Remover tipo de análise?</AlertDialogTitle>
             <AlertDialogDescription>
               Essa ação não pode ser desfeita. O tipo será removido do sistema.
             </AlertDialogDescription>

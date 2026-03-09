@@ -98,7 +98,7 @@ const SettingsPage = () => {
               <CardTitle className="text-base">Metas de Rompimento</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground">Configuração de metas por tipo de produto e idade.</p>
+              <p className="text-sm text-muted-foreground">Configuração de metas por tipo de análise e idade.</p>
             </CardContent>
           </Card>
         </TabsContent>
