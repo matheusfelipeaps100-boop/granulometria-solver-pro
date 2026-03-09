@@ -198,6 +198,35 @@ export const useAppStore = create<AppState>()(persist((set, get) => ({
         newBatchStatus = "em_andamento";
       }
 
+      // AUTO-CREATE STANDARD TRACE when batch is approved (all ruptures completed)
+      // Conforme PRD: criação automática de traço padrão ao aprovar nos rompimentos
+      if (allCompleted && newBatchStatus === "aprovado") {
+        const analysis = state.analyses.find(a => a.id === batchToUpdate.analysis_id);
+        if (analysis) {
+          const alreadyExists = state.standardTraces.some(
+            t => t.nome === `Traço Aprovado — ${analysis.codigo}`
+          );
+          if (!alreadyExists) {
+            const autoTrace = {
+              id: generateId(),
+              nome: `Traço Aprovado — ${analysis.codigo}`,
+              tipo_produto: analysis.tipo_analise,
+              resistencia_alvo: analysis.resistencia_prevista,
+              created_at: new Date().toISOString(),
+              data: analysis.formData,
+            };
+            return {
+              batches: state.batches.map((batch) =>
+                batch.id === batchToUpdate.id
+                  ? { ...batch, status: newBatchStatus, rupture_schedules: updatedSchedules }
+                  : batch
+              ),
+              standardTraces: [...state.standardTraces, autoTrace],
+            };
+          }
+        }
+      }
+
       return {
         batches: state.batches.map((batch) => 
           batch.id === batchToUpdate.id
