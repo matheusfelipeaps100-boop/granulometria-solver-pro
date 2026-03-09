@@ -51,11 +51,13 @@ export function StepIdentification({ data, onChange }: StepIdentificationProps) 
                   <SelectValue placeholder="Selecione o tipo" />
                 </SelectTrigger>
                 <SelectContent>
-                  {TIPOS_ANALISE.map((t) => (
-                    <SelectItem key={t.value} value={t.value}>
-                      {t.label}
-                    </SelectItem>
-                  ))}
+                  {analysisTypes
+                    .filter((t) => t.ativo)
+                    .map((t) => (
+                      <SelectItem key={t.value} value={t.value}>
+                        {t.label}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
