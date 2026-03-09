@@ -3,6 +3,16 @@ import { persist } from "zustand/middleware";
 import type { AnalysisFormData, Product } from "@/lib/analysis-data";
 import { PRODUTOS_DISPONIVEIS, TIPOS_ANALISE } from "@/lib/analysis-data";
 
+export interface Material {
+  id: string;
+  nome: string;
+  tipo: string;
+  fornecedor: string;
+  mf: string;
+  ativo: boolean;
+  created_at: string;
+}
+
 export interface AnalysisType {
   id: string;
   label: string;
@@ -77,12 +87,25 @@ function createRuptureSchedules(batchId: string, producedAt: string): RuptureSch
   });
 }
 
+const SEED_MATERIALS: Omit<Material, "id" | "created_at">[] = [
+  { nome: "Areia de Cava BMW", tipo: "areia_fina", fornecedor: "BMW", mf: "2,699", ativo: true },
+  { nome: "Pó de Pedra Britasul", tipo: "po_pedra", fornecedor: "Britasul", mf: "2,721", ativo: true },
+  { nome: "Brita Britasul", tipo: "brita", fornecedor: "Britasul", mf: "6,559", ativo: true },
+  { nome: "Areia de Rio Rafael", tipo: "areia_grossa", fornecedor: "Rafael", mf: "2,905", ativo: true },
+  { nome: "Pó de Pedra 1 Rafael", tipo: "po_pedra", fornecedor: "Rafael", mf: "3,178", ativo: true },
+  { nome: "Granilha 01 Duro", tipo: "granilha", fornecedor: "Duro", mf: "4,723", ativo: true },
+  { nome: "Granilha 02 Duro", tipo: "granilha", fornecedor: "Duro", mf: "5,017", ativo: true },
+  { nome: "Pó de Pedra Fino Duro", tipo: "po_pedra", fornecedor: "Duro", mf: "1,840", ativo: true },
+  { nome: "Brita 00 Duro", tipo: "brita", fornecedor: "Duro", mf: "7,068", ativo: true },
+];
+
 interface AppState {
   analyses: StoredAnalysis[];
   batches: ProductionBatch[];
   standardTraces: { id: string; nome: string; tipo_produto: string; resistencia_alvo: number; created_at: string; data: AnalysisFormData }[];
   products: Product[];
   analysisTypes: AnalysisType[];
+  materials: Material[];
 
   // Analysis actions
   addAnalysis: (formData: AnalysisFormData) => void;
@@ -107,6 +130,11 @@ interface AppState {
   updateAnalysisType: (id: string, data: Partial<Omit<AnalysisType, "id">>) => void;
   deleteAnalysisType: (id: string) => void;
 
+  // Material actions
+  addMaterial: (data: Omit<Material, "id" | "created_at">) => void;
+  updateMaterial: (id: string, data: Partial<Omit<Material, "id" | "created_at">>) => void;
+  deleteMaterial: (id: string) => void;
+
   // Helpers
   getAnalysesByStatus: (status: AnalysisStatus) => StoredAnalysis[];
   getReleasedAnalyses: () => StoredAnalysis[];
@@ -119,6 +147,7 @@ export const useAppStore = create<AppState>()(persist((set, get) => ({
   standardTraces: [],
   products: [...PRODUTOS_DISPONIVEIS],
   analysisTypes: TIPOS_ANALISE.map((t, i) => ({ id: `at-${i}`, label: t.label, value: t.value, ativo: true })),
+  materials: SEED_MATERIALS.map((m, i) => ({ ...m, id: `mat-${i}`, created_at: new Date().toISOString() })),
 
   // ── Analysis Actions ──
   addAnalysis: (formData) => {
@@ -295,6 +324,30 @@ export const useAppStore = create<AppState>()(persist((set, get) => ({
   deleteAnalysisType: (id) => {
     set((state) => ({
       analysisTypes: state.analysisTypes.filter((at) => at.id !== id),
+    }));
+  },
+
+  // ── Material Actions ──
+  addMaterial: (data) => {
+    const material: Material = {
+      ...data,
+      id: generateId(),
+      created_at: new Date().toISOString(),
+    };
+    set((state) => ({ materials: [...state.materials, material] }));
+  },
+
+  updateMaterial: (id, data) => {
+    set((state) => ({
+      materials: state.materials.map((m) =>
+        m.id === id ? { ...m, ...data } : m
+      ),
+    }));
+  },
+
+  deleteMaterial: (id) => {
+    set((state) => ({
+      materials: state.materials.filter((m) => m.id !== id),
     }));
   },
 
