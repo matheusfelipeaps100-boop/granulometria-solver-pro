@@ -62,9 +62,14 @@ const StandardTracesPage = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {mockTraces.map((t) => (
-                <TableRow key={t.nome} className="cursor-pointer hover:bg-muted/50">
-                  <TableCell className="font-medium">{t.nome}</TableCell>
+              {allTraces.map((t, index) => (
+                <TableRow key={`${t.nome}-${index}`} className="cursor-pointer hover:bg-muted/50">
+                  <TableCell className="font-medium">
+                    {t.nome}
+                    {'isSaved' in t && t.isSaved && (
+                      <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Novo</span>
+                    )}
+                  </TableCell>
                   <TableCell className="capitalize">{t.tipo.replace("_", " ")}</TableCell>
                   <TableCell className="font-mono">{t.resistencia}</TableCell>
                   <TableCell className="font-mono">{t.mf}</TableCell>
