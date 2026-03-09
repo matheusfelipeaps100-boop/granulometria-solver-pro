@@ -9,7 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { TIPOS_ANALISE, ANALISTAS, type AnalysisFormData } from "@/lib/analysis-data";
+import { ANALISTAS, type AnalysisFormData } from "@/lib/analysis-data";
 import { useAppStore } from "@/store/useAppStore";
 import { useMemo } from "react";
 
@@ -19,7 +19,7 @@ interface StepIdentificationProps {
 }
 
 export function StepIdentification({ data, onChange }: StepIdentificationProps) {
-  const { products } = useAppStore();
+  const { products, analysisTypes } = useAppStore();
 
   const filteredProducts = useMemo(() => {
     if (!data.tipo_analise) return [];
@@ -51,11 +51,13 @@ export function StepIdentification({ data, onChange }: StepIdentificationProps) 
                   <SelectValue placeholder="Selecione o tipo" />
                 </SelectTrigger>
                 <SelectContent>
-                  {TIPOS_ANALISE.map((t) => (
-                    <SelectItem key={t.value} value={t.value}>
-                      {t.label}
-                    </SelectItem>
-                  ))}
+                  {analysisTypes
+                    .filter((t) => t.ativo)
+                    .map((t) => (
+                      <SelectItem key={t.value} value={t.value}>
+                        {t.label}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>

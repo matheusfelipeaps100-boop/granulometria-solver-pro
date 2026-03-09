@@ -17,7 +17,7 @@ const SettingsPage = () => {
       <Tabs defaultValue="products">
         <TabsList>
           <TabsTrigger value="products">Produtos</TabsTrigger>
-          <TabsTrigger value="productTypes">Tipos de Produto</TabsTrigger>
+          <TabsTrigger value="productTypes">Tipos de Análise</TabsTrigger>
           <TabsTrigger value="identity">Identidade</TabsTrigger>
           <TabsTrigger value="params">Parâmetros</TabsTrigger>
           <TabsTrigger value="goals">Metas</TabsTrigger>
@@ -98,7 +98,7 @@ const SettingsPage = () => {
               <CardTitle className="text-base">Metas de Rompimento</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground">Configuração de metas por tipo de produto e idade.</p>
+              <p className="text-sm text-muted-foreground">Configuração de metas por tipo de análise e idade.</p>
             </CardContent>
           </Card>
         </TabsContent>

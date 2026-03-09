@@ -3,7 +3,7 @@ import { persist } from "zustand/middleware";
 import type { AnalysisFormData, Product } from "@/lib/analysis-data";
 import { PRODUTOS_DISPONIVEIS, TIPOS_ANALISE } from "@/lib/analysis-data";
 
-export interface ProductType {
+export interface AnalysisType {
   id: string;
   label: string;
   value: string;
@@ -82,7 +82,7 @@ interface AppState {
   batches: ProductionBatch[];
   standardTraces: { id: string; nome: string; tipo_produto: string; resistencia_alvo: number; created_at: string; data: AnalysisFormData }[];
   products: Product[];
-  productTypes: ProductType[];
+  analysisTypes: AnalysisType[];
 
   // Analysis actions
   addAnalysis: (formData: AnalysisFormData) => void;
@@ -102,10 +102,10 @@ interface AppState {
   updateProduct: (id: string, data: Partial<Omit<Product, "id" | "created_at">>) => void;
   deleteProduct: (id: string) => void;
 
-  // Product Type actions
-  addProductType: (data: Omit<ProductType, "id">) => void;
-  updateProductType: (id: string, data: Partial<Omit<ProductType, "id">>) => void;
-  deleteProductType: (id: string) => void;
+  // Analysis Type actions
+  addAnalysisType: (data: Omit<AnalysisType, "id">) => void;
+  updateAnalysisType: (id: string, data: Partial<Omit<AnalysisType, "id">>) => void;
+  deleteAnalysisType: (id: string) => void;
 
   // Helpers
   getAnalysesByStatus: (status: AnalysisStatus) => StoredAnalysis[];
@@ -118,7 +118,7 @@ export const useAppStore = create<AppState>()(persist((set, get) => ({
   batches: [],
   standardTraces: [],
   products: [...PRODUTOS_DISPONIVEIS],
-  productTypes: TIPOS_ANALISE.map((t, i) => ({ id: `pt-${i}`, label: t.label, value: t.value, ativo: true })),
+  analysisTypes: TIPOS_ANALISE.map((t, i) => ({ id: `at-${i}`, label: t.label, value: t.value, ativo: true })),
 
   // ── Analysis Actions ──
   addAnalysis: (formData) => {
@@ -278,23 +278,23 @@ export const useAppStore = create<AppState>()(persist((set, get) => ({
     }));
   },
 
-  // ── Product Type Actions ──
-  addProductType: (data) => {
-    const pt: ProductType = { ...data, id: generateId() };
-    set((state) => ({ productTypes: [...state.productTypes, pt] }));
+  // ── Analysis Type Actions ──
+  addAnalysisType: (data) => {
+    const at: AnalysisType = { ...data, id: generateId() };
+    set((state) => ({ analysisTypes: [...state.analysisTypes, at] }));
   },
 
-  updateProductType: (id, data) => {
+  updateAnalysisType: (id, data) => {
     set((state) => ({
-      productTypes: state.productTypes.map((pt) =>
-        pt.id === id ? { ...pt, ...data } : pt
+      analysisTypes: state.analysisTypes.map((at) =>
+        at.id === id ? { ...at, ...data } : at
       ),
     }));
   },
 
-  deleteProductType: (id) => {
+  deleteAnalysisType: (id) => {
     set((state) => ({
-      productTypes: state.productTypes.filter((pt) => pt.id !== id),
+      analysisTypes: state.analysisTypes.filter((at) => at.id !== id),
     }));
   },
 

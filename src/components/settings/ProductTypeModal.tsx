@@ -25,7 +25,7 @@ function toSlug(text: string): string {
 }
 
 export function ProductTypeModal({ open, onOpenChange, editId }: Props) {
-  const { productTypes, addProductType, updateProductType } = useAppStore();
+  const { analysisTypes, addAnalysisType, updateAnalysisType } = useAppStore();
   const [label, setLabel] = useState("");
   const [value, setValue] = useState("");
   const [ativo, setAtivo] = useState(true);
@@ -33,18 +33,18 @@ export function ProductTypeModal({ open, onOpenChange, editId }: Props) {
 
   useEffect(() => {
     if (open && editId) {
-      const pt = productTypes.find((t) => t.id === editId);
-      if (pt) {
-        setLabel(pt.label);
-        setValue(pt.value);
-        setAtivo(pt.ativo);
+      const at = analysisTypes.find((t) => t.id === editId);
+      if (at) {
+        setLabel(at.label);
+        setValue(at.value);
+        setAtivo(at.ativo);
       }
     } else if (open) {
       setLabel("");
       setValue("");
       setAtivo(true);
     }
-  }, [open, editId, productTypes]);
+  }, [open, editId, analysisTypes]);
 
   const handleLabelChange = (v: string) => {
     setLabel(v);
@@ -57,8 +57,8 @@ export function ProductTypeModal({ open, onOpenChange, editId }: Props) {
       return;
     }
 
-    const duplicate = productTypes.find(
-      (pt) => pt.value === value && pt.id !== editId
+    const duplicate = analysisTypes.find(
+      (at) => at.value === value && at.id !== editId
     );
     if (duplicate) {
       toast.error("Já existe um tipo com esse identificador");
@@ -66,10 +66,10 @@ export function ProductTypeModal({ open, onOpenChange, editId }: Props) {
     }
 
     if (isEdit) {
-      updateProductType(editId, { label, value, ativo });
+      updateAnalysisType(editId, { label, value, ativo });
       toast.success("Tipo atualizado");
     } else {
-      addProductType({ label, value, ativo });
+      addAnalysisType({ label, value, ativo });
       toast.success("Tipo criado");
     }
     onOpenChange(false);
@@ -79,7 +79,7 @@ export function ProductTypeModal({ open, onOpenChange, editId }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Editar Tipo" : "Novo Tipo de Produto"}</DialogTitle>
+          <DialogTitle>{isEdit ? "Editar Tipo de Análise" : "Novo Tipo de Análise"}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="space-y-2">
@@ -95,7 +95,7 @@ export function ProductTypeModal({ open, onOpenChange, editId }: Props) {
               className="font-mono text-sm"
               disabled={isEdit}
             />
-            <p className="text-xs text-muted-foreground">Usado internamente. Não pode ser alterado após criação.</p>
+            <p className="text-xs text-muted-foreground">Usado internamente para vincular produtos e análises.</p>
           </div>
           <div className="flex items-center justify-between">
             <Label>Ativo</Label>

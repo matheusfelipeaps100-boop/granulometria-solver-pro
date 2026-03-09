@@ -16,14 +16,14 @@ import {
 import { toast } from "sonner";
 
 export function ProductTypesTab() {
-  const { productTypes, products, deleteProductType } = useAppStore();
+  const { analysisTypes, products, deleteAnalysisType } = useAppStore();
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const filtered = productTypes.filter(
-    (pt) => pt.label.toLowerCase().includes(search.toLowerCase())
+  const filtered = analysisTypes.filter(
+    (at) => at.label.toLowerCase().includes(search.toLowerCase())
   );
 
   const countProducts = (value: string) =>
@@ -41,15 +41,15 @@ export function ProductTypesTab() {
 
   const handleDelete = () => {
     if (deleteId) {
-      const pt = productTypes.find((t) => t.id === deleteId);
-      const count = pt ? countProducts(pt.value) : 0;
+      const at = analysisTypes.find((t) => t.id === deleteId);
+      const count = at ? countProducts(at.value) : 0;
       if (count > 0) {
         toast.error(`Não é possível remover. Existem ${count} produto(s) vinculado(s).`);
         setDeleteId(null);
         return;
       }
-      deleteProductType(deleteId);
-      toast.success("Tipo de produto removido");
+      deleteAnalysisType(deleteId);
+      toast.success("Tipo de análise removido");
       setDeleteId(null);
     }
   };
@@ -59,14 +59,14 @@ export function ProductTypesTab() {
       <Card className="shadow-sm mt-4">
         <CardHeader className="flex flex-row items-center justify-between pb-4">
           <div>
-            <CardTitle className="text-base">Tipos de Produto</CardTitle>
+            <CardTitle className="text-base">Tipos de Análise</CardTitle>
             <p className="text-sm text-muted-foreground mt-1">
-              Gerencie os tipos de produto disponíveis no sistema
+              Gerencie os tipos de análise disponíveis para vincular aos produtos
             </p>
           </div>
           <Button onClick={handleNew} size="sm" className="gap-2">
             <Plus className="h-4 w-4" />
-            Novo Tipo
+            Novo Tipo de Análise
           </Button>
         </CardHeader>
         <CardContent>
@@ -83,8 +83,8 @@ export function ProductTypesTab() {
           {filtered.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <Layers className="h-12 w-12 mx-auto mb-3 opacity-40" />
-              <p className="font-medium">Nenhum tipo cadastrado</p>
-              <p className="text-sm">Clique em "Novo Tipo" para começar</p>
+              <p className="font-medium">Nenhum tipo de análise cadastrado</p>
+              <p className="text-sm">Clique em "Novo Tipo de Análise" para começar</p>
             </div>
           ) : (
             <div className="rounded-md border">
@@ -144,7 +144,7 @@ export function ProductTypesTab() {
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remover tipo de produto?</AlertDialogTitle>
+            <AlertDialogTitle>Remover tipo de análise?</AlertDialogTitle>
             <AlertDialogDescription>
               Essa ação não pode ser desfeita. O tipo será removido do sistema.
             </AlertDialogDescription>

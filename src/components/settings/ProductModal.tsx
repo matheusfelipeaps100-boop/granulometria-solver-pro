@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAppStore } from "@/store/useAppStore";
-import { TIPOS_ANALISE, type Product } from "@/lib/analysis-data";
+import { type Product } from "@/lib/analysis-data";
 import { toast } from "sonner";
 
 interface ProductModalProps {
@@ -36,7 +36,7 @@ const emptyForm = {
 };
 
 export function ProductModal({ open, onOpenChange, editId }: ProductModalProps) {
-  const { products, addProduct, updateProduct } = useAppStore();
+  const { products, analysisTypes, addProduct, updateProduct } = useAppStore();
   const [form, setForm] = useState(emptyForm);
 
   useEffect(() => {
@@ -102,7 +102,7 @@ export function ProductModal({ open, onOpenChange, editId }: ProductModalProps) 
           </div>
 
           <div className="space-y-2">
-            <Label>Tipo de Produto *</Label>
+            <Label>Tipo de Análise *</Label>
             <Select
               value={form.tipo_produto}
               onValueChange={(v) =>
@@ -113,11 +113,13 @@ export function ProductModal({ open, onOpenChange, editId }: ProductModalProps) 
                 <SelectValue placeholder="Selecione o tipo" />
               </SelectTrigger>
               <SelectContent>
-                {TIPOS_ANALISE.map((t) => (
-                  <SelectItem key={t.value} value={t.value}>
-                    {t.label}
-                  </SelectItem>
-                ))}
+                {analysisTypes
+                  .filter((t) => t.ativo)
+                  .map((t) => (
+                    <SelectItem key={t.value} value={t.value}>
+                      {t.label}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
           </div>

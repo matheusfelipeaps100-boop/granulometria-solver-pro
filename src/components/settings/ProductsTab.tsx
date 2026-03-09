@@ -13,7 +13,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Plus, Pencil, Trash2, Search, Package } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
-import { TIPOS_ANALISE } from "@/lib/analysis-data";
 import { ProductModal } from "./ProductModal";
 import {
   AlertDialog,
@@ -28,7 +27,7 @@ import {
 import { toast } from "sonner";
 
 export function ProductsTab() {
-  const { products, deleteProduct } = useAppStore();
+  const { products, analysisTypes, deleteProduct } = useAppStore();
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<string | null>(null);
@@ -59,7 +58,7 @@ export function ProductsTab() {
   };
 
   const tipoLabel = (tipo: string) =>
-    TIPOS_ANALISE.find((t) => t.value === tipo)?.label ?? tipo;
+    analysisTypes.find((t) => t.value === tipo)?.label ?? tipo;
 
   return (
     <>
@@ -99,7 +98,7 @@ export function ProductsTab() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Nome</TableHead>
-                    <TableHead>Tipo</TableHead>
+                    <TableHead>Tipo de Análise</TableHead>
                     <TableHead>Dimensões</TableHead>
                     <TableHead className="text-right">Resistência Ref.</TableHead>
                     <TableHead className="text-center">Status</TableHead>
