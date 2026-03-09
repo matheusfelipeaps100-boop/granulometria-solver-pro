@@ -278,6 +278,26 @@ export const useAppStore = create<AppState>()(persist((set, get) => ({
     }));
   },
 
+  // ── Product Type Actions ──
+  addProductType: (data) => {
+    const pt: ProductType = { ...data, id: generateId() };
+    set((state) => ({ productTypes: [...state.productTypes, pt] }));
+  },
+
+  updateProductType: (id, data) => {
+    set((state) => ({
+      productTypes: state.productTypes.map((pt) =>
+        pt.id === id ? { ...pt, ...data } : pt
+      ),
+    }));
+  },
+
+  deleteProductType: (id) => {
+    set((state) => ({
+      productTypes: state.productTypes.filter((pt) => pt.id !== id),
+    }));
+  },
+
   // ── Helpers ──
   getAnalysesByStatus: (status) => get().analyses.filter((a) => a.status === status),
   getReleasedAnalyses: () => get().analyses.filter((a) => a.status === "liberado_producao"),

@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { ProductsTab } from "@/components/settings/ProductsTab";
+import { ProductTypesTab } from "@/components/settings/ProductTypesTab";
 
 const SettingsPage = () => {
   return (
@@ -16,6 +17,7 @@ const SettingsPage = () => {
       <Tabs defaultValue="products">
         <TabsList>
           <TabsTrigger value="products">Produtos</TabsTrigger>
+          <TabsTrigger value="productTypes">Tipos de Produto</TabsTrigger>
           <TabsTrigger value="identity">Identidade</TabsTrigger>
           <TabsTrigger value="params">Parâmetros</TabsTrigger>
           <TabsTrigger value="goals">Metas</TabsTrigger>
@@ -25,6 +27,10 @@ const SettingsPage = () => {
 
         <TabsContent value="products">
           <ProductsTab />
+        </TabsContent>
+
+        <TabsContent value="productTypes">
+          <ProductTypesTab />
         </TabsContent>
 
         <TabsContent value="identity">
