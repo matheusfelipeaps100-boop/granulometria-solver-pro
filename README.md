@@ -106,6 +106,15 @@ src/
 
 ## Roadmap
 
+### ✅ Implementado
+
+- [x] **Catálogo de Produtos Dinâmico** — CRUD completo integrado no Settings
+- [x] **Select de Produtos** — Filtro dinâmico por tipo de análise
+- [x] **Auto-fill Resistência** — Pré-carrega baseado no produto selecionado
+- [x] **Migração Dados** — produto (string) → produto_id + produto_nome
+- [x] **Compatibilidade** — PDF e Review adaptados
+- [x] **8 Produtos Mock** — Pré-cadastrados (bloco estrutural, vedação, paver, cp)
+
 ### Próximas Etapas
 
 - [ ] Ativar Lovable Cloud (banco de dados + auth)
