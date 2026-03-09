@@ -156,16 +156,39 @@ export const useAppStore = create<AppState>()(persist((set, get) => ({
   },
 
   completeRuptureSchedule: (scheduleId, dataExecutada) => {
-    set((state) => ({
-      batches: state.batches.map((batch) => ({
-        ...batch,
-        rupture_schedules: batch.rupture_schedules.map((s) =>
-          s.id === scheduleId
-            ? { ...s, status: "concluido" as ScheduleStatus, data_executada: dataExecutada }
-            : s
+    set((state) => {
+      // Find the batch that contains this schedule
+      const batchToUpdate = state.batches.find(b => 
+        b.rupture_schedules.some(s => s.id === scheduleId)
+      );
+
+      if (!batchToUpdate) return state;
+
+      const updatedSchedules = batchToUpdate.rupture_schedules.map((s) =>
+        s.id === scheduleId
+          ? { ...s, status: "concluido" as ScheduleStatus, data_executada: dataExecutada }
+          : s
+      );
+
+      // Check if this is the first completed test, update batch status to em_andamento
+      const hasCompletedTests = updatedSchedules.some(s => s.status === "concluido");
+      const allCompleted = updatedSchedules.every(s => s.status === "concluido");
+      
+      let newBatchStatus = batchToUpdate.status;
+      if (allCompleted) {
+        newBatchStatus = "aprovado";
+      } else if (hasCompletedTests) {
+        newBatchStatus = "em_andamento";
+      }
+
+      return {
+        batches: state.batches.map((batch) => 
+          batch.id === batchToUpdate.id
+            ? { ...batch, status: newBatchStatus, rupture_schedules: updatedSchedules }
+            : batch
         ),
-      })),
-    }));
+      };
+    });
   },
 
   getAnalysesByStatus: (status) => get().analyses.filter((a) => a.status === status),
