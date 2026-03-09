@@ -37,6 +37,10 @@ export function SaveStandardTraceModal({ open, onOpenChange, data }: SaveStandar
     }
     setLoading(true);
     setTimeout(() => {
+      // Use the store action to save the standard trace
+      const { saveStandardTrace } = require("@/store/useAppStore").useAppStore.getState();
+      saveStandardTrace(nomeDna.trim(), data);
+      
       setLoading(false);
       onOpenChange(false);
       toast.success("Traço padrão salvo com sucesso!", {

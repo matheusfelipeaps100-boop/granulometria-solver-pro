@@ -73,8 +73,11 @@ interface AppState {
   analyses: StoredAnalysis[];
   batches: ProductionBatch[];
 
+  standardTraces: { id: string; nome: string; tipo_produto: string; resistencia_alvo: number; created_at: string; data: AnalysisFormData }[];
+  
   // Analysis actions
   addAnalysis: (formData: AnalysisFormData) => void;
+  saveStandardTrace: (nome: string, data: AnalysisFormData) => void;
   approveAnalysis: (codigo: string) => void;
   deleteAnalysis: (codigo: string) => void;
   releaseForProduction: (codigo: string) => void;
@@ -95,6 +98,8 @@ export const useAppStore = create<AppState>()(persist((set, get) => ({
   analyses: [],
   batches: [],
 
+  standardTraces: [],
+
   addAnalysis: (formData) => {
     const analysis: StoredAnalysis = {
       id: generateId(),
@@ -109,6 +114,18 @@ export const useAppStore = create<AppState>()(persist((set, get) => ({
       created_at: new Date().toISOString(),
     };
     set((state) => ({ analyses: [...state.analyses, analysis] }));
+  },
+
+  saveStandardTrace: (nome, data) => {
+    const standardTrace = {
+      id: generateId(),
+      nome,
+      tipo_produto: data.tipo_analise,
+      resistencia_alvo: data.resistencia_prevista,
+      created_at: new Date().toISOString(),
+      data,
+    };
+    set((state) => ({ standardTraces: [...state.standardTraces, standardTrace] }));
   },
 
   approveAnalysis: (codigo) => {
@@ -156,16 +173,39 @@ export const useAppStore = create<AppState>()(persist((set, get) => ({
   },
 
   completeRuptureSchedule: (scheduleId, dataExecutada) => {
-    set((state) => ({
-      batches: state.batches.map((batch) => ({
-        ...batch,
-        rupture_schedules: batch.rupture_schedules.map((s) =>
-          s.id === scheduleId
-            ? { ...s, status: "concluido" as ScheduleStatus, data_executada: dataExecutada }
-            : s
+    set((state) => {
+      // Find the batch that contains this schedule
+      const batchToUpdate = state.batches.find(b => 
+        b.rupture_schedules.some(s => s.id === scheduleId)
+      );
+
+      if (!batchToUpdate) return state;
+
+      const updatedSchedules = batchToUpdate.rupture_schedules.map((s) =>
+        s.id === scheduleId
+          ? { ...s, status: "concluido" as ScheduleStatus, data_executada: dataExecutada }
+          : s
+      );
+
+      // Check if this is the first completed test, update batch status to em_andamento
+      const hasCompletedTests = updatedSchedules.some(s => s.status === "concluido");
+      const allCompleted = updatedSchedules.every(s => s.status === "concluido");
+      
+      let newBatchStatus = batchToUpdate.status;
+      if (allCompleted) {
+        newBatchStatus = "aprovado";
+      } else if (hasCompletedTests) {
+        newBatchStatus = "em_andamento";
+      }
+
+      return {
+        batches: state.batches.map((batch) => 
+          batch.id === batchToUpdate.id
+            ? { ...batch, status: newBatchStatus, rupture_schedules: updatedSchedules }
+            : batch
         ),
-      })),
-    }));
+      };
+    });
   },
 
   getAnalysesByStatus: (status) => get().analyses.filter((a) => a.status === status),

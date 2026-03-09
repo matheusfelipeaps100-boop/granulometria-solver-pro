@@ -4,6 +4,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Plus, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { useAppStore } from "@/store/useAppStore";
+import { TIPOS_ANALISE } from "@/lib/analysis-data";
 
 const mockTraces = [
   { nome: "DNA Bloco Estrutural 14x19x39 4MPa", tipo: "bloco_estrutural", resistencia: "4,0 MPa", mf: "3,483", ativo: true },
@@ -13,6 +15,21 @@ const mockTraces = [
 ];
 
 const StandardTracesPage = () => {
+  const standardTraces = useAppStore((s) => s.standardTraces);
+  
+  // Combine mock traces with saved traces
+  const allTraces = [
+    ...mockTraces,
+    ...standardTraces.map(t => ({
+      nome: t.nome,
+      tipo: t.tipo_produto,
+      resistencia: `${t.resistencia_alvo} MPa`,
+      mf: "—", // MF can be calculated later
+      ativo: true,
+      isSaved: true,
+    }))
+  ];
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
@@ -45,9 +62,14 @@ const StandardTracesPage = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {mockTraces.map((t) => (
-                <TableRow key={t.nome} className="cursor-pointer hover:bg-muted/50">
-                  <TableCell className="font-medium">{t.nome}</TableCell>
+              {allTraces.map((t, index) => (
+                <TableRow key={`${t.nome}-${index}`} className="cursor-pointer hover:bg-muted/50">
+                  <TableCell className="font-medium">
+                    {t.nome}
+                    {'isSaved' in t && t.isSaved && (
+                      <span className="ml-2 text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">Novo</span>
+                    )}
+                  </TableCell>
                   <TableCell className="capitalize">{t.tipo.replace("_", " ")}</TableCell>
                   <TableCell className="font-mono">{t.resistencia}</TableCell>
                   <TableCell className="font-mono">{t.mf}</TableCell>
