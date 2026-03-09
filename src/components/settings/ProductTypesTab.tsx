@@ -66,7 +66,7 @@ export function ProductTypesTab() {
           </div>
           <Button onClick={handleNew} size="sm" className="gap-2">
             <Plus className="h-4 w-4" />
-            Novo Tipo
+            Novo Tipo de Análise
           </Button>
         </CardHeader>
         <CardContent>
