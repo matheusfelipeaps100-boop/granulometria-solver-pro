@@ -147,6 +147,7 @@ export const useAppStore = create<AppState>()(persist((set, get) => ({
   standardTraces: [],
   products: [...PRODUTOS_DISPONIVEIS],
   analysisTypes: TIPOS_ANALISE.map((t, i) => ({ id: `at-${i}`, label: t.label, value: t.value, ativo: true })),
+  materials: SEED_MATERIALS.map((m, i) => ({ ...m, id: `mat-${i}`, created_at: new Date().toISOString() })),
 
   // ── Analysis Actions ──
   addAnalysis: (formData) => {
