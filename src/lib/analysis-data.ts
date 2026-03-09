@@ -4,6 +4,17 @@
 
 import type { SieveData } from "./granulometry-engine";
 
+// ── Product Interface ──
+export interface Product {
+  id: string;
+  nome: string;
+  tipo_produto: "bloco_estrutural" | "bloco_vedacao" | "paver" | "cp";
+  dimensoes: string;
+  resistencia_referencia: number;
+  ativo: boolean;
+  created_at: string;
+}
+
 export interface AnalysisFormData {
   // Step 1 — Identification
   tipo_analise: "bloco_estrutural" | "bloco_vedacao" | "paver" | "cp" | "";
@@ -12,7 +23,8 @@ export interface AnalysisFormData {
   data: string;
   analista: string;
   unidade: string;
-  produto: string;
+  produto_id: string;
+  produto_nome: string;
   resistencia_prevista: number;
   observacoes: string;
   // Step 2 — Granulometry
@@ -143,6 +155,27 @@ export const TIPOS_ANALISE = [
   { value: "cp", label: "Corpo de Prova (CP)" },
 ];
 
+// Produtos mock pré-cadastrados
+export const PRODUTOS_DISPONIVEIS: Product[] = [
+  { id: "prod-1", nome: "Bloco 14x19x39", tipo_produto: "bloco_estrutural", dimensoes: "14x19x39 cm", resistencia_referencia: 4.0, ativo: true, created_at: "2026-01-01" },
+  { id: "prod-2", nome: "Bloco 14x19x29", tipo_produto: "bloco_estrutural", dimensoes: "14x19x29 cm", resistencia_referencia: 4.0, ativo: true, created_at: "2026-01-01" },
+  { id: "prod-3", nome: "Bloco 09x19x39", tipo_produto: "bloco_vedacao", dimensoes: "09x19x39 cm", resistencia_referencia: 3.0, ativo: true, created_at: "2026-01-01" },
+  { id: "prod-4", nome: "Bloco 09x19x29", tipo_produto: "bloco_vedacao", dimensoes: "09x19x29 cm", resistencia_referencia: 3.0, ativo: true, created_at: "2026-01-01" },
+  { id: "prod-5", nome: "Paver H8 Retangular", tipo_produto: "paver", dimensoes: "10x20x8 cm", resistencia_referencia: 35.0, ativo: true, created_at: "2026-01-01" },
+  { id: "prod-6", nome: "Paver H6 Intertravado", tipo_produto: "paver", dimensoes: "10x20x6 cm", resistencia_referencia: 25.0, ativo: true, created_at: "2026-01-01" },
+  { id: "prod-7", nome: "CP Cilíndrico 10x20", tipo_produto: "cp", dimensoes: "10x20 cm", resistencia_referencia: 25.0, ativo: true, created_at: "2026-01-01" },
+  { id: "prod-8", nome: "CP Cilíndrico 15x30", tipo_produto: "cp", dimensoes: "15x30 cm", resistencia_referencia: 30.0, ativo: true, created_at: "2026-01-01" },
+];
+
+// Helpers de produto
+export function getProductsByType(tipo: string): Product[] {
+  return PRODUTOS_DISPONIVEIS.filter((p) => p.tipo_produto === tipo && p.ativo);
+}
+
+export function getProductById(id: string): Product | undefined {
+  return PRODUTOS_DISPONIVEIS.find((p) => p.id === id);
+}
+
 // Gera código automático
 export function generateAnalysisCode(): string {
   const year = new Date().getFullYear();
@@ -159,7 +192,8 @@ export function createEmptyAnalysis(): AnalysisFormData {
     data: new Date().toISOString().split("T")[0],
     analista: "",
     unidade: "",
-    produto: "",
+    produto_id: "",
+    produto_nome: "",
     resistencia_prevista: 0,
     observacoes: "",
     dna_selecionado: "",
