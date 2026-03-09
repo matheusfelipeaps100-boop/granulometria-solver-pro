@@ -278,23 +278,23 @@ export const useAppStore = create<AppState>()(persist((set, get) => ({
     }));
   },
 
-  // ── Product Type Actions ──
-  addProductType: (data) => {
-    const pt: ProductType = { ...data, id: generateId() };
-    set((state) => ({ productTypes: [...state.productTypes, pt] }));
+  // ── Analysis Type Actions ──
+  addAnalysisType: (data) => {
+    const at: AnalysisType = { ...data, id: generateId() };
+    set((state) => ({ analysisTypes: [...state.analysisTypes, at] }));
   },
 
-  updateProductType: (id, data) => {
+  updateAnalysisType: (id, data) => {
     set((state) => ({
-      productTypes: state.productTypes.map((pt) =>
-        pt.id === id ? { ...pt, ...data } : pt
+      analysisTypes: state.analysisTypes.map((at) =>
+        at.id === id ? { ...at, ...data } : at
       ),
     }));
   },
 
-  deleteProductType: (id) => {
+  deleteAnalysisType: (id) => {
     set((state) => ({
-      productTypes: state.productTypes.filter((pt) => pt.id !== id),
+      analysisTypes: state.analysisTypes.filter((at) => at.id !== id),
     }));
   },
 
