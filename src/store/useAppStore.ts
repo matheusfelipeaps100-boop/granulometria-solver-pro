@@ -327,6 +327,30 @@ export const useAppStore = create<AppState>()(persist((set, get) => ({
     }));
   },
 
+  // ── Material Actions ──
+  addMaterial: (data) => {
+    const material: Material = {
+      ...data,
+      id: generateId(),
+      created_at: new Date().toISOString(),
+    };
+    set((state) => ({ materials: [...state.materials, material] }));
+  },
+
+  updateMaterial: (id, data) => {
+    set((state) => ({
+      materials: state.materials.map((m) =>
+        m.id === id ? { ...m, ...data } : m
+      ),
+    }));
+  },
+
+  deleteMaterial: (id) => {
+    set((state) => ({
+      materials: state.materials.filter((m) => m.id !== id),
+    }));
+  },
+
   // ── Helpers ──
   getAnalysesByStatus: (status) => get().analyses.filter((a) => a.status === status),
   getReleasedAnalyses: () => get().analyses.filter((a) => a.status === "liberado_producao"),
