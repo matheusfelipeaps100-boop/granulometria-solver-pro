@@ -58,7 +58,7 @@ export function ProductsTab() {
   };
 
   const tipoLabel = (tipo: string) =>
-    TIPOS_ANALISE.find((t) => t.value === tipo)?.label ?? tipo;
+    analysisTypes.find((t) => t.value === tipo)?.label ?? tipo;
 
   return (
     <>
