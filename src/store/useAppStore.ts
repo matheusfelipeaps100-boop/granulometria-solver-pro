@@ -97,6 +97,8 @@ export const useAppStore = create<AppState>()(persist((set, get) => ({
   analyses: [],
   batches: [],
 
+  standardTraces: [],
+
   addAnalysis: (formData) => {
     const analysis: StoredAnalysis = {
       id: generateId(),
