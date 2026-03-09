@@ -96,7 +96,9 @@ src/
 │   ├── ProductionPage.tsx
 │   ├── RupturesPage.tsx
 │   ├── ReportsPage.tsx
-│   └── SettingsPage.tsx
+│   └── SettingsPage.tsx              # Aba Produtos como primeira aba
+└── store/
+    └── useAppStore.ts                # Products CRUD actions
 └── App.tsx                       # Rotas
 ```
 
