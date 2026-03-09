@@ -116,6 +116,10 @@ const SettingsPage = () => {
           </Card>
         </TabsContent>
 
+        <TabsContent value="ruptures">
+          <RuptureDaysTab />
+        </TabsContent>
+
         <TabsContent value="sieves">
           <Card className="shadow-sm mt-4">
             <CardHeader>
