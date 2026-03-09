@@ -1,7 +1,14 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { AnalysisFormData, Product } from "@/lib/analysis-data";
-import { PRODUTOS_DISPONIVEIS } from "@/lib/analysis-data";
+import { PRODUTOS_DISPONIVEIS, TIPOS_ANALISE } from "@/lib/analysis-data";
+
+export interface ProductType {
+  id: string;
+  label: string;
+  value: string;
+  ativo: boolean;
+}
 
 // Enums from schema.prisma
 export type AnalysisStatus = "rascunho" | "em_analise" | "aprovado" | "liberado_producao" | "arquivado";
