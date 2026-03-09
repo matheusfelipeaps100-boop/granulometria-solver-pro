@@ -36,7 +36,7 @@ const emptyForm = {
 };
 
 export function ProductModal({ open, onOpenChange, editId }: ProductModalProps) {
-  const { products, addProduct, updateProduct } = useAppStore();
+  const { products, analysisTypes, addProduct, updateProduct } = useAppStore();
   const [form, setForm] = useState(emptyForm);
 
   useEffect(() => {
