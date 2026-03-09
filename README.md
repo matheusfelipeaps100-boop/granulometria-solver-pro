@@ -51,6 +51,16 @@
 - [x] **Etapa 5 — Resultado** — Banner aprovado, gráfico final, tabela batelada, resumo técnico, botões (PDF, Liberar, Salvar DNA)
 - [x] **Lista de Análises** — Filtros por tipo, status e busca por texto
 
+### ✅ Fase 3 — Sistema de Produtos Dinâmico
+
+- [x] **Interface Product** — ID, nome, tipo, dimensões, resistência referência
+- [x] **Catalog Mock Data** — 8 produtos pré-cadastrados por tipo (bloco estrutural, vedação, paver, cp)
+- [x] **Store CRUD** — addProduct, updateProduct, deleteProduct no Zustand
+- [x] **Settings Integration** — Aba "Produtos" com tabela, filtro e modal CRUD
+- [x] **Wizard Update** — Select dinâmico filtrado por tipo_analise com auto-fill resistência
+- [x] **Field Migration** — produto (string) → produto_id + produto_nome
+- [x] **Compatibilidade** — PDF e Review compatíveis com nova estrutura
+
 ---
 
 ## Estrutura de Arquivos
