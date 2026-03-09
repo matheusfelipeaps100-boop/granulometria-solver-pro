@@ -113,11 +113,13 @@ export function ProductModal({ open, onOpenChange, editId }: ProductModalProps) 
                 <SelectValue placeholder="Selecione o tipo" />
               </SelectTrigger>
               <SelectContent>
-                {TIPOS_ANALISE.map((t) => (
-                  <SelectItem key={t.value} value={t.value}>
-                    {t.label}
-                  </SelectItem>
-                ))}
+                {analysisTypes
+                  .filter((t) => t.ativo)
+                  .map((t) => (
+                    <SelectItem key={t.value} value={t.value}>
+                      {t.label}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
           </div>

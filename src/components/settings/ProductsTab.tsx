@@ -98,7 +98,7 @@ export function ProductsTab() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Nome</TableHead>
-                    <TableHead>Tipo</TableHead>
+                    <TableHead>Tipo de Análise</TableHead>
                     <TableHead>Dimensões</TableHead>
                     <TableHead className="text-right">Resistência Ref.</TableHead>
                     <TableHead className="text-center">Status</TableHead>

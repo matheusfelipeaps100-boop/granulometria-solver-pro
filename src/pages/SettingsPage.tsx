@@ -17,7 +17,7 @@ const SettingsPage = () => {
       <Tabs defaultValue="products">
         <TabsList>
           <TabsTrigger value="products">Produtos</TabsTrigger>
-          <TabsTrigger value="productTypes">Tipos de Produto</TabsTrigger>
+          <TabsTrigger value="productTypes">Tipos de Análise</TabsTrigger>
           <TabsTrigger value="identity">Identidade</TabsTrigger>
           <TabsTrigger value="params">Parâmetros</TabsTrigger>
           <TabsTrigger value="goals">Metas</TabsTrigger>
