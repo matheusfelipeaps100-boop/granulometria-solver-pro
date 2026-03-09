@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { ProductsTab } from "@/components/settings/ProductsTab";
 import { ProductTypesTab } from "@/components/settings/ProductTypesTab";
+import { RuptureDaysTab } from "@/components/settings/RuptureDaysTab";
 
 const SettingsPage = () => {
   return (
@@ -22,6 +23,7 @@ const SettingsPage = () => {
           <TabsTrigger value="params">Parâmetros</TabsTrigger>
           <TabsTrigger value="goals">Metas</TabsTrigger>
           <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
+          <TabsTrigger value="ruptures">Rompimentos</TabsTrigger>
           <TabsTrigger value="sieves">Peneiras</TabsTrigger>
         </TabsList>
 
@@ -112,6 +114,10 @@ const SettingsPage = () => {
               <p className="text-sm text-muted-foreground">Configuração de webhooks para integrações externas.</p>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="ruptures">
+          <RuptureDaysTab />
         </TabsContent>
 
         <TabsContent value="sieves">

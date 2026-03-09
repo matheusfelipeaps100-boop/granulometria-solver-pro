@@ -72,9 +72,9 @@ function generateId(): string {
   return crypto.randomUUID();
 }
 
-function createRuptureSchedules(batchId: string, producedAt: string): RuptureSchedule[] {
+function createRuptureSchedules(batchId: string, producedAt: string, ruptureDays: number[]): RuptureSchedule[] {
   const baseDate = new Date(producedAt);
-  return [1, 3, 7, 28].map((dias) => {
+  return ruptureDays.map((dias) => {
     const dataPrevista = new Date(baseDate);
     dataPrevista.setDate(dataPrevista.getDate() + dias);
     return {
@@ -106,6 +106,10 @@ interface AppState {
   products: Product[];
   analysisTypes: AnalysisType[];
   materials: Material[];
+  ruptureDays: number[];
+
+  // Rupture days actions
+  setRuptureDays: (days: number[]) => void;
 
   // Analysis actions
   addAnalysis: (formData: AnalysisFormData) => void;
@@ -148,6 +152,9 @@ export const useAppStore = create<AppState>()(persist((set, get) => ({
   products: [...PRODUTOS_DISPONIVEIS],
   analysisTypes: TIPOS_ANALISE.map((t, i) => ({ id: `at-${i}`, label: t.label, value: t.value, ativo: true })),
   materials: SEED_MATERIALS.map((m, i) => ({ ...m, id: `mat-${i}`, created_at: new Date().toISOString() })),
+  ruptureDays: [1, 3, 7, 28],
+
+  setRuptureDays: (days) => set({ ruptureDays: [...days].sort((a, b) => a - b) }),
 
   // ── Analysis Actions ──
   addAnalysis: (formData) => {
@@ -217,7 +224,7 @@ export const useAppStore = create<AppState>()(persist((set, get) => ({
       status: "aguardando_rompimentos",
       notas: data.notas,
       produced_at: data.produced_at,
-      rupture_schedules: createRuptureSchedules(batchId, data.produced_at),
+      rupture_schedules: createRuptureSchedules(batchId, data.produced_at, get().ruptureDays),
     };
     set((state) => ({ batches: [...state.batches, batch] }));
     return batch;
