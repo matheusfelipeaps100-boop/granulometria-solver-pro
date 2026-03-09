@@ -67,7 +67,7 @@ const StandardTracesPage = () => {
                   <TableCell className="font-medium">
                     {t.nome}
                     {'isSaved' in t && t.isSaved && (
-                      <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Novo</span>
+                      <span className="ml-2 text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">Novo</span>
                     )}
                   </TableCell>
                   <TableCell className="capitalize">{t.tipo.replace("_", " ")}</TableCell>
