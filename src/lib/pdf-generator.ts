@@ -73,7 +73,7 @@ export function generateAnalysisPDF(data: AnalysisFormData): void {
     ["Tipo", tipoLabel],
     ["Analista", analistaLabel],
     ["Unidade", data.unidade || "—"],
-    ["Produto", data.produto || "—"],
+    ["Produto", data.produto_nome || "—"],
     ["Resistência", `${data.resistencia_prevista} MPa`],
   ];
 

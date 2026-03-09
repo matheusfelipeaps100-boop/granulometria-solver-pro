@@ -10,6 +10,8 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TIPOS_ANALISE, ANALISTAS, type AnalysisFormData } from "@/lib/analysis-data";
+import { useAppStore } from "@/store/useAppStore";
+import { useMemo } from "react";
 
 interface StepIdentificationProps {
   data: AnalysisFormData;
@@ -17,6 +19,13 @@ interface StepIdentificationProps {
 }
 
 export function StepIdentification({ data, onChange }: StepIdentificationProps) {
+  const { products } = useAppStore();
+
+  const filteredProducts = useMemo(() => {
+    if (!data.tipo_analise) return [];
+    return products.filter((p) => p.tipo_produto === data.tipo_analise && p.ativo);
+  }, [data.tipo_analise, products]);
+
   return (
     <div className="space-y-6">
       <Card>
@@ -31,7 +40,11 @@ export function StepIdentification({ data, onChange }: StepIdentificationProps) 
               <Select
                 value={data.tipo_analise}
                 onValueChange={(v) => {
-                  onChange({ tipo_analise: v as AnalysisFormData["tipo_analise"] });
+                  onChange({
+                    tipo_analise: v as AnalysisFormData["tipo_analise"],
+                    produto_id: "",
+                    produto_nome: "",
+                  });
                 }}
               >
                 <SelectTrigger>
@@ -70,12 +83,29 @@ export function StepIdentification({ data, onChange }: StepIdentificationProps) 
             </div>
             <div className="space-y-2">
               <Label htmlFor="produto">Produto</Label>
-              <Input
-                id="produto"
-                value={data.produto}
-                onChange={(e) => onChange({ produto: e.target.value })}
-                placeholder="Ex: Bloco 14x19x39"
-              />
+              <Select
+                value={data.produto_id}
+                onValueChange={(v) => {
+                  const prod = products.find((p) => p.id === v);
+                  onChange({
+                    produto_id: v,
+                    produto_nome: prod?.nome ?? "",
+                    resistencia_prevista: prod?.resistencia_referencia ?? data.resistencia_prevista,
+                  });
+                }}
+                disabled={!data.tipo_analise}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={data.tipo_analise ? "Selecione o produto" : "Selecione o tipo primeiro"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {filteredProducts.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.nome} — {p.dimensoes}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
