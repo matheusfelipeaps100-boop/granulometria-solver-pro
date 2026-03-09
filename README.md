@@ -73,11 +73,14 @@ src/
 │   └── utils.ts                  # Utilitários CN
 ├── components/
 │   ├── analysis/
-│   │   ├── StepIdentification.tsx
+│   │   ├── StepIdentification.tsx    # Select dinâmico de produtos
 │   │   ├── StepGranulometry.tsx
 │   │   ├── StepDosage.tsx
-│   │   ├── StepReview.tsx
+│   │   ├── StepReview.tsx            # Usa produto_nome
 │   │   └── StepResult.tsx
+│   ├── settings/
+│   │   ├── ProductsTab.tsx           # Aba produtos com CRUD
+│   │   └── ProductModal.tsx          # Modal criar/editar produto
 │   ├── WizardStepper.tsx
 │   ├── StatusBadge.tsx
 │   ├── AppLayout.tsx
