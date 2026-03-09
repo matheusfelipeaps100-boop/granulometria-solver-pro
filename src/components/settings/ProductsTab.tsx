@@ -27,7 +27,7 @@ import {
 import { toast } from "sonner";
 
 export function ProductsTab() {
-  const { products, deleteProduct } = useAppStore();
+  const { products, analysisTypes, deleteProduct } = useAppStore();
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<string | null>(null);
