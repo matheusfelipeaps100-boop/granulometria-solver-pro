@@ -23,6 +23,7 @@ const SettingsPage = () => {
           <TabsTrigger value="params">Parâmetros</TabsTrigger>
           <TabsTrigger value="goals">Metas</TabsTrigger>
           <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
+          <TabsTrigger value="ruptures">Rompimentos</TabsTrigger>
           <TabsTrigger value="sieves">Peneiras</TabsTrigger>
         </TabsList>
 
