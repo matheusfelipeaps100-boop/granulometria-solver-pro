@@ -19,7 +19,7 @@ interface StepIdentificationProps {
 }
 
 export function StepIdentification({ data, onChange }: StepIdentificationProps) {
-  const { products } = useAppStore();
+  const { products, analysisTypes } = useAppStore();
 
   const filteredProducts = useMemo(() => {
     if (!data.tipo_analise) return [];
