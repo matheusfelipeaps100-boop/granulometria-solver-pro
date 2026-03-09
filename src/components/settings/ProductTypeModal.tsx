@@ -79,7 +79,7 @@ export function ProductTypeModal({ open, onOpenChange, editId }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Editar Tipo" : "Novo Tipo de Produto"}</DialogTitle>
+          <DialogTitle>{isEdit ? "Editar Tipo de Análise" : "Novo Tipo de Análise"}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="space-y-2">
