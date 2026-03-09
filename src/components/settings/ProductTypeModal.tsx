@@ -95,7 +95,7 @@ export function ProductTypeModal({ open, onOpenChange, editId }: Props) {
               className="font-mono text-sm"
               disabled={isEdit}
             />
-            <p className="text-xs text-muted-foreground">Usado internamente. Não pode ser alterado após criação.</p>
+            <p className="text-xs text-muted-foreground">Usado internamente para vincular produtos e análises.</p>
           </div>
           <div className="flex items-center justify-between">
             <Label>Ativo</Label>

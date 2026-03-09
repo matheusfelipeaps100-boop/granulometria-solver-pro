@@ -83,8 +83,8 @@ export function ProductTypesTab() {
           {filtered.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <Layers className="h-12 w-12 mx-auto mb-3 opacity-40" />
-              <p className="font-medium">Nenhum tipo cadastrado</p>
-              <p className="text-sm">Clique em "Novo Tipo" para começar</p>
+              <p className="font-medium">Nenhum tipo de análise cadastrado</p>
+              <p className="text-sm">Clique em "Novo Tipo de Análise" para começar</p>
             </div>
           ) : (
             <div className="rounded-md border">
