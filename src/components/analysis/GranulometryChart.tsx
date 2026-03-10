@@ -19,9 +19,10 @@ import { AlertTriangle } from "lucide-react";
 interface GranulometryChartProps {
   curveResults: GradationResult[];
   hasLimits: boolean;
+  compact?: boolean;
 }
 
-export function GranulometryChart({ curveResults, hasLimits }: GranulometryChartProps) {
+export function GranulometryChart({ curveResults, hasLimits, compact = false }: GranulometryChartProps) {
   const chartData = useMemo(() => {
     return curveResults.map((r) => {
       const limiteMin = r.limite_min != null ? Math.round(r.limite_min * 10000) / 100 : undefined;
@@ -86,6 +87,121 @@ export function GranulometryChart({ curveResults, hasLimits }: GranulometryChart
     );
   };
 
+  const chartHeight = compact ? 180 : 320;
+
+  const chartContent = (
+    <>
+      <ResponsiveContainer width="100%" height={chartHeight}>
+        <ComposedChart data={chartData} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
+          <XAxis
+            dataKey="label"
+            fontSize={10}
+            tick={{ fill: "hsl(var(--muted-foreground))" }}
+            reversed
+          />
+          <YAxis
+            domain={[0, 100]}
+            fontSize={10}
+            unit="%"
+            tick={{ fill: "hsl(var(--muted-foreground))" }}
+          />
+          <Tooltip content={<CustomTooltip />} />
+
+          {/* Layer 1 — Zona Normativa (Area between limits) */}
+          {hasLimits && (
+            <>
+              <Area
+                type="monotone"
+                dataKey="limiteMax"
+                stroke="none"
+                fill="hsl(210 100% 60% / 0.12)"
+                fillOpacity={1}
+                isAnimationActive={false}
+              />
+              <Area
+                type="monotone"
+                dataKey="limiteMin"
+                stroke="none"
+                fill="hsl(var(--card))"
+                fillOpacity={1}
+                isAnimationActive={false}
+              />
+              {/* Border lines for zone */}
+              <Line
+                type="monotone"
+                dataKey="limiteMax"
+                stroke="hsl(210 80% 65% / 0.5)"
+                strokeWidth={1}
+                dot={false}
+                activeDot={false}
+                isAnimationActive={false}
+                name="Limite Superior"
+              />
+              <Line
+                type="monotone"
+                dataKey="limiteMin"
+                stroke="hsl(210 80% 65% / 0.5)"
+                strokeWidth={1}
+                dot={false}
+                activeDot={false}
+                isAnimationActive={false}
+                name="Limite Inferior"
+              />
+            </>
+          )}
+
+          {/* Layer 2 — DNA Alvo (dashed amber) */}
+          {hasLimits && (
+            <Line
+              type="monotone"
+              dataKey="dnAlvo"
+              stroke="hsl(35 92% 50%)"
+              strokeWidth={2}
+              strokeDasharray="8 4"
+              dot={false}
+              activeDot={{ r: 4, strokeWidth: 2, fill: "hsl(35 92% 50%)" }}
+              name="DNA Alvo"
+            />
+          )}
+
+          {/* Layer 3 — Curva de Estudo (bold red) */}
+          <Line
+            type="monotone"
+            dataKey="acumulado"
+            stroke="hsl(var(--destructive))"
+            strokeWidth={3}
+            dot={{
+              r: 4,
+              fill: "hsl(var(--destructive))",
+              stroke: "hsl(var(--card))",
+              strokeWidth: 2,
+            }}
+            activeDot={{
+              r: 6,
+              fill: "hsl(var(--destructive))",
+              stroke: "hsl(var(--card))",
+              strokeWidth: 2,
+            }}
+            name="Curva de Estudo"
+          />
+        </ComposedChart>
+      </ResponsiveContainer>
+
+      {!compact && hasLimits && (
+        <div className="flex items-start gap-2 mt-3 p-2.5 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50">
+          <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+          <p className="text-xs text-amber-700 dark:text-amber-400">
+            O Solver ajusta as proporções para a curva ficar dentro da faixa
+            (centro da zona normativa).
+          </p>
+        </div>
+      )}
+    </>
+  );
+
+  if (compact) return <div>{chartContent}</div>;
+
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -110,113 +226,7 @@ export function GranulometryChart({ curveResults, hasLimits }: GranulometryChart
         </div>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={320}>
-          <ComposedChart data={chartData} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
-            <XAxis
-              dataKey="label"
-              fontSize={10}
-              tick={{ fill: "hsl(var(--muted-foreground))" }}
-              reversed
-            />
-            <YAxis
-              domain={[0, 100]}
-              fontSize={10}
-              unit="%"
-              tick={{ fill: "hsl(var(--muted-foreground))" }}
-            />
-            <Tooltip content={<CustomTooltip />} />
-
-            {/* Layer 1 — Zona Normativa (Area between limits) */}
-            {hasLimits && (
-              <>
-                <Area
-                  type="monotone"
-                  dataKey="limiteMax"
-                  stroke="none"
-                  fill="hsl(210 100% 60% / 0.12)"
-                  fillOpacity={1}
-                  isAnimationActive={false}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="limiteMin"
-                  stroke="none"
-                  fill="hsl(var(--card))"
-                  fillOpacity={1}
-                  isAnimationActive={false}
-                />
-                {/* Border lines for zone */}
-                <Line
-                  type="monotone"
-                  dataKey="limiteMax"
-                  stroke="hsl(210 80% 65% / 0.5)"
-                  strokeWidth={1}
-                  dot={false}
-                  activeDot={false}
-                  isAnimationActive={false}
-                  name="Limite Superior"
-                />
-                <Line
-                  type="monotone"
-                  dataKey="limiteMin"
-                  stroke="hsl(210 80% 65% / 0.5)"
-                  strokeWidth={1}
-                  dot={false}
-                  activeDot={false}
-                  isAnimationActive={false}
-                  name="Limite Inferior"
-                />
-              </>
-            )}
-
-            {/* Layer 2 — DNA Alvo (dashed amber) */}
-            {hasLimits && (
-              <Line
-                type="monotone"
-                dataKey="dnAlvo"
-                stroke="hsl(35 92% 50%)"
-                strokeWidth={2}
-                strokeDasharray="8 4"
-                dot={false}
-                activeDot={{ r: 4, strokeWidth: 2, fill: "hsl(35 92% 50%)" }}
-                name="DNA Alvo"
-              />
-            )}
-
-            {/* Layer 3 — Curva de Estudo (bold red) */}
-            <Line
-              type="monotone"
-              dataKey="acumulado"
-              stroke="hsl(var(--destructive))"
-              strokeWidth={3}
-              dot={{
-                r: 4,
-                fill: "hsl(var(--destructive))",
-                stroke: "hsl(var(--card))",
-                strokeWidth: 2,
-              }}
-              activeDot={{
-                r: 6,
-                fill: "hsl(var(--destructive))",
-                stroke: "hsl(var(--card))",
-                strokeWidth: 2,
-              }}
-              name="Curva de Estudo"
-            />
-          </ComposedChart>
-        </ResponsiveContainer>
-
-        {/* Solver hint */}
-        {hasLimits && (
-          <div className="flex items-start gap-2 mt-3 p-2.5 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50">
-            <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
-            <p className="text-xs text-amber-700 dark:text-amber-400">
-              O Solver ajusta as proporções para a curva ficar dentro da faixa
-              (centro da zona normativa).
-            </p>
-          </div>
-        )}
+        {chartContent}
       </CardContent>
     </Card>
   );
