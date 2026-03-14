@@ -75,11 +75,13 @@ export function StepReview({ data, onApprove }: StepReviewProps) {
     return calcDosage({
       relacao_cimento: data.relacao_cimento,
       relacao_ac: data.relacao_ac,
-      volume_batelada: data.volume_batelada,
+      consumo_alvo_m3: data.consumo_alvo_m3,
+      volume_m3: data.volume_m3,
       densidade_cimento: data.densidade_cimento,
       proporcoes_materiais: data.materiais_selecionados.map((m) => ({
         nome: m.nome,
         proporcao_pct: m.proporcao_pct,
+        densidade: m.densidade
       })),
       aditivos_ml: data.aditivos_ml,
     });
@@ -209,23 +211,23 @@ export function StepReview({ data, onApprove }: StepReviewProps) {
                 CONSUMO CIMENTO
               </p>
               <p className="text-2xl font-black text-primary mt-0.5">
-                {dosageResult?.consumo_cimento_kg.toFixed(0) ?? "—"}
-                <span className="text-sm font-medium text-muted-foreground ml-1">kg/bat.</span>
+                {dosageResult?.consumo_cimento_m3.toFixed(0) ?? "—"}
+                <span className="text-sm font-medium text-muted-foreground ml-1">kg/m³</span>
               </p>
             </div>
 
             <div className="space-y-1.5 text-xs">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Massa Total</span>
-                <span className="font-bold">{dosageResult?.massa_total_kg.toFixed(1) ?? "—"} kg</span>
+                <span className="text-muted-foreground">Massa Total (Bat.)</span>
+                <span className="font-bold">{dosageResult?.massa_total_batelada.toFixed(1) ?? "—"} kg</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Água</span>
-                <span className="font-bold">{dosageResult?.agua_litros.toFixed(1) ?? "—"} L</span>
+                <span className="text-muted-foreground">Água (Bat.)</span>
+                <span className="font-bold">{dosageResult?.agua_batelada.toFixed(1) ?? "—"} L</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Vol. Batelada</span>
-                <span className="font-bold">{data.volume_batelada} L</span>
+                <span className="font-bold">{data.volume_m3.toFixed(3)} m³</span>
               </div>
             </div>
           </CardContent>

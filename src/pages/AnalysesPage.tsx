@@ -32,6 +32,7 @@ import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
 import { TIPOS_ANALISE } from "@/lib/analysis-data";
 import { useAppStore } from "@/store/useAppStore";
+import { hasActionPermission } from "@/lib/permissions";
 import { toast } from "sonner";
 
 const STATUS_OPTIONS = [
@@ -44,7 +45,11 @@ const STATUS_OPTIONS = [
 
 const AnalysesPage = () => {
   const navigate = useNavigate();
-  const { analyses: storedAnalyses, deleteAnalysis } = useAppStore();
+  const { analyses: storedAnalyses, deleteAnalysis, currentUserRole } = useAppStore();
+  
+  const canCreate = hasActionPermission(currentUserRole, "analysis:create");
+  const canEdit = hasActionPermission(currentUserRole, "analysis:edit");
+  const canDelete = hasActionPermission(currentUserRole, "analysis:delete");
   const [deletedMockCodes, setDeletedMockCodes] = useState<string[]>([]);
   const [deleteModal, setDeleteModal] = useState<{ open: boolean; codigo: string; nome: string; isFromStore: boolean }>({
     open: false,
@@ -113,10 +118,12 @@ const AnalysesPage = () => {
           <h1 className="text-2xl font-bold text-foreground">Análises</h1>
           <p className="text-sm text-muted-foreground">Gerenciar análises granulométricas</p>
         </div>
-        <Button onClick={() => navigate("/analyses/new")} className="gap-2">
-          <Plus className="h-4 w-4" />
-          Nova Análise
-        </Button>
+        {canCreate && (
+          <Button onClick={() => navigate("/analyses/new")} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Nova Análise
+          </Button>
+        )}
       </div>
 
       <Card className="shadow-sm">
@@ -184,15 +191,19 @@ const AnalysesPage = () => {
                   </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/analyses/new?edit=${a.codigo}`)} title="Revisar / Editar">
-                          <Pencil className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-                        </Button>
+                        {canEdit && (
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/analyses/new?edit=${a.codigo}`)} title="Revisar / Editar">
+                            <Pencil className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                          </Button>
+                        )}
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/analyses/${a.codigo}`)} title="Visualizar">
                           <Eye className="h-4 w-4 text-muted-foreground hover:text-foreground" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openDeleteModal(a.codigo, a.nome, a.fromStore); }} title="Excluir">
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                        {canDelete && (
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openDeleteModal(a.codigo, a.nome, a.fromStore); }} title="Excluir">
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                 </TableRow>

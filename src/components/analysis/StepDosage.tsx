@@ -1,4 +1,4 @@
-import { useMemo, useCallback } from "react";
+import { useMemo, useCallback, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,9 +13,9 @@ import {
   ResponsiveContainer,
   ReferenceDot,
 } from "recharts";
-import { calcDosage } from "@/lib/granulometry-engine";
+import { calcDosage, calcRelacaoFromConsumo } from "@/lib/granulometry-engine";
 import type { AnalysisFormData } from "@/lib/analysis-data";
-import { Beaker, Droplets, Weight, BarChart3 } from "lucide-react";
+import { Beaker, Droplets, Weight, BarChart3, Pill } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface StepDosageProps {
@@ -23,29 +23,24 @@ interface StepDosageProps {
   onChange: (updates: Partial<AnalysisFormData>) => void;
 }
 
-// Gera 9 pontos para a curva de consumo (ratio ± 4, step 0.5)
+// Gera pontos fixos para a curva (1:4 a 1:12)
 function gerarCurvaConsumo(
-  baseRatio: number,
   relacaoAC: number,
-  volumeBatelada: number,
   densidadeCimento: number,
-  proporcoes: Array<{ nome: string; proporcao_pct: number }>
+  proporcoes: Array<{ nome: string; proporcao_pct: number; densidade?: number }>
 ) {
-  const pontos: { ratio: string; cimento: number; isCurrent: boolean }[] = [];
-  for (let delta = -4; delta <= 4; delta++) {
-    const ratio = Math.max(1, baseRatio + delta * 0.5);
-    const result = calcDosage({
-      relacao_cimento: ratio,
-      relacao_ac: relacaoAC,
-      volume_batelada: volumeBatelada,
-      densidade_cimento: densidadeCimento,
-      proporcoes_materiais: proporcoes,
-      aditivos_ml: 0,
-    });
+  const pontos: { ratioLabel: string; ratioValue: number; cimento: number }[] = [];
+  const densA = proporcoes.reduce((acc, m) => acc + (m.densidade ?? 2.65) * m.proporcao_pct, 0) || 2.65;
+  
+  // Escala teórica clássica absoluta de 1:4 a 1:12 para desenhar a curva
+  for (let r = 4; r <= 12; r += 0.5) {
+    const divisor = 1 / densidadeCimento + r / densA + relacaoAC;
+    const consumo_teorico = divisor > 0 ? 1000 / divisor : 0;
+    
     pontos.push({
-      ratio: `1:${ratio.toFixed(1)}`,
-      cimento: result.consumo_cimento_kg,
-      isCurrent: Math.abs(ratio - baseRatio) < 0.01,
+      ratioLabel: `1:${r.toFixed(1)}`,
+      ratioValue: r,
+      cimento: consumo_teorico,
     });
   }
   return pontos;
@@ -56,23 +51,27 @@ const CustomConsumoCurveTooltip = ({ active, payload, label }: any) => {
   return (
     <div className="rounded border bg-card p-2 shadow-lg text-xs">
       <p className="font-bold">{label}</p>
-      <p className="text-primary">{payload[0]?.value?.toFixed(1)} kg/batelada</p>
+      <p className="text-primary">{payload[0]?.value?.toFixed(1)} kg/m³</p>
     </div>
   );
 };
 
 export function StepDosage({ data, onChange }: StepDosageProps) {
   const proporcoes = useMemo(
-    () => data.materiais_selecionados.map((m) => ({ nome: m.nome, proporcao_pct: m.proporcao_pct })),
+    () => data.materiais_selecionados.map((m) => ({ 
+      nome: m.nome, 
+      proporcao_pct: m.proporcao_pct,
+      densidade: m.densidade 
+    })),
     [data.materiais_selecionados]
   );
 
   const dosageResult = useMemo(() => {
-    if (data.materiais_selecionados.length === 0) return null;
     return calcDosage({
       relacao_cimento: data.relacao_cimento,
       relacao_ac: data.relacao_ac,
-      volume_batelada: data.volume_batelada,
+      consumo_alvo_m3: data.consumo_alvo_m3,
+      volume_m3: data.volume_m3,
       densidade_cimento: data.densidade_cimento,
       proporcoes_materiais: proporcoes,
       aditivos_ml: data.aditivos_ml,
@@ -82,292 +81,326 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
   const curvaConsumo = useMemo(
     () =>
       gerarCurvaConsumo(
-        data.relacao_cimento,
         data.relacao_ac,
-        data.volume_batelada,
         data.densidade_cimento,
-        proporcoes.length > 0 ? proporcoes : [{ nome: "Agregado", proporcao_pct: 1 }]
+        proporcoes.length > 0 ? proporcoes : [{ nome: "Agregado", proporcao_pct: 1, densidade: 2.65 }]
       ),
-    [data.relacao_cimento, data.relacao_ac, data.volume_batelada, data.densidade_cimento, proporcoes]
+    [data.relacao_ac, data.densidade_cimento, proporcoes]
   );
 
-  const currentPoint = curvaConsumo.find((p) => p.isCurrent);
+  // Trava de Segurança do Misturador (Clamp de 550kg)
+  useEffect(() => {
+    if (dosageResult.massa_total_batelada > 550) {
+      if (dosageResult.massa_total_m3 > 0) {
+        const maxVolume = 550 / dosageResult.massa_total_m3;
+        // Evitar loop infinito
+        if (Math.abs(data.volume_m3 - maxVolume) > 0.0001) {
+          onChange({ volume_m3: maxVolume });
+        }
+      }
+    }
+  }, [dosageResult.massa_total_batelada, dosageResult.massa_total_m3, data.volume_m3, onChange]);
 
   const handleAcChange = useCallback(
     ([v]: number[]) => onChange({ relacao_ac: v / 100 }),
     [onChange]
   );
 
-  return (
-    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
+  const handleMassaBateladaChange = useCallback(
+    (massa: number) => {
+      // Volume = Massa / (kg/m3)
+      if (dosageResult.massa_total_m3 > 0) {
+        onChange({ volume_m3: massa / dosageResult.massa_total_m3 });
+      }
+    },
+    [dosageResult.massa_total_m3, onChange]
+  );
 
-      {/* Cabeçalho da etapa */}
+  const handleCimentoBateladaChange = useCallback(
+    (cimento: number) => {
+      // Volume = Cimento / (kg/m3)
+      if (dosageResult.consumo_cimento_m3 > 0) {
+        onChange({ volume_m3: cimento / dosageResult.consumo_cimento_m3 });
+      }
+    },
+    [dosageResult.consumo_cimento_m3, onChange]
+  );
+
+  return (
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+      
+      {/* Cabeçalho Pro */}
       <div className="border-l-4 border-primary pl-4">
-        <h2 className="text-xl font-black text-foreground tracking-tight">DOSAGEM</h2>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          Etapa 3 de 5 — Complete todos os campos obrigatórios
+        <h2 className="text-2xl font-black text-foreground tracking-tight uppercase">DOSAGEM</h2>
+        <p className="text-sm text-muted-foreground mt-0.5">
+          Etapa 3 de 5 • Complete todos os campos obrigatórios
         </p>
       </div>
 
-      {/* Layout 2 colunas */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-
-        {/* Coluna esquerda: Configuração do Traço */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-black uppercase tracking-wider flex items-center gap-2">
-              <BarChart3 className="h-4 w-4 text-primary" />
-              Configuração do Traço
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-5">
-
-            {/* Relação Cimento:Batelada */}
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
-                Relação Cimento : Batelada
-              </Label>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-muted-foreground">1 :</span>
-                <Input
-                  type="number"
-                  step="0.1"
-                  min="1"
-                  max="12"
-                  className="w-28 font-bold text-lg text-center [appearance:textfield]"
-                  value={data.relacao_cimento}
-                  onChange={(e) => onChange({ relacao_cimento: parseFloat(e.target.value) || 1 })}
-                />
-                <span className="text-xs text-muted-foreground">(em massa)</span>
-              </div>
-            </div>
-
-            {/* Relação A/C com Slider */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
-                  Relação A/C
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Coluna Esquerda: Configuração */}
+        <div className="space-y-6">
+          <Card className="border-none shadow-sm bg-muted/20">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-black uppercase tracking-wider flex items-center gap-2 text-foreground/80">
+                <BarChart3 className="h-4 w-4 text-primary" />
+                Configuração do Traço
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              
+              {/* Relação Cimento : Agregado */}
+              <div className="space-y-3">
+                <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
+                  Relação Cimento : Agregado
                 </Label>
-                <span className="text-lg font-black text-primary">
-                  {data.relacao_ac.toFixed(2)}
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl font-black text-foreground">1 :</span>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    min="1"
+                    className="w-32 h-12 text-2xl font-black text-center border-2 focus-visible:ring-primary"
+                    value={data.relacao_cimento}
+                    onChange={(e) => onChange({ relacao_cimento: parseFloat(e.target.value) || 1 })}
+                  />
+                  <span className="text-sm font-medium text-muted-foreground">(em massa)</span>
+                </div>
+              </div>
+
+              {/* Relação A/C */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
+                    Relação Água / Cimento (A/C)
+                  </Label>
+                  <span className="text-xl font-black text-primary">
+                    {data.relacao_ac.toFixed(2)}
+                  </span>
+                </div>
+                <Slider
+                  value={[Math.round(data.relacao_ac * 100)]}
+                  min={20}
+                  max={90}
+                  step={1}
+                  onValueChange={handleAcChange}
+                  className="accent-primary"
+                />
+              </div>
+
+              {/* BOX DE DESTAQUE: CONSUMO E DENSIDADE */}
+              <div className="flex gap-4">
+                <div className="flex-1 bg-white dark:bg-card border-2 border-primary rounded-xl p-5 shadow-sm relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-2 opacity-10">
+                    <Weight className="h-12 w-12" />
+                  </div>
+                  <Label className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-2 block">
+                    Consumo de Cimento Alvo (kg/m³)
+                  </Label>
+                  <div className="flex items-baseline gap-2">
+                    <Input
+                      type="number"
+                      step="1"
+                      min="0"
+                      className="w-28 text-5xl font-black text-foreground tracking-tighter h-14 bg-transparent border-none p-0 focus-visible:ring-0 shadow-none"
+                      value={data.consumo_alvo_m3 || ""}
+                      onChange={(e) => onChange({ consumo_alvo_m3: parseFloat(e.target.value) || 0 })}
+                    />
+                    <span className="text-sm font-bold text-muted-foreground">kg/m³</span>
+                  </div>
+                </div>
+
+                <div className="w-1/3 bg-muted/50 rounded-xl p-4 flex flex-col justify-center border border-border/50">
+                  <Label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
+                    Densidade Efetiva
+                  </Label>
+                  <div className="flex flex-col">
+                    <span className="text-xl font-black text-foreground">
+                      {dosageResult.densidade_efetiva.toFixed(2)}
+                    </span>
+                    <span className="text-[10px] font-bold text-primary uppercase mt-0.5">
+                      (Automático)
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Volume e Massas por Batelada */}
+              <div className="grid grid-cols-2 gap-4 pt-2">
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                    Volume Batelada (m³)
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      className="h-10 font-black bg-background border-2 border-border/50 focus-visible:ring-primary shadow-none"
+                      value={data.volume_m3 || ""}
+                      onChange={(e) => onChange({ volume_m3: parseFloat(e.target.value) || 0 })}
+                    />
+                    <span className="absolute right-3 top-2.5 text-[10px] font-bold text-muted-foreground uppercase">m³</span>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                    Massa / Batelada
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      type="number"
+                      step="1"
+                      min="0"
+                      className={cn(
+                        "h-10 font-black focus-visible:ring-primary shadow-none",
+                        dosageResult.massa_total_batelada > 550 
+                          ? "bg-red-500/10 border-red-500/50 text-red-600" 
+                          : "bg-muted/40 border-primary/20"
+                      )}
+                      value={dosageResult.massa_total_batelada.toFixed(dosageResult.massa_total_batelada % 1 === 0 ? 0 : 1)}
+                      onChange={(e) => handleMassaBateladaChange(parseFloat(e.target.value) || 0)}
+                    />
+                    <span className="absolute right-3 top-2.5 text-[10px] font-bold text-muted-foreground uppercase">kg</span>
+                    {dosageResult.massa_total_batelada > 550 && (
+                      <span className="absolute -bottom-4 right-0 text-[8px] font-black text-red-500 uppercase">Capacidade Excedida (Max 550kg)</span>
+                    )}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                    Cimento / Batelada
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      type="number"
+                      step="1"
+                      min="0"
+                      className="h-10 font-black bg-primary/10 text-primary border-primary/20 focus-visible:ring-primary shadow-none"
+                      value={dosageResult.consumo_cimento_batelada.toFixed(dosageResult.consumo_cimento_batelada % 1 === 0 ? 0 : 1)}
+                      onChange={(e) => handleCimentoBateladaChange(parseFloat(e.target.value) || 0)}
+                    />
+                    <span className="absolute right-3 top-2.5 text-[10px] font-bold text-primary uppercase">kg</span>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                    Água / Batelada
+                  </Label>
+                  <div className="h-10 flex items-center px-3 bg-blue-500/10 text-blue-500 border border-blue-500/20 rounded-md font-black text-sm">
+                    {dosageResult.agua_batelada.toFixed(1)} kg
+                  </div>
+                </div>
+              </div>
+
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Coluna Direita: Gráfico */}
+        <div className="space-y-6">
+          <Card className="flex flex-col overflow-hidden">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-black uppercase tracking-wider flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4 text-primary" />
+                  Curva de Consumo
+                </CardTitle>
+                <span className="bg-primary/10 text-primary text-[10px] font-black px-2 py-0.5 rounded uppercase">
+                  kg/m³ vs Traço
                 </span>
               </div>
-              <Slider
-                value={[Math.round(data.relacao_ac * 100)]}
-                min={20}
-                max={80}
-                step={1}
-                onValueChange={handleAcChange}
-                className="accent-primary"
-              />
-              <div className="flex justify-between text-[10px] text-muted-foreground">
-                <span>0.20 (seco)</span>
-                <span>0.80 (molhado)</span>
-              </div>
-            </div>
-
-            {/* Separador com resultado principal */}
-            <div className={cn(
-              "rounded-lg border-2 border-primary/30 bg-primary/5 p-4 text-center space-y-1"
-            )}>
-              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">
-                Consumo de Cimento Alvo
-              </p>
-              <p className="text-4xl font-black text-primary leading-none">
-                {dosageResult?.consumo_cimento_kg.toFixed(0) ?? "—"}
-              </p>
-              <p className="text-xs text-muted-foreground font-medium">kg / batelada</p>
-
-              {currentPoint && (
-                <p className="text-[11px] text-muted-foreground mt-1">
-                  Traço: <span className="font-bold text-foreground">1:{data.relacao_cimento.toFixed(1)}</span>
-                </p>
-              )}
-            </div>
-
-            {/* Volume Batelada + Densidade Cimento */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">
-                  Vol. Batelada (L)
-                </Label>
-                <Input
-                  type="number"
-                  step="10"
-                  min="0"
-                  className="text-sm font-bold"
-                  value={data.volume_batelada}
-                  onChange={(e) => onChange({ volume_batelada: parseFloat(e.target.value) || 0 })}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">
-                  Dens. Cimento (g/cm³)
-                </Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  className="text-sm font-bold"
-                  value={data.densidade_cimento}
-                  onChange={(e) => onChange({ densidade_cimento: parseFloat(e.target.value) || 0 })}
-                />
-              </div>
-            </div>
-
-            {/* Aditivos */}
-            <div className="space-y-1.5">
-              <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">
-                Aditivos (mL)
-              </Label>
-              <Input
-                type="number"
-                step="1"
-                min="0"
-                className="text-sm font-bold"
-                value={data.aditivos_ml}
-                onChange={(e) => onChange({ aditivos_ml: parseFloat(e.target.value) || 0 })}
-              />
-            </div>
-
-            {/* Resumo de massas */}
-            {dosageResult && (
-              <div className="grid grid-cols-2 gap-2 pt-1">
-                <div className="flex items-center gap-2 rounded-md bg-muted/40 px-3 py-2">
-                  <Weight className="h-4 w-4 text-success shrink-0" />
-                  <div>
-                    <p className="text-[10px] text-muted-foreground">Massa Total</p>
-                    <p className="text-sm font-black">{dosageResult.massa_total_kg.toFixed(1)} kg</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 rounded-md bg-muted/40 px-3 py-2">
-                  <Droplets className="h-4 w-4 text-blue-400 shrink-0" />
-                  <div>
-                    <p className="text-[10px] text-muted-foreground">Água</p>
-                    <p className="text-sm font-black">{dosageResult.agua_litros.toFixed(1)} L</p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Coluna direita: Curva de Consumo */}
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-black uppercase tracking-wider">
-                Curva de Consumo
-              </CardTitle>
-              <span className="text-[11px] text-muted-foreground font-medium">
-                Cimento vs Traço
-              </span>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <ResponsiveContainer width="100%" height={280}>
-              <LineChart data={curvaConsumo} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
-                <XAxis
-                  dataKey="ratio"
-                  fontSize={9}
-                  tick={{ fill: "hsl(var(--muted-foreground))" }}
-                  interval={0}
-                  angle={-30}
-                  textAnchor="end"
-                  height={40}
-                />
-                <YAxis
-                  fontSize={9}
-                  tick={{ fill: "hsl(var(--muted-foreground))" }}
-                  unit=" kg"
-                />
-                <Tooltip content={<CustomConsumoCurveTooltip />} />
-                <Line
-                  type="monotone"
-                  dataKey="cimento"
-                  stroke="hsl(var(--muted-foreground))"
-                  strokeWidth={2}
-                  dot={{ r: 3, fill: "hsl(var(--muted-foreground))", stroke: "none" }}
-                  activeDot={{ r: 5 }}
-                  name="Consumo"
-                />
-                {/* Ponto atual em vermelho */}
-                {currentPoint && (
-                  <ReferenceDot
-                    x={currentPoint.ratio}
-                    y={currentPoint.cimento}
-                    r={7}
-                    fill="hsl(var(--primary))"
-                    stroke="hsl(var(--card))"
-                    strokeWidth={2}
+            </CardHeader>
+            <CardContent className="p-0 flex-1">
+              <div className="h-[400px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={curvaConsumo} margin={{ top: 20, right: 30, bottom: 20, left: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                  <XAxis 
+                    dataKey="ratioLabel" 
+                    fontSize={11} 
+                    fontFamily="monospace"
+                    tick={{ fill: "hsl(var(--muted-foreground))", fontWeight: 700 }}
                   />
-                )}
-              </LineChart>
-            </ResponsiveContainer>
-
-            {/* Legenda do gráfico */}
-            <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
-              <div className="flex items-center gap-1.5">
-                <span className="h-0.5 w-6 bg-muted-foreground/50 rounded" />
-                Curva de consumo
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="h-3 w-3 rounded-full bg-primary" />
-                Traço atual
-              </div>
+                  <YAxis 
+                    fontSize={11} 
+                    tick={{ fill: "hsl(var(--muted-foreground))", fontWeight: 700 }}
+                    width={40}
+                  />
+                  <Tooltip content={<CustomConsumoCurveTooltip />} />
+                  <Line
+                    type="monotone"
+                    dataKey="cimento"
+                    stroke="hsl(var(--foreground))"
+                    strokeWidth={3}
+                    dot={false}
+                    activeDot={{ r: 6, fill: "hsl(var(--primary))", stroke: "white", strokeWidth: 2 }}
+                  />
+                  {/* Ponto de destaque industrial */}
+                  <ReferenceDot
+                    x={`1:${data.relacao_cimento.toFixed(1)}`}
+                    y={dosageResult.consumo_cimento_m3}
+                    r={8}
+                    fill="hsl(var(--primary))"
+                    stroke="white"
+                    strokeWidth={3}
+                    className="animate-pulse"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
-          </CardContent>
-        </Card>
+            <div className="mt-4 grid grid-cols-2 gap-4 h-auto pb-4 px-4">
+                 <div className="flex items-center gap-2 justify-center py-2 bg-muted/30 rounded-lg">
+                    <div className="w-8 h-1 bg-foreground rounded-full"></div>
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase">Curva Teórica</span>
+                 </div>
+                 <div className="flex items-center gap-2 justify-center py-2 bg-primary/10 rounded-lg border border-primary/20">
+                    <div className="w-3 h-3 bg-primary rounded-full"></div>
+                    <span className="text-[10px] font-bold text-primary uppercase tracking-wider">Ponto Selecionado</span>
+                 </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
-      {/* Tabela de materiais por batelada */}
-      {dosageResult && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-black uppercase tracking-wider flex items-center gap-2">
-              <Beaker className="h-4 w-4 text-primary" />
-              Materiais por Batelada
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {/* Linha Cimento */}
-              <div className="flex items-center justify-between rounded-md bg-primary/10 border border-primary/20 px-4 py-2">
-                <span className="text-sm font-bold">Cimento</span>
-                <span className="text-sm font-black text-primary">{dosageResult.consumo_cimento_kg.toFixed(2)} kg</span>
-              </div>
-
-              {/* Agregados */}
-              {dosageResult.materiais_batelada.map((m) => (
-                <div key={m.nome} className="flex items-center justify-between rounded-md bg-muted/30 border px-4 py-2">
-                  <span className="text-sm font-medium">{m.nome}</span>
-                  <span className="text-sm font-bold">{m.kg.toFixed(2)} kg</span>
-                </div>
-              ))}
-
-              {/* Água */}
-              <div className="flex items-center justify-between rounded-md bg-blue-50 dark:bg-blue-950/20 border border-blue-200/50 px-4 py-2">
-                <span className="text-sm font-medium">Água</span>
-                <span className="text-sm font-bold text-blue-600 dark:text-blue-400">{dosageResult.agua_litros.toFixed(2)} L</span>
-              </div>
-
-              {data.aditivos_ml > 0 && (
-                <div className="flex items-center justify-between rounded-md bg-muted/20 border px-4 py-2">
-                  <span className="text-sm font-medium">Aditivos</span>
-                  <span className="text-sm font-bold text-warning">{data.aditivos_ml} mL</span>
-                </div>
-              )}
-
-              {/* Total */}
-              <div className="flex items-center justify-between rounded-md bg-foreground/5 border-2 border-foreground/20 px-4 py-3 mt-1">
-                <span className="text-sm font-black uppercase tracking-wider">TOTAL</span>
-                <span className="text-base font-black">{dosageResult.massa_total_kg.toFixed(2)} kg</span>
-              </div>
+      {/* FOOTER SUMMARY: 5 COLUNAS */}
+      <Card className="bg-foreground text-card border-none shadow-xl overflow-hidden">
+        <div className="grid grid-cols-5 divide-x divide-white/10">
+          <div className="p-4 flex flex-col items-center">
+            <span className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">Cimento</span>
+            <div className="flex items-baseline gap-1">
+              <span className="text-xl font-black">{dosageResult.consumo_cimento_m3.toFixed(0)}</span>
+              <span className="text-[10px] opacity-70">kg/m³</span>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+          <div className="p-4 flex flex-col items-center">
+            <span className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">Massa Total</span>
+            <div className="flex items-baseline gap-1">
+              <span className="text-xl font-black">{dosageResult.massa_total_batelada.toFixed(1)}</span>
+              <span className="text-[10px] opacity-70">kg</span>
+            </div>
+          </div>
+          <div className="p-4 flex flex-col items-center">
+            <span className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">Água</span>
+            <div className="flex items-baseline gap-1">
+              <span className="text-xl font-black">{dosageResult.agua_m3.toFixed(0)}</span>
+              <span className="text-[10px] opacity-70">kg/m³</span>
+            </div>
+          </div>
+          <div className="p-4 flex flex-col items-center">
+            <span className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">Agregado</span>
+            <div className="flex items-baseline gap-1">
+              <span className="text-xl font-black">{(dosageResult.consumo_cimento_m3 * data.relacao_cimento).toFixed(0)}</span>
+              <span className="text-[10px] opacity-70">kg/m³</span>
+            </div>
+          </div>
+          <div className="p-4 flex flex-col items-center bg-primary text-primary-foreground">
+            <span className="text-[10px] font-black uppercase tracking-widest mb-1">Traço</span>
+            <span className="text-xl font-black">1 : {data.relacao_cimento.toFixed(1)}</span>
+          </div>
+        </div>
+      </Card>
     </div>
   );
 }

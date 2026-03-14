@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useAppStore } from "@/store/useAppStore";
+import { hasActionPermission } from "@/lib/permissions";
 import { TIPOS_ANALISE } from "@/lib/analysis-data";
 
 const mockTraces = [
@@ -15,8 +16,11 @@ const mockTraces = [
 ];
 
 const StandardTracesPage = () => {
+  const currentUserRole = useAppStore((s) => s.currentUserRole);
   const standardTraces = useAppStore((s) => s.standardTraces);
   
+  const canCreate = hasActionPermission(currentUserRole, "material:create");
+
   // Combine mock traces with saved traces
   const allTraces = [
     ...mockTraces,
@@ -37,10 +41,12 @@ const StandardTracesPage = () => {
           <h1 className="text-2xl font-bold text-foreground">Traços Padrão</h1>
           <p className="text-sm text-muted-foreground">DNAs e curvas de referência</p>
         </div>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Novo Traço Padrão
-        </Button>
+        {canCreate && (
+          <Button>
+            <Plus className="mr-2 h-4 w-4" />
+            Novo Traço Padrão
+          </Button>
+        )}
       </div>
 
       <Card className="shadow-sm">

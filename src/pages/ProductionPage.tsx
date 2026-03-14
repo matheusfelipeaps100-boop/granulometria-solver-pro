@@ -9,12 +9,17 @@ import { toast } from "sonner";
 import { ViewProductionModal } from "@/components/production/ViewProductionModal";
 import { RegisterProductionModal } from "@/components/production/RegisterProductionModal";
 import { useAppStore, type StoredAnalysis, type ProductionBatch } from "@/store/useAppStore";
+import { hasActionPermission } from "@/lib/permissions";
 import { TIPOS_ANALISE } from "@/lib/analysis-data";
 
 const ProductionPage = () => {
+  const currentUserRole = useAppStore((s) => s.currentUserRole);
   const analyses = useAppStore((s) => s.analyses);
   const batches = useAppStore((s) => s.batches);
   const releasedAnalyses = analyses.filter((a) => a.status === "liberado_producao");
+
+  const canRegister = hasActionPermission(currentUserRole, "batch:create");
+
   const [viewAnalysis, setViewAnalysis] = useState<StoredAnalysis | null>(null);
   const [registerAnalysis, setRegisterAnalysis] = useState<StoredAnalysis | null>(null);
 
@@ -120,7 +125,7 @@ const ProductionPage = () => {
                           <Button variant="ghost" size="icon" title="Visualizar" onClick={() => setViewAnalysis(analysis)}>
                             <Eye className="h-4 w-4" />
                           </Button>
-                          {!batch && (
+                          {!batch && canRegister && (
                             <Button variant="ghost" size="icon" title="Registrar Produção" onClick={() => setRegisterAnalysis(analysis)}>
                               <ClipboardList className="h-4 w-4" />
                             </Button>

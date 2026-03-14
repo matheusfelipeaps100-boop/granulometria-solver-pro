@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Plus, Search, Pencil, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useAppStore } from "@/store/useAppStore";
+import { hasActionPermission } from "@/lib/permissions";
 import { MaterialModal } from "@/components/materials/MaterialModal";
 import {
   AlertDialog,
@@ -20,7 +21,12 @@ import {
 import { toast } from "sonner";
 
 const MaterialsPage = () => {
-  const { materials, deleteMaterial } = useAppStore();
+  const { materials, deleteMaterial, currentUserRole } = useAppStore();
+  
+  const canCreate = hasActionPermission(currentUserRole, "material:create");
+  const canEdit = hasActionPermission(currentUserRole, "material:edit");
+  const canDelete = hasActionPermission(currentUserRole, "material:delete");
+  
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState<string | null>(null);
@@ -59,10 +65,12 @@ const MaterialsPage = () => {
             <h1 className="text-2xl font-bold text-foreground">Materiais</h1>
             <p className="text-sm text-muted-foreground">Cadastro de materiais e curvas granulométricas</p>
           </div>
-          <Button onClick={handleNew}>
-            <Plus className="mr-2 h-4 w-4" />
-            Novo Material
-          </Button>
+          {canCreate && (
+            <Button onClick={handleNew}>
+              <Plus className="mr-2 h-4 w-4" />
+              Novo Material
+            </Button>
+          )}
         </div>
 
         <Card className="shadow-sm">
@@ -101,20 +109,24 @@ const MaterialsPage = () => {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEdit(m.id)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setDeleteId(m.id)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                        {canEdit && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEdit(m.id)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {canDelete && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setDeleteId(m.id)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

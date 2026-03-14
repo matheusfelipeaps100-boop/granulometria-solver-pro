@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,8 @@ import { ArrowLeft, FlaskConical, CheckCircle2, XCircle, Save } from "lucide-rea
 import { toast } from "sonner";
 import { useAppStore } from "@/store/useAppStore";
 import { ANALISTAS } from "@/lib/analysis-data";
-import { calcTensao, calcRuptureStats } from "@/lib/granulometry-engine";
+import { calcTensao, calcRuptureStats, AREAS_PADRAO } from "@/lib/granulometry-engine";
+import { cn } from "@/lib/utils";
 
 interface SampleInput {
   forca_kn: string;
@@ -59,6 +60,24 @@ const RuptureDetailPage = () => {
     cp: [{ forca_kn: "" }, { forca_kn: "" }, { forca_kn: "" }],
   });
 
+  const [areas, setAreas] = useState<Record<TipoAmostra, number>>({
+    bloco: AREAS_PADRAO.bloco_14,
+    paver: AREAS_PADRAO.paver,
+    cp: AREAS_PADRAO.cp_10x20,
+  });
+
+  // Pre-load data if available
+  useEffect(() => {
+    if (found?.schedule?.status === "concluido") {
+      const s = found.schedule;
+      if (s.data_executada) setDataReal(s.data_executada);
+      if (s.responsavel_id) setResponsavel(s.responsavel_id);
+      if (s.observacoes) setObservacoes(s.observacoes);
+      if (s.amostras) setSamples(s.amostras as any);
+      if (s.geometrias) setAreas(s.geometrias as any);
+    }
+  }, [found?.schedule]);
+
   const updateSample = useCallback((tipo: TipoAmostra, index: number, value: string) => {
     setSamples((prev) => ({
       ...prev,
@@ -80,11 +99,11 @@ const RuptureDetailPage = () => {
         .map((s) => parseFloat(s.forca_kn))
         .filter((f) => !isNaN(f) && f > 0);
       if (forcas.length > 0) {
-        result[tipo] = calcRuptureStats(forcas, meta);
+        result[tipo] = calcRuptureStats(forcas, meta, areas[tipo]);
       }
     }
     return result;
-  }, [samples, found]);
+  }, [samples, found, areas]);
 
   if (!found) {
     return (
@@ -125,7 +144,12 @@ const RuptureDetailPage = () => {
 
     setSaving(true);
     setTimeout(() => {
-      completeRuptureSchedule(schedule.id, dataReal);
+      completeRuptureSchedule(schedule.id, dataReal, {
+        responsavel_id: responsavel,
+        observacoes,
+        amostras: samples,
+        geometrias: areas,
+      });
       setSaving(false);
       toast.success("Ensaio de rompimento salvo!", {
         description: `${batch.batch_code} — ${schedule.idade_dias} dias`,
@@ -221,37 +245,62 @@ const RuptureDetailPage = () => {
       {TIPOS_AMOSTRA.map((tipo) => {
         const stats = statsPerTipo[tipo];
         return (
-          <Card key={tipo} className="shadow-sm">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center justify-between text-base">
-                <span>{tipoLabel[tipo]}</span>
-                {analysis && (
-                  <span className="text-sm text-muted-foreground font-normal">
-                    Meta ≥ {analysis.resistencia_prevista} MPa
-                  </span>
+          <Card key={tipo} className="shadow-sm border-l-4 border-l-primary/30">
+            <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
+              <div className="space-y-1">
+                <CardTitle className="text-base">{tipoLabel[tipo]}</CardTitle>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">
+                  Ensaios Técnicos
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                {tipo === "bloco" && (
+                  <Select 
+                    value={areas.bloco.toString()} 
+                    onValueChange={(v) => setAreas(s => ({ ...s, bloco: parseFloat(v) }))}
+                  >
+                    <SelectTrigger className="h-8 text-xs w-[130px]">
+                      <SelectValue placeholder="Geometria" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={AREAS_PADRAO.bloco_14.toString()}>Bloco de 14 cm</SelectItem>
+                      <SelectItem value={AREAS_PADRAO.bloco_19.toString()}>Bloco de 19 cm</SelectItem>
+                    </SelectContent>
+                  </Select>
                 )}
-              </CardTitle>
+                {analysis && (
+                  <Badge variant="secondary" className="font-bold">
+                    Meta ≥ {analysis.resistencia_prevista} MPa
+                  </Badge>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {samples[tipo].map((sample, i) => {
                   const forca = parseFloat(sample.forca_kn);
-                  const tensao = !isNaN(forca) && forca > 0 ? calcTensao(forca) : null;
+                  const tensao = !isNaN(forca) && forca > 0 ? calcTensao(forca, areas[tipo]) : null;
                   return (
-                    <div key={i} className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">
-                        Amostra {i + 1} — Força (kN)
+                    <div key={i} className="relative group">
+                      <Label className="text-[10px] font-bold text-muted-foreground uppercase absolute -top-2 left-2 bg-background px-1 z-10">
+                        Amostra {i + 1}
                       </Label>
-                      <Input
-                        type="number"
-                        step="0.1"
-                        placeholder="Ex: 120.5"
-                        value={sample.forca_kn}
-                        onChange={(e) => updateSample(tipo, i, e.target.value)}
-                      />
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          step="0.1"
+                          placeholder="0.0"
+                          className="h-10 font-bold focus-visible:ring-primary/30"
+                          value={sample.forca_kn === "0" ? "" : sample.forca_kn}
+                          onFocus={(e) => e.target.select()}
+                          onChange={(e) => updateSample(tipo, i, e.target.value)}
+                        />
+                        <span className="text-[10px] font-black text-muted-foreground mr-2">kN</span>
+                      </div>
                       {tensao !== null && (
-                        <p className="text-xs text-muted-foreground">
-                          Tensão: <span className="font-semibold text-foreground">{tensao.toFixed(2)} MPa</span>
+                        <p className="text-[11px] mt-1 flex justify-between px-1">
+                          <span className="text-muted-foreground">Resistência:</span>
+                          <span className="font-bold text-primary">{tensao.toFixed(2)} MPa</span>
                         </p>
                       )}
                     </div>
@@ -261,40 +310,51 @@ const RuptureDetailPage = () => {
 
               {/* Stats calculados em tempo real */}
               {stats && (
-                <>
-                  <Separator />
-                  <div className="flex flex-wrap items-center gap-4 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Média:</span>{" "}
-                      <span className="font-semibold">{stats.media.toFixed(2)} MPa</span>
+                <div className="pt-2">
+                  <Separator className="mb-4 opacity-50" />
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 items-center">
+                    <div className="text-center sm:text-left">
+                      <p className="text-[10px] uppercase text-muted-foreground font-bold mb-0.5">Média (MPa)</p>
+                      <p className="text-lg font-black text-primary leading-tight">{stats.media.toFixed(2)}</p>
                     </div>
-                    <div>
-                      <span className="text-muted-foreground">Min:</span>{" "}
-                      <span className="font-semibold">{stats.minimo.toFixed(2)}</span>
+                    
+                    <div className="hidden sm:block">
+                      <p className="text-[10px] uppercase text-muted-foreground font-bold mb-0.5">Coef. Var. (CV)</p>
+                      <p className={cn(
+                        "text-sm font-bold leading-tight",
+                        stats.coeficiente_variacao > 15 ? "text-destructive" : stats.coeficiente_variacao > 10 ? "text-yellow-600" : "text-green-600"
+                      )}>
+                        {stats.coeficiente_variacao.toFixed(1)}%
+                      </p>
                     </div>
-                    <div>
-                      <span className="text-muted-foreground">Max:</span>{" "}
-                      <span className="font-semibold">{stats.maximo.toFixed(2)}</span>
+
+                    <div className="text-center sm:text-left">
+                      <p className="text-[10px] uppercase text-muted-foreground font-bold mb-0.5">Mín / Máx</p>
+                      <p className="text-xs font-semibold text-foreground leading-tight">
+                        {stats.minimo.toFixed(1)} / {stats.maximo.toFixed(1)}
+                      </p>
                     </div>
-                    <div>
-                      <span className="text-muted-foreground">DP:</span>{" "}
-                      <span className="font-semibold">{stats.desvio_padrao.toFixed(2)}</span>
+
+                    <div className="hidden sm:block">
+                      <p className="text-[10px] uppercase text-muted-foreground font-bold mb-0.5">Desvio Padrão</p>
+                      <p className="text-xs font-semibold text-foreground leading-tight">{stats.desvio_padrao.toFixed(2)}</p>
                     </div>
-                    <div className="flex items-center gap-1.5">
+
+                    <div className="flex justify-end">
                       {stats.status === "conforme" ? (
-                        <Badge className="bg-green-100 text-green-800 border-green-200 gap-1">
-                          <CheckCircle2 className="h-3 w-3" /> CONFORME
+                        <Badge className="bg-green-600/10 hover:bg-green-600/20 text-green-700 border-green-200/50 gap-1 px-3 py-1">
+                          <CheckCircle2 className="h-3.5 w-3.5" /> CONFORME
                         </Badge>
                       ) : stats.status === "nao_conforme" ? (
-                        <Badge className="bg-red-100 text-red-800 border-red-200 gap-1">
-                          <XCircle className="h-3 w-3" /> NÃO CONFORME
+                        <Badge className="bg-destructive/10 hover:bg-destructive/20 text-destructive border-destructive/20 gap-1 px-3 py-1">
+                          <XCircle className="h-3.5 w-3.5" /> AGUARDAR
                         </Badge>
                       ) : (
-                        <Badge variant="outline">Registro</Badge>
+                        <Badge variant="outline" className="px-3 py-1">Registro</Badge>
                       )}
                     </div>
                   </div>
-                </>
+                </div>
               )}
             </CardContent>
           </Card>

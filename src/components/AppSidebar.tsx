@@ -10,8 +10,11 @@ import {
   ChevronLeft,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import logoImg from "@/assets/logo-lajeforro.png";
+import { useAppStore, UserRole } from "@/store/useAppStore";
+import { RoleSwitcher } from "@/components/RoleSwitcher";
+import { LogOut } from "lucide-react";
 
 import {
   Sidebar,
@@ -26,26 +29,48 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-const mainItems = [
-  { title: "Métricas", url: "/", icon: LayoutDashboard },
-  { title: "Produção", url: "/production", icon: Factory },
-  { title: "Análises", url: "/analyses", icon: FlaskConical },
-  { title: "Traços Padrão", url: "/standard-traces", icon: Boxes },
-  { title: "Materiais", url: "/materials", icon: Package },
-  { title: "Rompimentos", url: "/ruptures", icon: Hammer },
-  { title: "Relatórios", url: "/reports", icon: FileText },
+type NavItem = { title: string; url: string; icon: React.ElementType; allowedRoles: UserRole[] };
+
+const mainItems: NavItem[] = [
+  { title: "Métricas", url: "/", icon: LayoutDashboard, allowedRoles: ["ADMIN", "PRODUCAO", "VENDAS", "LABORATORIO"] },
+  { title: "Produção", url: "/production", icon: Factory, allowedRoles: ["ADMIN", "PRODUCAO", "VENDAS"] },
+  { title: "Análises", url: "/analyses", icon: FlaskConical, allowedRoles: ["ADMIN", "VENDAS", "LABORATORIO"] },
+  { title: "Traços Padrão", url: "/standard-traces", icon: Boxes, allowedRoles: ["ADMIN", "LABORATORIO"] },
+  { title: "Materiais", url: "/materials", icon: Package, allowedRoles: ["ADMIN", "LABORATORIO"] },
+  { title: "Rompimentos", url: "/ruptures", icon: Hammer, allowedRoles: ["ADMIN", "VENDAS", "LABORATORIO"] },
+  { title: "Relatórios", url: "/reports", icon: FileText, allowedRoles: ["ADMIN", "VENDAS", "LABORATORIO"] },
 ];
 
-const adminItems = [
-  { title: "Configurações", url: "/settings", icon: Settings },
+const adminItems: NavItem[] = [
+  { title: "Configurações", url: "/settings", icon: Settings, allowedRoles: ["ADMIN"] },
 ];
+
+const ROLE_LABELS: Record<UserRole, string> = {
+  ADMIN: "Administrativo",
+  PRODUCAO: "Produção",
+  VENDAS: "Vendas",
+  LABORATORIO: "Laboratório",
+};
 
 export function AppSidebar() {
   const { state, toggleSidebar } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
+  const navigate = useNavigate();
+  const currentUserRole = useAppStore((s) => s.currentUserRole);
+  const currentUser = useAppStore((s) => s.currentUser);
+  const logout = useAppStore((s) => s.logout);
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
+  
   const isActive = (path: string) =>
     path === "/" ? location.pathname === "/" : location.pathname.startsWith(path);
+
+  const visibleMain = mainItems.filter(item => item.allowedRoles.includes(currentUserRole));
+  const visibleAdmin = adminItems.filter(item => item.allowedRoles.includes(currentUserRole));
 
   return (
     <Sidebar collapsible="icon">
@@ -74,7 +99,7 @@ export function AppSidebar() {
         <SidebarGroup className="p-0">
           <SidebarGroupContent>
             <SidebarMenu className="gap-1">
-              {mainItems.map((item) => {
+              {visibleMain.map((item) => {
                 const active = isActive(item.url);
                 return (
                   <SidebarMenuItem key={item.title}>
@@ -108,53 +133,67 @@ export function AppSidebar() {
         </SidebarGroup>
 
         {/* Admin items at bottom of content */}
-        <SidebarGroup className="p-0 mt-auto">
-          <SidebarGroupContent>
-            <SidebarMenu className="gap-1">
-              {adminItems.map((item) => {
-                const active = isActive(item.url);
-                return (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={active}
-                      tooltip={item.title}
-                      size="lg"
-                    >
-                      <NavLink
-                        to={item.url}
-                        className={
-                          active
-                            ? "bg-primary text-primary-foreground font-semibold hover:bg-primary/90 rounded-lg"
-                            : "text-sidebar-foreground hover:bg-accent hover:text-foreground rounded-lg font-medium"
-                        }
+        {visibleAdmin.length > 0 && (
+          <SidebarGroup className="p-0 mt-auto">
+            <SidebarGroupContent>
+              <SidebarMenu className="gap-1">
+                {visibleAdmin.map((item) => {
+                  const active = isActive(item.url);
+                  return (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={active}
+                        tooltip={item.title}
+                        size="lg"
                       >
-                        <item.icon className="h-5 w-5 shrink-0" />
-                        {!collapsed && <span className="ml-2">{item.title}</span>}
-                        {!collapsed && active && (
-                          <span className="ml-auto h-2 w-2 rounded-full bg-primary-foreground" />
-                        )}
-                      </NavLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+                        <NavLink
+                          to={item.url}
+                          className={
+                            active
+                              ? "bg-primary text-primary-foreground font-semibold hover:bg-primary/90 rounded-lg"
+                              : "text-sidebar-foreground hover:bg-accent hover:text-foreground rounded-lg font-medium"
+                          }
+                        >
+                          <item.icon className="h-5 w-5 shrink-0" />
+                          {!collapsed && <span className="ml-2">{item.title}</span>}
+                          {!collapsed && active && (
+                            <span className="ml-auto h-2 w-2 rounded-full bg-primary-foreground" />
+                          )}
+                        </NavLink>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
 
       <SidebarFooter className={collapsed ? "border-t border-border p-2 flex items-center justify-center" : "border-t border-border p-4"}>
-        <div className={collapsed ? "flex items-center justify-center" : "flex items-center gap-3"}>
-          <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center text-muted-foreground font-semibold text-sm shrink-0">
-            N
-          </div>
-          {!collapsed && (
-            <div className="flex flex-col leading-tight">
-              <span className="text-sm font-semibold text-foreground">Operador Industrial</span>
-              <span className="text-[11px] text-muted-foreground uppercase tracking-wide">Unidade Matriz</span>
+        <div className={collapsed ? "flex items-center justify-center" : "flex flex-col gap-3"}>
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">
+              {(currentUser?.nome || currentUserRole)[0]}
             </div>
-          )}
+            {!collapsed && (
+              <div className="flex flex-col leading-tight flex-1 min-w-0">
+                <span className="text-sm font-semibold text-foreground truncate">{currentUser?.nome || ROLE_LABELS[currentUserRole]}</span>
+                <span className="text-[11px] text-muted-foreground uppercase tracking-wide">{ROLE_LABELS[currentUserRole]}</span>
+              </div>
+            )}
+            {!collapsed && (
+              <button
+                onClick={handleLogout}
+                className="ml-auto p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                title="Sair"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+          {!collapsed && <RoleSwitcher />}
         </div>
       </SidebarFooter>
     </Sidebar>

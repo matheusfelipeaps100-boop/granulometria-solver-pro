@@ -115,8 +115,8 @@ export function GranulometryChart({ curveResults, hasLimits, compact = false }: 
                 type="monotone"
                 dataKey="limiteMax"
                 stroke="none"
-                fill="hsl(210 100% 60% / 0.12)"
-                fillOpacity={1}
+                fill="rgb(186, 230, 253)" // Sky-200
+                fillOpacity={0.4}
                 isAnimationActive={false}
               />
               <Area
@@ -127,12 +127,12 @@ export function GranulometryChart({ curveResults, hasLimits, compact = false }: 
                 fillOpacity={1}
                 isAnimationActive={false}
               />
-              {/* Border lines for zone */}
               <Line
                 type="monotone"
                 dataKey="limiteMax"
-                stroke="hsl(210 80% 65% / 0.5)"
+                stroke="rgb(14, 165, 233)" // Sky-500
                 strokeWidth={1}
+                strokeDasharray="4 4"
                 dot={false}
                 activeDot={false}
                 isAnimationActive={false}
@@ -141,8 +141,9 @@ export function GranulometryChart({ curveResults, hasLimits, compact = false }: 
               <Line
                 type="monotone"
                 dataKey="limiteMin"
-                stroke="hsl(210 80% 65% / 0.5)"
+                stroke="rgb(14, 165, 233)" // Sky-500
                 strokeWidth={1}
+                strokeDasharray="4 4"
                 dot={false}
                 activeDot={false}
                 isAnimationActive={false}
