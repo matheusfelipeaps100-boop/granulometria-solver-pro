@@ -115,3 +115,11 @@
     font-family: var(--font-sans);
   }
 }
+
+/* ─── Card do Gráfico de Curva Combinada ─── */
+/* Sticky isolado: apenas este card acompanha a rolagem. */
+/* Não reutilizar em outros elementos.                   */
+.curva-chart-sticky {
+  position: sticky;
+  top: 20px;
+}

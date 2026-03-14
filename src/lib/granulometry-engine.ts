@@ -39,6 +39,7 @@ export interface RuptureStats {
   minimo: number;
   maximo: number;
   desvio_padrao: number;
+  coeficiente_variacao: number; // Porcentagem (0-100)
   meta_mpa: number;
   conforme: boolean | null;
   status: "conforme" | "nao_conforme" | "registro";
@@ -47,17 +48,23 @@ export interface RuptureStats {
 export interface DosageInput {
   relacao_cimento: number;
   relacao_ac: number;
-  volume_batelada: number;
-  densidade_cimento: number;
-  proporcoes_materiais: Array<{ nome: string; proporcao_pct: number }>;
+  consumo_alvo_m3: number;
+  volume_m3: number; // Volume em metros cúbicos
+  densidade_cimento: number; // g/cm3 ou kg/dm3
+  proporcoes_materiais: Array<{ nome: string; proporcao_pct: number; densidade?: number }>;
   aditivos_ml: number;
 }
 
 export interface DosageResult {
-  consumo_cimento_kg: number;
-  massa_total_kg: number;
-  agua_litros: number;
+  consumo_cimento_m3: number; // kg/m³
+  consumo_cimento_batelada: number; // kg por batelada
+  densidade_efetiva: number; // kg/dm³
+  massa_total_m3: number;
+  massa_total_batelada: number;
+  agua_m3: number; // litros/m³
+  agua_batelada: number; // litros na batelada
   traco_final: string;
+  materiais_m3: Array<{ nome: string; kg: number }>;
   materiais_batelada: Array<{ nome: string; kg: number }>;
 }
 
@@ -179,12 +186,23 @@ export function calcCurvaStatus(results: GradationResult[]): CurvaStatus {
 }
 
 /**
+ * ÁREAS PADRÃO (Líquidas em m²) conforme PRD v3.0
+ */
+export const AREAS_PADRAO = {
+  bloco_14: 0.0546,
+  bloco_19: 0.076,
+  paver: 0.01,
+  cp_10x20: 0.007854,
+  custom: 1,
+} as const;
+
+/**
  * CÁLCULO 6 — Tensão de rompimento
  * Fórmula: Tensão = Força ÷ divisor_a ÷ divisor_b
  */
 export function calcTensao(
   forca_kn: number,
-  divisor_a = 0.0546,
+  divisor_a: number = AREAS_PADRAO.bloco_14,
   divisor_b = 98.0665
 ): number {
   if (forca_kn <= 0) return 0;
@@ -197,20 +215,24 @@ export function calcTensao(
 export function calcRuptureStats(
   forcas: number[],
   meta_mpa: number,
-  divisor_a = 0.0546,
+  divisor_a: number = AREAS_PADRAO.bloco_14,
   divisor_b = 98.0665
 ): RuptureStats {
   const tensoes = forcas.map((f) => calcTensao(f, divisor_a, divisor_b));
   const media = tensoes.reduce((a, b) => a + b, 0) / tensoes.length;
   const variance =
     tensoes.reduce((v, t) => v + Math.pow(t - media, 2), 0) / tensoes.length;
+  
+  const desvio_padrao = Math.sqrt(variance);
+  const cv = media > 0 ? (desvio_padrao / media) * 100 : 0;
 
   return {
     tensoes,
-    media: Math.round(media * 10000) / 10000,
+    media: Math.round(media * 100) / 100,
     minimo: Math.min(...tensoes),
     maximo: Math.max(...tensoes),
-    desvio_padrao: Math.round(Math.sqrt(variance) * 10000) / 10000,
+    desvio_padrao: Math.round(desvio_padrao * 100) / 100,
+    coeficiente_variacao: Math.round(cv * 100) / 100,
     meta_mpa,
     conforme: meta_mpa > 0 ? media >= meta_mpa : null,
     status:
@@ -223,26 +245,91 @@ export function calcRuptureStats(
 }
 
 /**
- * CÁLCULO 8 — Dosagem simplificada
+ * CÁLCULO 8 — Dosagem Industrial Pro (Baseado em Deslocamento de Volume)
+ * Calcula consumo kg/m³ e massa por batelada
  */
 export function calcDosage(input: DosageInput): DosageResult {
-  const consumo_cimento_kg =
-    (input.volume_batelada * input.densidade_cimento) /
-    (1 + input.relacao_cimento);
-  const agua_litros = consumo_cimento_kg * input.relacao_ac;
-  const massa_agregados = consumo_cimento_kg * input.relacao_cimento;
-  const massa_total_kg = consumo_cimento_kg + massa_agregados + agua_litros;
+  const c = input.consumo_alvo_m3 || 0;
+  const r = input.relacao_cimento;
+  const ac = input.relacao_ac;
+
+  // Massa por m3 baseada diretamente no consumo alvo
+  const agua_m3 = c * ac;
+  const massa_agregados_m3 = c * r;
+  const massa_total_m3 =
+    c + massa_agregados_m3 + agua_m3 + (input.aditivos_ml / 1000);
+
+  // Conversão para batelada
+  const volBatch = input.volume_m3;
+  const consumo_cimento_batelada = c * volBatch;
+  const agua_batelada = agua_m3 * volBatch;
+  const massa_agregados_batelada = massa_agregados_m3 * volBatch;
+  const massa_total_batelada = massa_total_m3 * volBatch;
+
+  const materiais_m3 = input.proporcoes_materiais.map((m) => ({
+    nome: m.nome,
+    kg: Math.round(massa_agregados_m3 * m.proporcao_pct * 10) / 10,
+  }));
 
   const materiais_batelada = input.proporcoes_materiais.map((m) => ({
     nome: m.nome,
-    kg: Math.round(massa_agregados * m.proporcao_pct * 100) / 100,
+    kg: Math.round(massa_agregados_batelada * m.proporcao_pct * 10) / 10,
   }));
 
+  // Densidade Efetiva (kg/dm³ ou t/m³)
+  const densidade_efetiva = massa_total_m3 / 1000;
+
   return {
-    consumo_cimento_kg: Math.round(consumo_cimento_kg * 100) / 100,
-    massa_total_kg: Math.round(massa_total_kg * 100) / 100,
-    agua_litros: Math.round(agua_litros * 100) / 100,
-    traco_final: `1:${input.relacao_cimento.toFixed(1)}`,
+    consumo_cimento_m3: Math.round(c * 10) / 10,
+    consumo_cimento_batelada: Math.round(consumo_cimento_batelada * 10) / 10,
+    densidade_efetiva: Math.round(densidade_efetiva * 100) / 100,
+    massa_total_m3: Math.round(massa_total_m3 * 10) / 10,
+    massa_total_batelada: Math.round(massa_total_batelada * 10) / 10,
+    agua_m3: Math.round(agua_m3 * 10) / 10,
+    agua_batelada: Math.round(agua_batelada * 10) / 10,
+    traco_final: `1:${r.toFixed(1)}`,
+    materiais_m3,
     materiais_batelada,
   };
+}
+
+/**
+ * CÁLCULO 9 — Relação cimento inversa (Encontrar Traço 1:X a partir do Consumo kg/m³)
+ * r = [ (1000 / Consumo) - (1/densC) - ac ] * densA
+ */
+export function calcRelacaoFromConsumo(
+  consumo_alvo_m3: number,
+  relacao_ac: number,
+  densidade_cimento: number,
+  proporcoes_materiais: Array<{ proporcao_pct: number; densidade?: number }>
+): number {
+  if (consumo_alvo_m3 <= 0) return 8; // default de segurança
+
+  // Densidade média dos agregados
+  const densA =
+    proporcoes_materiais.reduce(
+      (acc, m) => acc + (m.densidade ?? 2.65) * m.proporcao_pct,
+      0
+    ) || 2.65;
+
+  const termo1 = 1000 / consumo_alvo_m3;
+  const termo2 = 1 / densidade_cimento;
+  const relacao = (termo1 - termo2 - relacao_ac) * densA;
+
+  return Math.max(1, Math.round(relacao * 10) / 10);
+}
+
+/**
+ * CÁLCULO 10 — Volume da batelada a partir do cimento desejado
+ * Mantém a relação 1:X e densidade fixas; ajusta o volume.
+ * consumo = (volume × densidade) ÷ (1 + relacao)
+ * → volume = consumo_kg × (1 + relacao) / densidade
+ */
+export function calcVolumeFromCimento(
+  consumo_kg: number,
+  relacao_cimento: number,
+  densidade_cimento: number
+): number {
+  if (consumo_kg <= 0 || densidade_cimento <= 0) return 0;
+  return Math.round((consumo_kg * (1 + relacao_cimento)) / densidade_cimento);
 }

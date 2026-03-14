@@ -65,11 +65,13 @@ export function StepResult({ data }: StepResultProps) {
     return calcDosage({
       relacao_cimento: data.relacao_cimento,
       relacao_ac: data.relacao_ac,
-      volume_batelada: data.volume_batelada,
+      consumo_alvo_m3: data.consumo_alvo_m3,
+      volume_m3: data.volume_m3,
       densidade_cimento: data.densidade_cimento,
       proporcoes_materiais: data.materiais_selecionados.map((m) => ({
         nome: m.nome,
         proporcao_pct: m.proporcao_pct,
+        densidade: m.densidade
       })),
       aditivos_ml: data.aditivos_ml,
     });
@@ -143,7 +145,7 @@ export function StepResult({ data }: StepResultProps) {
             </div>
             <div className="text-right">
               <p className="text-[10px] text-muted-foreground uppercase">Carga do Misturador</p>
-              <p className="text-sm font-black">{data.volume_batelada} L</p>
+              <p className="text-sm font-black">{data.volume_m3.toFixed(3)} m³</p>
             </div>
           </div>
         </CardHeader>
@@ -161,7 +163,7 @@ export function StepResult({ data }: StepResultProps) {
                 {/* Cimento */}
                 <TableRow className="font-medium">
                   <TableCell className="font-bold">Cimento</TableCell>
-                  <TableCell className="text-right font-bold">{dosageResult.consumo_cimento_kg.toFixed(2)} kg</TableCell>
+                  <TableCell className="text-right font-bold">{dosageResult.consumo_cimento_batelada.toFixed(2)} kg</TableCell>
                   <TableCell className="text-right">
                     <Badge variant="outline" className="text-[10px] font-bold bg-muted/40">
                       —
@@ -200,7 +202,7 @@ export function StepResult({ data }: StepResultProps) {
                 <TableRow>
                   <TableCell className="text-blue-600 dark:text-blue-400 font-medium">Água</TableCell>
                   <TableCell className="text-right font-bold text-blue-600 dark:text-blue-400">
-                    {dosageResult.agua_litros.toFixed(2)} L
+                    {dosageResult.agua_batelada.toFixed(2)} L
                   </TableCell>
                   <TableCell className="text-right">
                     <Badge variant="outline" className="text-[10px] font-bold bg-blue-50 dark:bg-blue-950/20 text-blue-600 border-blue-200/50 dark:text-blue-400">
@@ -222,7 +224,7 @@ export function StepResult({ data }: StepResultProps) {
                 <TableRow className="bg-foreground/5 border-t-2 font-black">
                   <TableCell className="font-black uppercase text-sm">TOTAL</TableCell>
                   <TableCell className="text-right text-base font-black">
-                    {dosageResult.massa_total_kg.toFixed(2)} kg
+                    {dosageResult.massa_total_batelada.toFixed(2)} kg
                   </TableCell>
                   <TableCell className="text-right">
                     <Badge className="bg-primary text-primary-foreground text-[10px] font-bold">

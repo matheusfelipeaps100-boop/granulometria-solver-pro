@@ -13,6 +13,14 @@ export interface Material {
   created_at: string;
 }
 
+export interface Sieve {
+  id: string;
+  mm: number;
+  serie: "Normal" | "Intermediária";
+  ativo: boolean;
+  created_at: string;
+}
+
 export interface AnalysisType {
   id: string;
   label: string;
@@ -20,10 +28,42 @@ export interface AnalysisType {
   ativo: boolean;
 }
 
+// User Roles (RBAC)
+export type UserRole = "ADMIN" | "PRODUCAO" | "VENDAS" | "LABORATORIO";
+
+// App Users (pre-auth structure)
+export interface AppUser {
+  id: string;
+  nome: string;
+  email: string;
+  role: UserRole;
+  ativo: boolean;
+  created_at: string;
+  /** Senha provisória (somente para uso pré-Supabase. SHA256 ou plain text temporário) */
+  senha_provisoria?: string;
+  /** Supabase Auth UID - será preenchido quando a autenticação for integrada */
+  supabase_uid?: string;
+}
+
 // Enums from schema.prisma
 export type AnalysisStatus = "rascunho" | "em_analise" | "aprovado" | "liberado_producao" | "arquivado";
-export type BatchStatus = "aguardando_rompimentos" | "em_andamento" | "aprovado" | "aprovado_com_ressalva" | "reprovado";
-export type ScheduleStatus = "pendente" | "em_andamento" | "concluido" | "atrasado";
+export type BatchStatus = "aguardando_rompimentos" | "em_andamento" | "aprovado" | "aprovado_com_ressalva" | "liberado_antecipado" | "reprovado";
+export type ScheduleStatus = "pendente" | "em_andamento" | "concluido" | "atrasado" | "ignorado";
+
+// Settings Interfaces
+export interface OrganizationIdentity {
+  nome: string;
+  cnpj: string;
+  endereco: string;
+  responsavel_tecnico: string;
+}
+
+export interface SystemParams {
+  volume_batelada: number;
+  densidade_cimento: number;
+  fator_a: number;
+  fator_b: number;
+}
 
 export interface StoredAnalysis {
   id: string;
@@ -46,6 +86,10 @@ export interface RuptureSchedule {
   idade_dias: number;
   data_prevista: string;
   data_executada?: string;
+  responsavel_id?: string;
+  observacoes?: string;
+  amostras?: Record<string, { forca_kn: string }[]>;
+  geometrias?: Record<string, number>;
   status: ScheduleStatus;
 }
 
@@ -60,6 +104,9 @@ export interface ProductionBatch {
   notas: string;
   produced_at: string;
   rupture_schedules: RuptureSchedule[];
+  motivo_liberacao?: string; // NOVO: Motivo da liberação antecipada
+  liberado_por_id?: string; // NOVO: Quem liberou
+  liberado_em?: string; // NOVO: Quando
 }
 
 function generateBatchCode(): string {
@@ -110,6 +157,23 @@ export type WebhookEvento =
   | "report_generated"
   | "batch_rejected";
 
+const DEFAULT_SIEVES: Omit<Sieve, "id" | "created_at">[] = [
+  { mm: 75, serie: "Normal", ativo: true },
+  { mm: 50, serie: "Intermediária", ativo: true },
+  { mm: 37.5, serie: "Normal", ativo: true },
+  { mm: 25, serie: "Intermediária", ativo: true },
+  { mm: 19, serie: "Normal", ativo: true },
+  { mm: 12.5, serie: "Intermediária", ativo: true },
+  { mm: 9.5, serie: "Normal", ativo: true },
+  { mm: 6.3, serie: "Intermediária", ativo: true },
+  { mm: 4.8, serie: "Normal", ativo: true },
+  { mm: 2.4, serie: "Normal", ativo: true },
+  { mm: 1.2, serie: "Normal", ativo: true },
+  { mm: 0.6, serie: "Normal", ativo: true },
+  { mm: 0.3, serie: "Normal", ativo: true },
+  { mm: 0.15, serie: "Normal", ativo: true },
+];
+
 export interface WebhookConfig {
   id: string;
   nome: string;
@@ -130,10 +194,39 @@ interface AppState {
   analysisTypes: AnalysisType[];
   materials: Material[];
   ruptureDays: number[];
+  ruptureGoals: Record<number, number>;
+  sieves: Sieve[];
   webhooks: WebhookConfig[];
+  appUsers: AppUser[];
+
+  // User management actions
+  addAppUser: (data: Omit<AppUser, "id" | "created_at">) => void;
+  updateAppUser: (id: string, data: Partial<Omit<AppUser, "id" | "created_at">>) => void;
+  deleteAppUser: (id: string) => void;
+
+  // Session (Auth)
+  isAuthenticated: boolean;
+  currentUser: AppUser | null;
+  currentUserRole: UserRole;
+  setCurrentUserRole: (role: UserRole) => void;
+  login: (email: string, senha: string) => boolean;
+  logout: () => void;
+
+  // Settings
+  identity: OrganizationIdentity;
+  updateIdentity: (data: Partial<OrganizationIdentity>) => void;
+
+  params: SystemParams;
+  updateParams: (data: Partial<SystemParams>) => void;
 
   // Rupture days actions
   setRuptureDays: (days: number[]) => void;
+  updateRuptureGoals: (goals: Record<number, number>) => void;
+
+  // Sieve actions
+  addSieve: (data: Omit<Sieve, "id" | "created_at">) => void;
+  updateSieve: (id: string, data: Partial<Omit<Sieve, "id" | "created_at">>) => void;
+  deleteSieve: (id: string) => void;
 
   // Webhook actions
   addWebhook: (data: Omit<WebhookConfig, "id" | "secret" | "created_at">) => void;
@@ -151,7 +244,17 @@ interface AppState {
   registerBatch: (analysisId: string, data: { operador_nome: string; maquina: string; volume_produzido: number; notas: string; produced_at: string }) => ProductionBatch;
 
   // Rupture actions
-  completeRuptureSchedule: (scheduleId: string, dataExecutada: string) => void;
+  completeRuptureSchedule: (
+    scheduleId: string, 
+    dataExecutada: string, 
+    results: { 
+      responsavel_id: string; 
+      observacoes: string; 
+      amostras: Record<string, { forca_kn: string }[]>;
+      geometrias: Record<string, number>;
+    }
+  ) => void;
+  releaseBatchEarly: (batchId: string, motivo: string, responsavelId: string) => void;
 
   // Product actions
   addProduct: (data: Omit<Product, "id" | "created_at">) => void;
@@ -188,9 +291,89 @@ export const useAppStore = create<AppState>()(persist((set, get) => ({
   analysisTypes: TIPOS_ANALISE.map((t, i) => ({ id: `at-${i}`, label: t.label, value: t.value, ativo: true })),
   materials: SEED_MATERIALS.map((m, i) => ({ ...m, id: `mat-${i}`, created_at: new Date().toISOString() })),
   ruptureDays: [1, 3, 7, 28],
+  ruptureGoals: { 1: 20, 3: 45, 7: 70, 28: 100 },
+  sieves: DEFAULT_SIEVES.map((s, i) => ({ ...s, id: `sieve-${i}`, created_at: new Date().toISOString() })),
   webhooks: [],
+  appUsers: [
+    { id: "user-admin-1", nome: "Administrador", email: "admin@lajeforro.com", role: "ADMIN", ativo: true, senha_provisoria: "admin123", created_at: new Date().toISOString() },
+  ],
+
+  isAuthenticated: false,
+  currentUser: null,
+
+  currentUserRole: "ADMIN",
+  setCurrentUserRole: (role) => set({ currentUserRole: role }),
+
+  login: (email, senha) => {
+    const { appUsers } = get();
+    const user = appUsers.find(
+      (u) => u.email.toLowerCase() === email.toLowerCase() && u.senha_provisoria === senha && u.ativo
+    );
+    if (user) {
+      set({ isAuthenticated: true, currentUser: user, currentUserRole: user.role });
+      return true;
+    }
+    return false;
+  },
+
+  logout: () => {
+    set({ isAuthenticated: false, currentUser: null });
+  },
+
+  // ── App User Actions ──
+  addAppUser: (data) => {
+    const user: AppUser = { ...data, id: generateId(), created_at: new Date().toISOString() };
+    set((state) => ({ appUsers: [...state.appUsers, user] }));
+  },
+  updateAppUser: (id, data) => {
+    set((state) => ({ appUsers: state.appUsers.map((u) => u.id === id ? { ...u, ...data } : u) }));
+  },
+  deleteAppUser: (id) => {
+    set((state) => ({ appUsers: state.appUsers.filter((u) => u.id !== id) }));
+  },
+
+  identity: {
+    nome: "Lajeforro Matriz",
+    cnpj: "",
+    endereco: "",
+    responsavel_tecnico: "",
+  },
+  updateIdentity: (data) => set((state) => ({ identity: { ...state.identity, ...data } })),
+
+  params: {
+    volume_batelada: 550,
+    densidade_cimento: 3.15,
+    fator_a: 0.0546,
+    fator_b: 98.0665,
+  },
+  updateParams: (data) => set((state) => ({ params: { ...state.params, ...data } })),
 
   setRuptureDays: (days) => set({ ruptureDays: [...days].sort((a, b) => a - b) }),
+  updateRuptureGoals: (goals) => set({ ruptureGoals: { ...goals } }),
+
+  // ── Sieve Actions ──
+  addSieve: (data) => {
+    const sieve: Sieve = {
+      ...data,
+      id: generateId(),
+      created_at: new Date().toISOString(),
+    };
+    set((state) => ({ sieves: [...state.sieves, sieve].sort((a, b) => b.mm - a.mm) }));
+  },
+
+  updateSieve: (id, data) => {
+    set((state) => ({
+      sieves: state.sieves.map((s) =>
+        s.id === id ? { ...s, ...data } : s
+      ).sort((a, b) => b.mm - a.mm),
+    }));
+  },
+
+  deleteSieve: (id) => {
+    set((state) => ({
+      sieves: state.sieves.filter((s) => s.id !== id),
+    }));
+  },
 
   // ── Analysis Actions ──
   addAnalysis: (formData) => {
@@ -266,7 +449,7 @@ export const useAppStore = create<AppState>()(persist((set, get) => ({
     return batch;
   },
 
-  completeRuptureSchedule: (scheduleId, dataExecutada) => {
+  completeRuptureSchedule: (scheduleId, dataExecutada, results) => {
     set((state) => {
       const batchToUpdate = state.batches.find(b =>
         b.rupture_schedules.some(s => s.id === scheduleId)
@@ -275,7 +458,12 @@ export const useAppStore = create<AppState>()(persist((set, get) => ({
 
       const updatedSchedules = batchToUpdate.rupture_schedules.map((s) =>
         s.id === scheduleId
-          ? { ...s, status: "concluido" as ScheduleStatus, data_executada: dataExecutada }
+          ? { 
+              ...s, 
+              status: "concluido" as ScheduleStatus, 
+              data_executada: dataExecutada,
+              ...results 
+            }
           : s
       );
 
@@ -322,6 +510,55 @@ export const useAppStore = create<AppState>()(persist((set, get) => ({
             ? { ...batch, status: newBatchStatus, rupture_schedules: updatedSchedules }
             : batch
         ),
+      };
+    });
+  },
+
+  releaseBatchEarly: (batchId, motivo, responsavelId) => {
+    set((state) => {
+      const batchToUpdate = state.batches.find((b) => b.id === batchId);
+      if (!batchToUpdate) return state;
+
+      // Ignora pendentes
+      const updatedSchedules = batchToUpdate.rupture_schedules.map((s) => {
+        if (s.status === "pendente" || s.status === "atrasado" || s.status === "em_andamento") {
+          return { ...s, status: "ignorado" as ScheduleStatus };
+        }
+        return s;
+      });
+
+      const newBatch: ProductionBatch = {
+        ...batchToUpdate,
+        status: "liberado_antecipado",
+        motivo_liberacao: motivo,
+        liberado_por_id: responsavelId,
+        liberado_em: new Date().toISOString(),
+        rupture_schedules: updatedSchedules,
+      };
+
+      // Salvar traço se não existir
+      const analysis = state.analyses.find(a => a.id === batchToUpdate.analysis_id);
+      let newStandardTraces = [...state.standardTraces];
+      
+      if (analysis) {
+        const alreadyExists = state.standardTraces.some(
+          t => t.nome === `Traço Aprovado — ${analysis.codigo}`
+        );
+        if (!alreadyExists) {
+          newStandardTraces.push({
+            id: generateId(),
+            nome: `Traço Aprovado — ${analysis.codigo}`,
+            tipo_produto: analysis.tipo_analise,
+            resistencia_alvo: analysis.resistencia_prevista,
+            created_at: new Date().toISOString(),
+            data: analysis.formData,
+          });
+        }
+      }
+
+      return {
+        batches: state.batches.map((b) => (b.id === batchId ? newBatch : b)),
+        standardTraces: newStandardTraces,
       };
     });
   },

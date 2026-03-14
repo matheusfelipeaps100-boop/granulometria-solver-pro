@@ -111,9 +111,8 @@ const Dashboard = () => {
               <div className="flex items-end gap-2">
                 <span className="text-3xl font-bold text-foreground">{kpi.value}</span>
                 <span
-                  className={`text-xs font-medium flex items-center gap-0.5 mb-1 ${
-                    kpi.up ? "text-success" : "text-destructive"
-                  }`}
+                  className={`text-xs font-medium flex items-center gap-0.5 mb-1 ${kpi.up ? "text-success" : "text-destructive"
+                    }`}
                 >
                   {kpi.up ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
                   {kpi.change}

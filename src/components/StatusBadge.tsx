@@ -15,6 +15,8 @@ export type StatusType =
   | "nao_conforme"
   | "reprovado"
   | "aprovado_com_ressalva"
+  | "liberado_antecipado"
+  | "ignorado"
   | "aguardando_rompimentos";
 
 const statusConfig: Record<StatusType, { label: string; className: string }> = {
@@ -31,6 +33,8 @@ const statusConfig: Record<StatusType, { label: string; className: string }> = {
   nao_conforme: { label: "Não Conforme", className: "bg-destructive/15 text-destructive border-destructive/30" },
   reprovado: { label: "Reprovado", className: "bg-destructive/15 text-destructive border-destructive/30" },
   aprovado_com_ressalva: { label: "Com Ressalva", className: "bg-warning/15 text-warning border-warning/30" },
+  liberado_antecipado: { label: "Aprovado Antecipado", className: "bg-amber-100 text-amber-700 border-amber-300" },
+  ignorado: { label: "Ignorado", className: "bg-muted text-muted-foreground" },
   aguardando_rompimentos: { label: "Aguardando Rompimentos", className: "bg-info/15 text-info border-info/30" },
 };
 

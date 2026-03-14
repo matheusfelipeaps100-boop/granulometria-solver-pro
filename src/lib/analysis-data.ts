@@ -33,30 +33,31 @@ export interface AnalysisFormData {
   // Step 3 — Dosage
   relacao_cimento: number;
   relacao_ac: number;
-  volume_batelada: number;
+  consumo_alvo_m3: number;
+  volume_m3: number;
   densidade_cimento: number;
   aditivos_ml: number;
+  limites_curva?: Array<{ sieve_id: number; limite_min: number; limite_max: number }>;
 }
 
 export interface AnalysisMaterial {
   material_id: string;
   nome: string;
   proporcao_pct: number; // 0 to 1
+  densidade?: number; // g/cm³ ou kg/dm³
   gradations: SieveData[];
 }
 
-// 10 peneiras padrão conforme PRD
+// 8 peneiras padrão conforme PRD consolidado (sem 19 e 12.5)
 export const PENEIRAS_PADRAO: Array<{ sieve_id: number; abertura_mm: number; label: string }> = [
-  { sieve_id: 1, abertura_mm: 19.0, label: "19,0 mm" },
-  { sieve_id: 2, abertura_mm: 12.5, label: "12,5 mm" },
-  { sieve_id: 3, abertura_mm: 9.5, label: "9,5 mm" },
-  { sieve_id: 4, abertura_mm: 6.3, label: "6,3 mm" },
-  { sieve_id: 5, abertura_mm: 4.8, label: "4,8 mm" },
-  { sieve_id: 6, abertura_mm: 2.4, label: "2,4 mm" },
-  { sieve_id: 7, abertura_mm: 1.2, label: "1,2 mm" },
-  { sieve_id: 8, abertura_mm: 0.6, label: "0,6 mm" },
-  { sieve_id: 9, abertura_mm: 0.3, label: "0,3 mm" },
-  { sieve_id: 10, abertura_mm: 0.15, label: "0,15 mm" },
+  { sieve_id: 1, abertura_mm: 9.5, label: "9,5 mm" },
+  { sieve_id: 2, abertura_mm: 6.3, label: "6,3 mm" },
+  { sieve_id: 3, abertura_mm: 4.8, label: "4,8 mm" },
+  { sieve_id: 4, abertura_mm: 2.4, label: "2,4 mm" },
+  { sieve_id: 5, abertura_mm: 1.2, label: "1,2 mm" },
+  { sieve_id: 6, abertura_mm: 0.6, label: "0,6 mm" },
+  { sieve_id: 7, abertura_mm: 0.3, label: "0,3 mm" },
+  { sieve_id: 8, abertura_mm: 0.15, label: "0,15 mm" },
 ];
 
 // Materiais mock com dados reais da planilha
@@ -68,7 +69,7 @@ export const MATERIAIS_DISPONIVEIS: AnalysisMaterial[] = [
     gradations: PENEIRAS_PADRAO.map((p) => ({
       sieve_id: p.sieve_id,
       abertura_mm: p.abertura_mm,
-      massa_retida: [0, 0, 0, 0, 2.5, 18.3, 42.1, 85.6, 120.4, 55.2][p.sieve_id - 1],
+      massa_retida: [0, 0, 2.5, 18.3, 42.1, 85.6, 120.4, 55.2][p.sieve_id - 1],
     })),
   },
   {
@@ -78,7 +79,7 @@ export const MATERIAIS_DISPONIVEIS: AnalysisMaterial[] = [
     gradations: PENEIRAS_PADRAO.map((p) => ({
       sieve_id: p.sieve_id,
       abertura_mm: p.abertura_mm,
-      massa_retida: [0, 0, 5.2, 28.4, 62.1, 98.3, 72.5, 45.8, 28.1, 12.6][p.sieve_id - 1],
+      massa_retida: [5.2, 28.4, 62.1, 98.3, 72.5, 45.8, 28.1, 12.6][p.sieve_id - 1],
     })),
   },
   {
@@ -88,7 +89,7 @@ export const MATERIAIS_DISPONIVEIS: AnalysisMaterial[] = [
     gradations: PENEIRAS_PADRAO.map((p) => ({
       sieve_id: p.sieve_id,
       abertura_mm: p.abertura_mm,
-      massa_retida: [45.2, 120.8, 185.3, 92.1, 32.5, 8.2, 2.1, 0.8, 0.3, 0.1][p.sieve_id - 1],
+      massa_retida: [185.3, 92.1, 32.5, 8.2, 2.1, 0.8, 0.3, 0.1][p.sieve_id - 1],
     })),
   },
   {
@@ -98,7 +99,7 @@ export const MATERIAIS_DISPONIVEIS: AnalysisMaterial[] = [
     gradations: PENEIRAS_PADRAO.map((p) => ({
       sieve_id: p.sieve_id,
       abertura_mm: p.abertura_mm,
-      massa_retida: [0, 0, 0, 1.2, 5.8, 22.4, 55.3, 95.2, 105.8, 38.6][p.sieve_id - 1],
+      massa_retida: [0, 1.2, 5.8, 22.4, 55.3, 95.2, 105.8, 38.6][p.sieve_id - 1],
     })),
   },
 ];
@@ -112,8 +113,8 @@ export const DNAS_PADRAO = [
     resistencia_mpa: 4.0,
     limites: PENEIRAS_PADRAO.map((p) => ({
       sieve_id: p.sieve_id,
-      limite_min: [0, 0, 0, 0.02, 0.05, 0.15, 0.30, 0.50, 0.70, 0.85][p.sieve_id - 1],
-      limite_max: [0.05, 0.10, 0.15, 0.25, 0.35, 0.55, 0.70, 0.85, 0.95, 1.0][p.sieve_id - 1],
+      limite_min: [0, 0.02, 0.05, 0.15, 0.30, 0.50, 0.70, 0.85][p.sieve_id - 1],
+      limite_max: [0.15, 0.25, 0.35, 0.55, 0.70, 0.85, 0.95, 1.0][p.sieve_id - 1],
     })),
   },
   {
@@ -123,8 +124,8 @@ export const DNAS_PADRAO = [
     resistencia_mpa: 3.0,
     limites: PENEIRAS_PADRAO.map((p) => ({
       sieve_id: p.sieve_id,
-      limite_min: [0, 0, 0, 0.01, 0.04, 0.12, 0.25, 0.45, 0.65, 0.80][p.sieve_id - 1],
-      limite_max: [0.05, 0.10, 0.18, 0.28, 0.40, 0.60, 0.75, 0.88, 0.96, 1.0][p.sieve_id - 1],
+      limite_min: [0, 0.01, 0.04, 0.12, 0.25, 0.45, 0.65, 0.80][p.sieve_id - 1],
+      limite_max: [0.18, 0.28, 0.40, 0.60, 0.75, 0.88, 0.96, 1.0][p.sieve_id - 1],
     })),
   },
   {
@@ -134,8 +135,8 @@ export const DNAS_PADRAO = [
     resistencia_mpa: 35.0,
     limites: PENEIRAS_PADRAO.map((p) => ({
       sieve_id: p.sieve_id,
-      limite_min: [0, 0, 0.02, 0.05, 0.10, 0.20, 0.35, 0.55, 0.72, 0.88][p.sieve_id - 1],
-      limite_max: [0.08, 0.15, 0.22, 0.32, 0.42, 0.58, 0.72, 0.88, 0.96, 1.0][p.sieve_id - 1],
+      limite_min: [0.02, 0.05, 0.10, 0.20, 0.35, 0.55, 0.72, 0.88][p.sieve_id - 1],
+      limite_max: [0.22, 0.32, 0.42, 0.58, 0.72, 0.88, 0.96, 1.0][p.sieve_id - 1],
     })),
   },
 ];
@@ -198,10 +199,12 @@ export function createEmptyAnalysis(): AnalysisFormData {
     observacoes: "",
     dna_selecionado: "",
     materiais_selecionados: [],
-    relacao_cimento: 5.2,
-    relacao_ac: 0.42,
-    volume_batelada: 550,
+    relacao_cimento: 18.0,
+    relacao_ac: 0.20,
+    consumo_alvo_m3: 137,
+    volume_m3: 0.55,
     densidade_cimento: 3.15,
     aditivos_ml: 0,
+    limites_curva: [],
   };
 }
