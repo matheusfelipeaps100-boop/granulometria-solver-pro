@@ -1,0 +1,663 @@
+# PRD Reverso — App Curva de Consumo & Dosagem
+### Engenharia Reversa Completa · v1.0 · Março 2026
+
+---
+
+## 1. VISÃO GERAL DO PRODUTO
+
+### O que é?
+Aplicação Web industrial para **análise granulométrica e dosagem de concreto** voltada para usinas de pré-moldados (blocos, pavers, tijolos). Substitui planilhas Excel manuais com:
+- Cálculo automático de curvas granulométricas
+- Motor de dosagem por volume absoluto
+- Solver de otimização de misturas
+- Relatório técnico exportável em PDF
+- Envio direto para a linha de produção
+
+### Público-alvo
+Engenheiros civis, técnicos de laboratório e operadores industriais de usinas de blocos e pavers.
+
+---
+
+## 2. STACK TECNOLÓGICA (implementada)
+
+| Camada | Tecnologia | Versão / Observação |
+|--------|-----------|---------------------|
+| **Framework** | Next.js App Router | `"use client"` em todas as páginas |
+| **Linguagem** | TypeScript | Strict mode |
+| **Estilização** | TailwindCSS | Tokens customizados + `cn()` utility |
+| **Banco de dados** | Supabase (PostgreSQL) | RLS ativo |
+| **Gráficos** | Recharts | `ComposedChart`, `LineChart`, `Area`, `Line` |
+| **Ícones** | Lucide React | |
+| **PDF** | html2pdf.js | Import dinâmico lazy |
+| **Estado local** | `useState` / `useEffect` | Sem Zustand ou Redux |
+| **ORM** | Supabase JS Client | Direto na camada de componente |
+
+---
+
+## 3. ARQUITETURA DE ARQUIVOS
+
+```
+src/
+├── app/
+│   ├── analises/
+│   │   ├── page.tsx                    # Dashboard de análises (lista)
+│   │   └── nova/
+│   │       ├── page.tsx                # Wizard orquestrador (5 etapas)
+│   │       ├── _components/
+│   │       │   ├── identification-step.tsx
+│   │       │   ├── granulometria-proportion-step.tsx
+│   │       │   ├── dosagem-step.tsx
+│   │       │   ├── tracos-step.tsx
+│   │       │   ├── resultado-step.tsx
+│   │       │   ├── wizard-stepper.tsx
+│   │       │   └── modals/
+│   │       │       └── product-catalog-modal.tsx
+│   │       ├── _hooks/
+│   │       └── _types/
+│   │           └── analise.types.ts
+│   ├── dashboard/
+│   ├── dosagem/
+│   ├── granulometria/
+│   ├── producao/
+│   ├── proporcao/
+│   └── tracos/
+├── components/
+│   ├── granulometria/
+│   │   ├── AggregateModal.tsx          # Modal do banco de agregados
+│   │   ├── GranulometryChart.tsx       # Gráfico principal
+│   │   └── RecipeDnaModal.tsx          # Modal de DNA de receitas
+│   ├── layout/
+│   └── error-boundary.tsx
+└── lib/
+    ├── calculations/
+    │   ├── granulometry.ts             # Engine 1 (granulometria)
+    │   ├── dosagem.ts                  # Engine 2 (dosagem)
+    │   └── solver-engine.ts            # Engine 3 (solver/otimizador)
+    ├── supabase.ts
+    └── utils.ts
+```
+
+---
+
+## 4. FLUXO COMPLETO DAS 5 ETAPAS
+
+```mermaid
+flowchart LR
+    A[Dashboard\nLista de Análises] --> B[Etapa 1\nIdentificação]
+    B --> C[Etapa 2\nGranulometria +\nProporção]
+    C --> D{Curva válida?}
+    D -->|Fora dos limites| C
+    D -->|Dentro dos limites| E[Etapa 3\nDosagem]
+    E --> F[Etapa 4\nRevisão Final\nTraços]
+    F --> G[Etapa 5\nResultado]
+    G --> H[Exportar PDF]
+    G --> I[Enviar para Produção]
+    I --> J[Módulo Produção]
+```
+
+### Estado Global (AnalysisFormData)
+Toda a aplicação compartilha um único estado via `useState` na [page.tsx](file:///c:/Users/Laje%20Forro/Documents/app/src/app/page.tsx) orquestradora, passado como props para cada step com [updateData()](file:///c:/Users/Laje%20Forro/Documents/app/src/app/analises/nova/page.tsx#291-294):
+
+```typescript
+interface AnalysisFormData {
+  id: string | null;
+  type: 'BLOCOS' | 'PAVERS';      // Tipo do produto
+  name: string;                     // Nome da análise
+  code: string;                     // Código identificador (AN-2026-001)
+  date: string;                     // Data da análise
+  analyst: string;                  // Analista responsável
+  materials: Material[];            // Para BLOCOS
+  baseMaterials: Material[];        // Para PAVERS (camada base)
+  faceMaterials: Material[];        // Para PAVERS (camada face)
+  selectedTracos: any[];
+  dosagemConfig: {
+    volumeBatelada: number;         // Padrão: 0.06 m³
+    densidadeCimento: number;       // Padrão: 3.1 kg/dm³
+    cimentoTarget: number;          // Padrão: 255 kg/m³
+    mixerCapacity: number;          // Padrão: 550 kg
+    tracos: TracoDosagemInput[];
+  };
+  observations: string;
+}
+```
+
+---
+
+## 5. ETAPA 1 — IDENTIFICAÇÃO
+
+**Arquivo:** [_components/identification-step.tsx](file:///c:/Users/Laje%20Forro/Documents/app/src/app/analises/nova/_components/identification-step.tsx)
+
+### O que é configurado
+| Campo | Tipo | Opções |
+|-------|------|--------|
+| Tipo de produto | Seletor visual | Blocos (1 tabela) / Pavers (Base + Face) |
+| Tipo de produto específico | Select | VEDAÇÃO, ESTRUTURAL, CANALETA, MEIO-BLOCO (Blocos) / RETANGULAR, OSSINHO, SEXTAVADO, PISO-GRAMA (Pavers) |
+| Dimensão | Select | 09x19x39, 14x19x39, 19x19x39... |
+| Nome da análise | Input text | Ex: "Análise Verão Bloco 10" |
+| Código identificador | Input text | Ex: "AN-2026-001" |
+| Data | Date picker | ISO date |
+| Analista responsável | Input text | |
+
+### Regras de negócio
+- **BLOCOS** → 1 conjunto de materiais (5 agregados), 1 tabela granulométrica
+- **PAVERS** → 2 conjuntos independentes (Base + Face), 2 tabelas granulométricas com DNAs separados
+- Modal de catálogo (`ProductCatalogModal`) permite cadastrar produto customizado
+- A escolha do tipo define qual `LIMITS` (BLOCOS ou PAVERS) é aplicado em toda validação posterior
+
+---
+
+## 6. ETAPA 2 — GRANULOMETRIA + PROPORÇÃO
+
+**Arquivo:** [_components/granulometria-proportion-step.tsx](file:///c:/Users/Laje%20Forro/Documents/app/src/app/analises/nova/_components/granulometria-proportion-step.tsx) (38KB — maior componente)
+
+### Materiais padrão inicializados
+```typescript
+const initialMaterials = [
+  { id:"m1", name:"Areia Fina",   density:2.65, proportion:0,  selected:true,
+    data:{ "2.4":13, "1.2":22, "0.6":18, "0.3":15, "0.15":18, "Fundo":14 }},
+  { id:"m2", name:"Areia Grossa", density:2.68, proportion:0,  selected:true,
+    data:{ "2.4":3, "1.2":12, "0.6":44, "0.3":32, "0.15":6, "Fundo":2 }},
+  { id:"m3", name:"Pó de Pedra",  density:2.70, proportion:80, selected:true,
+    data:{ "2.4":25, "1.2":26, "0.6":14, "0.3":9, "0.15":7, "Fundo":19 }},
+  { id:"m4", name:"Brita 0",      density:2.85, proportion:0,  selected:true,
+    data:{ "9.5":23, "6.3":47, "4.8":18, "2.4":10, "Fundo":1 }},
+  { id:"m5", name:"Pedrisco",     density:2.75, proportion:20, selected:true,
+    data:{ "6.3":7, "4.8":41, "2.4":49, "1.2":2, "Fundo":0.4 }},
+];
+```
+
+### Peneiras utilizadas (série granulométrica)
+```
+["12.5", "9.5", "6.3", "4.8", "2.4", "1.2", "0.6", "0.3", "0.15", "Fundo"]
+```
+
+### Motor de cálculo (Engine 1 — granulometry.ts)
+
+#### 1. Retido Acumulado
+```
+Para cada peneira i:
+  retido_acumulado[i] = SOMA(retido_individual[0..i])
+  Limitado a max 100%
+```
+
+#### 2. Curva Combinada (mistura)
+```
+Para cada peneira i:
+  curva_combinada[i] = ΣΣΣΣΣ (retido_acumulado[material][i] × proporção_decimal[material])
+  
+onde proporção_decimal = proporção_percentual / 100
+```
+
+#### 3. Módulo de Finura (MF)
+```
+MF = Σ(retido_acumulado nas peneiras: 9.5, 4.8, 2.4, 1.2, 0.6, 0.3, 0.15) / 100
+Unidade: adimensional (normalmente 1.0 – 4.0)
+```
+
+#### 4. Compatibilidade com DNA
+```
+MSE = Σ(curva_combinada[i] - target_retido[i])² / n_peneiras
+RMSE = √MSE
+Compatibilidade = max(0, 100 - (RMSE × 6.5))
+```
+
+onde `target_retido = 100 - passante_dna`
+
+#### 5. Status de compatibilidade
+| Compatibilidade | Status | Cor |
+|----------------|--------|-----|
+| ≥ 95% + curva válida | Dentro do Ideal | Verde |
+| ≥ 85% + curva válida | Próximo do Ideal | Âmbar |
+| < 85% ou inválida | Fora do Ideal | Vermelho |
+
+### Limites Normativos (fiel à planilha do cliente)
+
+**BLOCOS:**
+| Peneira | Superior | Inferior |
+|---------|----------|----------|
+| 12.5 | 0 | 0 |
+| 9.5 | 15 | 0 |
+| 6.3 | 25 | 0 |
+| 4.8 | 33 | 0 |
+| 2.4 | 51 | 19 |
+| 1.2 | 66 | 37 |
+| 0.6 | 78 | 54 |
+| 0.3 | 90 | 72 |
+| 0.15 | 97 | 85 |
+| Fundo | 100 | 100 |
+
+**PAVERS:**
+| Peneira | Superior | Inferior |
+|---------|----------|----------|
+| 12.5 | 0 | 0 |
+| 9.5 | 0 | 0 |
+| 6.3 | 15 | 0 |
+| 4.8 | 22 | 0 |
+| 2.4 | 40 | 19 |
+| 1.2 | 61 | 37 |
+| 0.6 | 78 | 54 |
+| 0.3 | 92 | 72 |
+| 0.15 | 100 | 85 |
+| Fundo | 100 | 100 |
+
+### Solver Automático (Engine 3 — solver-engine.ts)
+
+**Algoritmo: Coordinate Descent (Descida de Coordenadas)**
+
+```typescript
+Entrada: materiais[] com proporções iniciais + targetDna (curva alvo)
+Saída:   melhores proporções [%] que minimizam MSE vs DNA
+
+1. Converte DNA (passante → retido_acumulado)
+2. Calcula curvas individuais de cada material
+3. Define função de erro: MSE = Σ(combinada[i] - alvo[i])² / n
+4. Loop até 500 iterações:
+   Para cada par (i,j) de materiais selecionados:
+     Testa: tirar 1% de i, colocar em j
+     Se MSE melhorar → aceita e marca improved=true
+   Repete enquanto improved=true ou < 500 iterações
+```
+
+Botão "Definir DNA" abre `RecipeDnaModal` → usuário seleciona gabarito → Solver ajusta proporções automaticamente.
+
+### Regras de navegação da Etapa 2
+- **Avançar bloqueado** se [checkIsWithinFaixa()](file:///c:/Users/Laje%20Forro/Documents/app/src/app/analises/nova/page.tsx#65-101) retornar `false`
+- Aviso visual se curva estiver fora dos limites normativos
+- `invalidSieves[]` marcam peneiras problemáticas em vermelho na tabela
+
+---
+
+## 7. ETAPA 3 — DOSAGEM
+
+**Arquivo:** [_components/dosagem-step.tsx](file:///c:/Users/Laje%20Forro/Documents/app/src/app/analises/nova/_components/dosagem-step.tsx)
+
+### Método de cálculo: Volume Absoluto (invertido)
+
+O sistema usa **lógica invertida**: o usuário define o **consumo de cimento alvo** (kg/m³) e o sistema calcula tudo a partir disso.
+
+```
+Entrada do usuário:
+  cimentoTarget (kg/m³) — padrão: 255
+  ratioTotal (1:X) — padrão: 6
+  relacaoAC (a/c) — padrão: 0.55
+  volumeBatelada (m³) — padrão: 0.06
+
+Cálculos derivados:
+  aguaKgM3        = cimentoTarget × relacaoAC
+  agregadoTotalM3 = cimentoTarget × ratioTotal
+  massaFinalM3    = cimentoTarget + aguaKgM3 + agregadoTotalM3
+  massaPorBatelada = massaFinalM3 × volumeBatelada
+
+Por material (proporção normalizada):
+  propFrac[mat] = proporção[mat] / Σproporções
+  kg[mat]       = agregadoTotalM3 × propFrac[mat]
+  kgBatelada[mat] = kg[mat] × volumeBatelada
+```
+
+### Lógica direta (para geração da Curva de Consumo)
+```
+denominador = 1/densidadeCimento + relacaoAC/1.0 + Σ((ratioTotal × propFrac) / density[mat])
+cimentoKgM3 = 1000 / denominador
+```
+
+### Gráfico Curva de Consumo
+- Gera 9 pontos (ratio atual ± 4, step 0.5)
+- Cada ponto = resultado de [calcularDosagem()](file:///c:/Users/Laje%20Forro/Documents/app/src/lib/calculations/dosagem.ts#46-109) com ratio diferente
+- Ponto atual destacado em vermelho (r=7px vs r=3px)
+- Tooltip mostra kg/m³ de cimento por traço
+
+### Configurações da etapa
+| Campo | Padrão | Descrição |
+|-------|--------|-----------|
+| Relação 1:X | 6 | Partes de agregado por parte de cimento |
+| Relação a/c | 0.55 | Água/Cimento |
+| Cimento alvo | 255 kg/m³ | Entrada principal do usuário |
+| Volume batelada | 0.06 m³ | Volume de uma betonada |
+| Densidade cimento | 3.1 kg/dm³ | Para cálculo de volume absoluto |
+
+---
+
+## 8. ETAPA 4 — REVISÃO / TRAÇOS
+
+**Arquivo:** [_components/tracos-step.tsx](file:///c:/Users/Laje%20Forro/Documents/app/src/app/analises/nova/_components/tracos-step.tsx)
+
+- Exibe resumo de todos os parâmetros configurados
+- Permite revisão e ajuste antes da finalização
+- Seleção de traços finais para o relatório
+- Campo de observações técnicas
+
+---
+
+## 9. ETAPA 5 — RESULTADO
+
+**Arquivo:** [_components/resultado-step.tsx](file:///c:/Users/Laje%20Forro/Documents/app/src/app/analises/nova/_components/resultado-step.tsx)
+
+### O que é exibido
+1. **Confirmação visual** — Badge verde "Análise Pronta!"
+2. **Relatório de Produção** (`id="relatorio-producao"`) com:
+   - Cabeçalho: código, data, produto, carga do misturador
+   - Tabela de materiais por batelada (kg):
+     - Cimento → `cimentoPorBatelada`
+     - Cada agregado → `kgBatelada`
+     - Água → `aguaKgM3 × volumeBatelada` (em litros)
+   - Gráfico granulométrico (`GranulometryChart`)
+3. **Botão Gerar PDF** → html2pdf.js (import dinâmico)
+4. **Botão Enviar para Produção** → [handleSendToProduction()](file:///c:/Users/Laje%20Forro/Documents/app/src/app/analises/nova/page.tsx#295-331)
+
+### Fluxo de persistência
+```typescript
+// Salvar (status: 'Rascunho')
+supabase.from('analises').insert({
+  code, name, date, author, status: 'Rascunho', type,
+  materials_data, selected_tracos, dosagem_config, observations,
+  recipe_dna_id, recipe_dna_base_id, recipe_dna_face_id
+})
+
+// Enviar para produção (status: 'Aprovado')
+supabase.from('analises').update({
+  ...mesmos campos,
+  status: 'Aprovado',
+  producao_status: 'Aguardando'
+})
+```
+
+---
+
+## 10. SCHEMA DO BANCO DE DADOS
+
+### Tabela principal: `analises`
+```sql
+CREATE TABLE public.analises (
+  id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  code             TEXT,                    -- Ex: AN-2026-001
+  name             TEXT NOT NULL,           -- Nome da análise
+  date             DATE,                    -- Data da análise
+  author           TEXT,                    -- Analista responsável
+  type             TEXT CHECK (type IN ('BLOCOS','PAVERS')),
+  status           TEXT,                    -- 'Rascunho' | 'Aprovado' | 'Em Revisão'
+  producao_status  TEXT,                    -- 'Aguardando' | 'Em Produção' | 'Finalizado'
+  materials_data   JSONB,  -- Array[] para BLOCOS | {base:[], face:[]} para PAVERS
+  selected_tracos  JSONB,
+  dosagem_config   JSONB,  -- {volumeBatelada, densidadeCimento, cimentoTarget, tracos[]}
+  observations     TEXT,
+  recipe_dna_id      UUID REFERENCES recipe_dna(id),  -- DNA do Bloco
+  recipe_dna_base_id UUID REFERENCES recipe_dna(id),  -- DNA da Base (Paver)
+  recipe_dna_face_id UUID REFERENCES recipe_dna(id),  -- DNA da Face (Paver)
+  created_at       TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+```
+
+### Tabela: `aggregate_bank` (Banco de Agregados)
+```sql
+CREATE TABLE public.aggregate_bank (
+  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id     UUID DEFAULT auth.uid(),
+  name        TEXT NOT NULL,   -- Ex: "Areia Fina Guariroba"
+  density     DECIMAL NOT NULL,
+  created_at  TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE public.aggregate_bank_sieve_data (
+  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  aggregate_id    UUID REFERENCES aggregate_bank(id) ON DELETE CASCADE,
+  sieve_size      TEXT NOT NULL,           -- Ex: "2.4", "0.6", "Fundo"
+  percent_retained DECIMAL NOT NULL (0-100),
+  created_at      TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+```
+
+### Tabela: `recipe_dna` (DNA de Receitas)
+```sql
+CREATE TABLE public.recipe_dna (
+  id         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id    UUID DEFAULT auth.uid(),
+  name       TEXT NOT NULL,              -- Ex: "DNA Bloco 09x19x39 Padrão"
+  target_mf  DECIMAL,                   -- Módulo de Finura alvo
+  type       TEXT CHECK (type IN ('BE','PV')),  -- Bloco Estrutural | Paver
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE public.recipe_dna_sieve_data (
+  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  recipe_id       UUID REFERENCES recipe_dna(id) ON DELETE CASCADE,
+  sieve_size      TEXT NOT NULL,
+  percent_passing DECIMAL NOT NULL (0-100),  -- DNA usa PASSANTE (≠ retido)
+  created_at      TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+```
+
+> [!IMPORTANT]
+> **Convenção crítica:** O banco de agregados armazena `percent_retained` (retido), mas o DNA de receitas armazena `percent_passing` (passante). O solver converte automaticamente: `retido = 100 - passante`.
+
+### Schema Prisma equivalente
+```prisma
+model Analise {
+  id               String   @id @default(uuid())
+  code             String?
+  name             String
+  date             String?
+  author           String?
+  type             String   // "BLOCOS" | "PAVERS"
+  status           String?  // "Rascunho" | "Aprovado" | "Em Revisão"
+  producaoStatus   String?  // "Aguardando" | "Em Produção" | "Finalizado"
+  materialsData    Json?
+  selectedTracos   Json?
+  dosagemConfig    Json?
+  observations     String?
+  recipeDnaId      String?
+  recipeDnaBaseId  String?
+  recipeDnaFaceId  String?
+  createdAt        DateTime @default(now())
+
+  recipeDna        RecipeDna? @relation("DnaBloco",   fields:[recipeDnaId],     references:[id])
+  recipeDnaBase    RecipeDna? @relation("DnaBase",    fields:[recipeDnaBaseId], references:[id])
+  recipeDnaFace    RecipeDna? @relation("DnaFace",    fields:[recipeDnaFaceId], references:[id])
+}
+
+model AggregateBank {
+  id        String   @id @default(uuid())
+  name      String
+  density   Float
+  createdAt DateTime @default(now())
+  sieves    AggregateSieve[]
+}
+
+model AggregateSieve {
+  id             String        @id @default(uuid())
+  aggregateId    String
+  sieveSize      String
+  percentRetained Float
+  aggregate      AggregateBank @relation(fields:[aggregateId], references:[id], onDelete:Cascade)
+}
+
+model RecipeDna {
+  id       String  @id @default(uuid())
+  name     String
+  targetMf Float?
+  type     String  // "BE" | "PV"
+  sieves   RecipeDnaSieve[]
+}
+
+model RecipeDnaSieve {
+  id             String    @id @default(uuid())
+  recipeId       String
+  sieveSize      String
+  percentPassing Float
+  recipe         RecipeDna @relation(fields:[recipeId], references:[id], onDelete:Cascade)
+}
+```
+
+---
+
+## 11. SEGURANÇA (RLS — Row Level Security)
+
+Todas as tabelas têm RLS habilitado. Cada usuário vê apenas seus próprios dados:
+
+```sql
+-- Padrão aplicado em: analises, aggregate_bank, recipe_dna
+CREATE POLICY "Users see own data" ON public.{tabela}
+  FOR ALL USING (auth.uid() = user_id);
+
+-- Para tabelas filhas (sieve_data):
+CREATE POLICY "Users see linked sieves" ON public.{tabela_filha}
+  FOR ALL USING (
+    EXISTS (SELECT 1 FROM public.{tabela_pai}
+      WHERE parent_id = {tabela_filha}.parent_id
+      AND user_id = auth.uid())
+  );
+```
+
+---
+
+## 12. COMPONENTES DE GRANULOMETRIA
+
+### AggregateModal
+- Lista `aggregate_bank` do Supabase
+- Permite busca por nome
+- Ao selecionar: substitui `data` (sieve_data) do material correspondente no formulário
+- Gatilho: clique no ícone do material na tabela granulométrica
+
+### RecipeDnaModal
+- Lista `recipe_dna` filtrado por `type` (BLOCOS | PAVERS)
+- Exibe MF alvo e curva passante de cada DNA
+- Ao selecionar: `targetDna` / `targetDnaBase` / `targetDnaFace` são setados no estado
+- Gatilho: botão "+ Definir DNA"
+- Após seleção: Solver é chamado para ajustar proporções automaticamente
+
+### GranulometryChart
+- `ComposedChart` do Recharts
+- Linhas individuais por material (cores distintas)
+- Linha da curva combinada (em destaque)
+- Faixa normativa (área cinza entre upper/lower limits)
+- Linha do DNA alvo (pontilhada azul, se definido)
+- Tooltip com valor de retido acumulado por peneira
+- Suporta `height` como prop configurável
+
+---
+
+## 13. UX / PADRÕES DE INTERAÇÃO
+
+### Design System
+| Token | Valor |
+|-------|-------|
+| Cor primária | `#0E2A47` (Azul industrial escuro) |
+| Cor de sucesso | `#22c55e` (Verde) |
+| Cor de alerta | `#f59e0b` (Âmbar) |
+| Cor de erro | `#ef4444` (Vermelho) |
+| Background | `#F4F6F8` |
+| Border radius padrão | `rounded-xl` / `rounded-2xl` / `rounded-3xl` |
+| Tipografia | Sistema (font-black para destaque) |
+
+### Padrões visuais
+| Padrão | Implementação |
+|--------|--------------|
+| Stepper com progresso | Barra verde `width: 0% → 100%` por `transition-all duration-500` |
+| Estados de etapa | Ativo = `bg-primary scale-110`, Completo = `bg-green-100` + badge verde |
+| Loading states | `<Loader2 className="animate-spin">` em botões |
+| Feedback de validação | `invalidSieves[]` colore células em vermelho |
+| Status de compatibilidade | Badge colorido (verde/âmbar/vermelho) ao lado do MF |
+| Slide-in de etapas | `animate-in fade-in slide-in-from-bottom-4 duration-500` |
+
+### Micro-interações
+- Botões com `active:scale-95`
+- Hover com `group-hover` em linhas de tabela
+- Slider de a/c com `accent-primary`
+- Input de cimento com `focus:ring-4 focus:ring-primary/10`
+- Ícones de ação com hover de cor `hover:text-primary`
+
+### Responsividade
+| Largura | Comportamento |
+|---------|--------------|
+| ≥ `lg` (1024px) | Layout em tabelas, grid 2 colunas |
+| `< lg` | Layout em cards empilhados |
+| Stepper | `min-w-[600px]` com `overflow-x-auto no-scrollbar` |
+
+### Modos de operação
+| Modo | Trigger | Comportamento |
+|------|---------|--------------|
+| **Novo** | `/analises/nova` | FormData vazio com defaults |
+| **Editar** | `/analises/nova?id=UUID` | Carrega do Supabase via [fetchAnalysis()](file:///c:/Users/Laje%20Forro/Documents/app/src/app/analises/nova/page.tsx#176-238) |
+| **Visualização** | `?view=report` | Salta direto para Etapa 5, oculta nav |
+| **Rascunho** | Botão "Salvar Rascunho" | Persiste com `status: 'Rascunho'` |
+
+---
+
+## 14. REGRAS DE NEGÓCIO CONSOLIDADAS
+
+### Granulometria
+1. Retido acumulado nunca ultrapassa 100% (truncado por `Math.min(accumulated, 100)`)
+2. Proporções definem peso de cada material na curva combinada
+3. Curva combinada deve estar **dentro da faixa normativa** para avançar (com aviso mas não bloqueio total)
+4. MF é calculado apenas nas peneiras da série normal (exclui 12.5 e Fundo)
+5. DNA usa **passante**; cálculos internos usam **retido acumulado**
+6. Para PAVERS: Base e Face têm tabelas e DNAs independentes
+
+### Dosagem
+7. O usuário controla `cimentoTarget` (kg/m³) — entrada principal
+8. Todo o resto é **derivado** do cimento alvo (água, agregado, batelada)
+9. Proporções dos materiais são **normalizadas** dentro do agregado total
+10. Se proporção total = 0: usa densidade padrão 2.65 (areia media)
+11. Volume de batelada padrão: 0.06 m³ (60 litros)
+12. Curva de consumo mostra variação em ±4 pontos do traço atual
+
+### Persistência
+13. `materials_data` é JSONB flexível: Array para BLOCOS, `{base:[], face:[]}` para PAVERS
+14. `dosagem_config` persiste todo config incluindo traços
+15. `recipe_dna_id` pode ser null (DNA é opcional)
+16. Ao enviar para produção: `producao_status = 'Aguardando'` + `status = 'Aprovado'`
+17. Rascunho = `status: 'Rascunho'`, sem `producao_status`
+
+---
+
+## 15. FLUXO DE DADOS DETALHADO
+
+```
+USUÁRIO digita % retidas individuais por material por peneira
+    ↓
+calculateAccumulatedRetained(values) → retido_acumulado por material
+    ↓
+calculateCombinedCurve(materials_with_proportions) → curva_combinada[]
+    ↓
+isCurveValid(combined_curve, "BLOCOS"|"PAVERS") → {isValid, issues[]}
+    ↓ (se DNA selecionado)
+calculateCompatibility(combined_curve, target_dna) → 0-100%
+calculateMF(combined_curve) → Módulo de Finura
+    ↓ (botão Definir DNA + Solver)
+solveBestMix(materials[], dna.sieve_data) → novas_proporções[]
+    ↓
+FORMULÁRIO DOSAGEM:
+  cimentoTarget (entrada usuário)
+  aguaKgM3 = cimentoTarget × relacaoAC
+  agregadoM3 = cimentoTarget × ratioTotal
+  kgBatelada[mat] = (agregadoM3 × propFrac[mat]) × volumeBatelada
+    ↓
+RELATÓRIO:
+  calcularDosagem({materiais, tracos: [traco], cimentoKgM3: cimentoTarget})
+  → resultado: {cimentoPorBatelada, distribuicao[], aguaKgM3, massaPorBatelada}
+    ↓
+PDF: html2pdf(#relatorio-producao)
+PRODUÇÃO: supabase.update(analise, {status:'Aprovado', producao_status:'Aguardando'})
+```
+
+---
+
+## 16. PONTOS DE ATENÇÃO / DÍVIDAS TÉCNICAS
+
+> [!WARNING]
+> **Estado local sem Zustand** — Todo o estado vive em `useState` na [page.tsx](file:///c:/Users/Laje%20Forro/Documents/app/src/app/page.tsx). Para mais de 10 usuários simultâneos editando, considerar migração para Zustand ou React Query.
+
+> [!WARNING]
+> **Sem autenticação real** — RLS está configurado no Supabase, mas o frontend não tem fluxo de login implementado explicitamente. O `auth.uid()` pode retornar null.
+
+> [!NOTE]
+> **`materials_data` como JSONB** — Flexível mas dificulta queries. Se precisar filtrar por material específico, criar tabela normalizada.
+
+> [!NOTE]
+> **Solver com step=1%** — O Coordinate Descent usa step fixo de 1%. Para granulometrias muito finas, um step menor (0.5%) melhoraria a precisão.
+
+> [!NOTE]
+> **Compatibilidade calculada com RMSE × 6.5** — O fator 6.5 é empírico (15% RMSE ≈ 0% compatibilidade). Pode ser calibrado com dados históricos.
+
+---
+
+*Documento gerado por engenharia reversa completa do código-fonte — Março 2026*
