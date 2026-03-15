@@ -228,7 +228,7 @@ export function generateAnalysisPDF(data: AnalysisFormData): void {
     ["Traço Final", dosageResult?.traco_final ?? "—"],
     ["Analista Responsável", analistaLabel],
     ["DNA Selecionado", dna?.nome ?? "Nenhum"],
-    ["Volume Batelada", `${data.volume_batelada} L`],
+    ["Volume Batelada", `${data.volume_m3} m³`],
   ];
 
   resumo.forEach(([label, value], i) => {
