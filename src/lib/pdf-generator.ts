@@ -155,7 +155,8 @@ export function generateAnalysisPDF(data: AnalysisFormData): void {
     ? calcDosage({
         relacao_cimento: data.relacao_cimento,
         relacao_ac: data.relacao_ac,
-        volume_batelada: data.volume_batelada,
+        consumo_alvo_m3: data.consumo_alvo_m3,
+        volume_m3: data.volume_m3,
         densidade_cimento: data.densidade_cimento,
         proporcoes_materiais: data.materiais_selecionados.map((m) => ({
           nome: m.nome,
@@ -168,9 +169,9 @@ export function generateAnalysisPDF(data: AnalysisFormData): void {
   if (dosageResult) {
     // Summary cards
     const summaryItems = [
-      ["Consumo Cimento", `${dosageResult.consumo_cimento_kg} kg`],
-      ["Água / Batelada", `${dosageResult.agua_litros} L`],
-      ["Massa Total", `${dosageResult.massa_total_kg} kg`],
+      ["Consumo Cimento", `${dosageResult.consumo_cimento_m3} kg/m³`],
+      ["Água / Batelada", `${dosageResult.agua_batelada} L`],
+      ["Massa Total", `${dosageResult.massa_total_batelada} kg`],
       ["Traço Final", dosageResult.traco_final],
     ];
 
@@ -194,8 +195,8 @@ export function generateAnalysisPDF(data: AnalysisFormData): void {
 
     // Cimento
     addText("Cimento", margin + 2, y + 1, { size: 9, bold: true });
-    addText(`${dosageResult.consumo_cimento_kg} kg`, pageWidth - margin - 2, y + 1, { size: 9 });
-    doc.text(`${dosageResult.consumo_cimento_kg} kg`, pageWidth - margin - 2, y + 1, { align: "right" });
+    addText(`${dosageResult.consumo_cimento_batelada} kg`, pageWidth - margin - 2, y + 1, { size: 9 });
+    doc.text(`${dosageResult.consumo_cimento_batelada} kg`, pageWidth - margin - 2, y + 1, { align: "right" });
     y += 6;
 
     dosageResult.materiais_batelada.forEach((m) => {
@@ -207,8 +208,8 @@ export function generateAnalysisPDF(data: AnalysisFormData): void {
     });
 
     addText("Água", margin + 2, y + 1, { size: 9 });
-    addText(`${dosageResult.agua_litros} L`, pageWidth - margin - 2, y + 1, { size: 9 });
-    doc.text(`${dosageResult.agua_litros} L`, pageWidth - margin - 2, y + 1, { align: "right" });
+    addText(`${dosageResult.agua_batelada} L`, pageWidth - margin - 2, y + 1, { size: 9 });
+    doc.text(`${dosageResult.agua_batelada} L`, pageWidth - margin - 2, y + 1, { align: "right" });
     y += 6;
   }
 
@@ -227,7 +228,7 @@ export function generateAnalysisPDF(data: AnalysisFormData): void {
     ["Traço Final", dosageResult?.traco_final ?? "—"],
     ["Analista Responsável", analistaLabel],
     ["DNA Selecionado", dna?.nome ?? "Nenhum"],
-    ["Volume Batelada", `${data.volume_batelada} L`],
+    ["Volume Batelada", `${data.volume_m3} m³`],
   ];
 
   resumo.forEach(([label, value], i) => {
