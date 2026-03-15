@@ -169,9 +169,9 @@ export function generateAnalysisPDF(data: AnalysisFormData): void {
   if (dosageResult) {
     // Summary cards
     const summaryItems = [
-      ["Consumo Cimento", `${dosageResult.consumo_cimento_kg} kg`],
-      ["Água / Batelada", `${dosageResult.agua_litros} L`],
-      ["Massa Total", `${dosageResult.massa_total_kg} kg`],
+      ["Consumo Cimento", `${dosageResult.consumo_cimento_m3} kg/m³`],
+      ["Água / Batelada", `${dosageResult.agua_batelada} L`],
+      ["Massa Total", `${dosageResult.massa_total_batelada} kg`],
       ["Traço Final", dosageResult.traco_final],
     ];
 
