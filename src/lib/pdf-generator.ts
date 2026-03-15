@@ -155,7 +155,8 @@ export function generateAnalysisPDF(data: AnalysisFormData): void {
     ? calcDosage({
         relacao_cimento: data.relacao_cimento,
         relacao_ac: data.relacao_ac,
-        volume_batelada: data.volume_batelada,
+        consumo_alvo_m3: data.consumo_alvo_m3,
+        volume_m3: data.volume_m3,
         densidade_cimento: data.densidade_cimento,
         proporcoes_materiais: data.materiais_selecionados.map((m) => ({
           nome: m.nome,
