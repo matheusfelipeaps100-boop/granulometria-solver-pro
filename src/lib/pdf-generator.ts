@@ -196,7 +196,7 @@ export function generateAnalysisPDF(data: AnalysisFormData): void {
     // Cimento
     addText("Cimento", margin + 2, y + 1, { size: 9, bold: true });
     addText(`${dosageResult.consumo_cimento_batelada} kg`, pageWidth - margin - 2, y + 1, { size: 9 });
-    doc.text(`${dosageResult.consumo_cimento_kg} kg`, pageWidth - margin - 2, y + 1, { align: "right" });
+    doc.text(`${dosageResult.consumo_cimento_batelada} kg`, pageWidth - margin - 2, y + 1, { align: "right" });
     y += 6;
 
     dosageResult.materiais_batelada.forEach((m) => {
