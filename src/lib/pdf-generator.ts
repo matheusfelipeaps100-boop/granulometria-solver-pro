@@ -209,7 +209,7 @@ export function generateAnalysisPDF(data: AnalysisFormData): void {
 
     addText("Água", margin + 2, y + 1, { size: 9 });
     addText(`${dosageResult.agua_batelada} L`, pageWidth - margin - 2, y + 1, { size: 9 });
-    doc.text(`${dosageResult.agua_litros} L`, pageWidth - margin - 2, y + 1, { align: "right" });
+    doc.text(`${dosageResult.agua_batelada} L`, pageWidth - margin - 2, y + 1, { align: "right" });
     y += 6;
   }
 
