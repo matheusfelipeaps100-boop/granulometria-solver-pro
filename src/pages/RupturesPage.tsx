@@ -10,12 +10,13 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { useAppStore } from "@/store/useAppStore";
+import { useAuth } from "@/hooks/useAuth";
+import { useRuptures } from "@/hooks/api/useRuptures";
+import { useProfiles } from "@/hooks/api/useProfiles";
 import { hasActionPermission } from "@/lib/permissions";
 import { useNavigate } from "react-router-dom";
-import { ANALISTAS } from "@/lib/analysis-data";
 import { toast } from "sonner";
-import type { ScheduleStatus, BatchStatus } from "@/store/useAppStore";
+import type { ScheduleStatus } from "@/hooks/api/useRuptures";
 
 const statusColor: Record<ScheduleStatus, string> = {
   pendente: "border-yellow-400 text-yellow-700 bg-yellow-50 hover:bg-yellow-100",
@@ -26,11 +27,13 @@ const statusColor: Record<ScheduleStatus, string> = {
 };
 
 const RupturesPage = () => {
-  const { batches, analyses, releaseBatchEarly, currentUserRole } = useAppStore();
+  const { schedules, isLoadingSchedules, releaseEarly, isReleasing } = useRuptures();
+  const { profile } = useAuth();
+  const { profiles } = useProfiles();
   const navigate = useNavigate();
-  
-  const canCompleteRupture = hasActionPermission(currentUserRole, "rupture:complete");
-  const canReleaseEarly = hasActionPermission(currentUserRole, "rupture:early_release");
+
+  const canCompleteRupture = profile ? hasActionPermission(profile.role, "rupture:complete") : false;
+  const canReleaseEarlyPermission = profile ? hasActionPermission(profile.role, "rupture:early_release") : false;
 
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
@@ -45,18 +48,27 @@ const RupturesPage = () => {
 
   // Enrich and group by batch
   const groupedBatches = useMemo(() => {
-    return batches.map((batch) => {
-      const analysis = analyses.find((a) => a.id === batch.analysis_id);
-      const schedules = batch.rupture_schedules.map((s) => {
-        let status = s.status;
-        if (s.status === "pendente" && s.data_prevista < today) {
-          status = "atrasado" as ScheduleStatus;
-        }
-        return { ...s, status };
-      });
-      return { batch, analysis, schedules };
+    const batched: Record<string, any> = {};
+
+    schedules.forEach((s) => {
+      const bId = s.batch_id;
+      if (!batched[bId]) {
+        batched[bId] = {
+          batch: s.batch,
+          analysis: s.batch?.analyses,
+          schedules: []
+        };
+      }
+      
+      let status = s.status;
+      if (s.status === "pendente" && s.data_prevista < today) {
+        status = "atrasado" as ScheduleStatus;
+      }
+      batched[bId].schedules.push({ ...s, status });
     });
-  }, [batches, analyses, today]);
+
+    return Object.values(batched);
+  }, [schedules, today]);
 
   // All schedules flat (for stats)
   const allSchedules = useMemo(
@@ -69,12 +81,12 @@ const RupturesPage = () => {
     return groupedBatches.filter((g) => {
       if (search) {
         const q = search.toLowerCase();
-        const matchLote = g.batch.batch_code.toLowerCase().includes(q);
+        const matchLote = g.batch?.batch_code?.toLowerCase().includes(q);
         const matchProduto = (g.analysis?.nome ?? "").toLowerCase().includes(q);
         if (!matchLote && !matchProduto) return false;
       }
       if (filterStatus !== "all") {
-        const hasStatus = g.schedules.some((s) => s.status === filterStatus);
+        const hasStatus = g.schedules.some((s: any) => s.status === filterStatus);
         if (!hasStatus) return false;
       }
       return true;
@@ -82,7 +94,7 @@ const RupturesPage = () => {
   }, [groupedBatches, search, filterStatus]);
 
   // Batch-level status
-  const batchStatus = (schedules: typeof allSchedules, currentStatus: BatchStatus) => {
+  const batchStatus = (schedules: any[], currentStatus: string) => {
     if (currentStatus === "liberado_antecipado") return "liberado_antecipado";
     if (schedules.every((s) => s.status === "concluido" || s.status === "ignorado")) return "concluido";
     if (schedules.some((s) => s.status === "atrasado")) return "atrasado";
@@ -103,22 +115,33 @@ const RupturesPage = () => {
     return `${day}/${month}/${year}`;
   };
 
-  const handleReleaseSubmit = () => {
+  const handleReleaseSubmit = async () => {
     if (!batchToRelease || !releaseReason || !releaseAnalyst) {
       toast.error("Preencha todos os campos obrigatórios");
       return;
     }
-    releaseBatchEarly(batchToRelease, releaseReason, releaseAnalyst);
-    toast.success("Lote liberado antecipadamente com sucesso!");
-    setReleaseModalOpen(false);
-    setBatchToRelease(null);
-    setReleaseReason("");
-    setReleaseAnalyst("");
+    
+    try {
+      const selectedAnalyst = profiles.find(a => a.id === releaseAnalyst);
+      await releaseEarly({
+        batchId: batchToRelease,
+        motivo: `${selectedAnalyst?.nome}: ${releaseReason}`
+      });
+      
+      toast.success("Lote liberado antecipadamente com sucesso!");
+      setReleaseModalOpen(false);
+      setBatchToRelease(null);
+      setReleaseReason("");
+      setReleaseAnalyst("");
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao liberar lote");
+    }
   };
 
   const batchReleasingObj = useMemo(() => {
     if (!batchToRelease) return null;
-    return groupedBatches.find(g => g.batch.id === batchToRelease);
+    return (groupedBatches as any[]).find(g => (g.batch as any).id === batchToRelease);
   }, [batchToRelease, groupedBatches]);
 
   return (
@@ -129,11 +152,13 @@ const RupturesPage = () => {
       </div>
 
       {/* Stats */}
-      {allSchedules.length > 0 && (
+      {(allSchedules.length > 0 || isLoadingSchedules) && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card className="shadow-sm">
             <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-foreground">{stats.total}</p>
+              <p className="text-2xl font-bold text-foreground">
+                {isLoadingSchedules ? "..." : stats.total}
+              </p>
               <p className="text-xs text-muted-foreground">Total</p>
             </CardContent>
           </Card>
@@ -254,19 +279,20 @@ const RupturesPage = () => {
                         {formatDate(batch.produced_at.split("T")[0])}
                       </TableCell>
                       <TableCell className="text-right pr-6">
-                        {canReleaseEarly && (overallStatus === "pendente" || overallStatus === "em_andamento") && (
+                        {canReleaseEarlyPermission && (overallStatus === "pendente" || overallStatus === "em_andamento") && (
                            <Button 
                              variant="ghost" 
                              size="sm" 
+                             disabled={isReleasing}
                              onClick={() => {
-                               setBatchToRelease(batch.id);
+                               setBatchToRelease((batch as any).id);
                                setReleaseModalOpen(true);
                              }}
                              className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 gap-2 font-bold"
                              title="Liberar Lote Antecipadamente"
                            >
                               <Unlock className="h-4 w-4" />
-                              Liberar
+                              {isReleasing ? "..." : "Liberar"}
                            </Button>
                         )}
                       </TableCell>
@@ -320,8 +346,8 @@ const RupturesPage = () => {
                   <SelectValue placeholder="Selecione o analista responsável" />
                 </SelectTrigger>
                 <SelectContent>
-                  {ANALISTAS.map((a) => (
-                    <SelectItem key={a.id} value={a.id}>{a.nome}</SelectItem>
+                  {profiles.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -339,9 +365,9 @@ const RupturesPage = () => {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setReleaseModalOpen(false)}>Cancelar</Button>
-            <Button className="bg-amber-600 hover:bg-amber-700" onClick={handleReleaseSubmit}>
-              Confirmar Liberação
+            <Button variant="outline" onClick={() => setReleaseModalOpen(false)} disabled={isReleasing}>Cancelar</Button>
+            <Button className="bg-amber-600 hover:bg-amber-700" onClick={handleReleaseSubmit} disabled={isReleasing}>
+              {isReleasing ? "Liberando..." : "Confirmar Liberação"}
             </Button>
           </DialogFooter>
         </DialogContent>

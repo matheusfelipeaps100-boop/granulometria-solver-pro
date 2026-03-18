@@ -10,44 +10,85 @@ import { WebhooksTab } from "@/components/settings/WebhooksTab";
 import { GoalsTab } from "@/components/settings/GoalsTab";
 import { SievesTab } from "@/components/settings/SievesTab";
 import { UsersTab } from "@/components/settings/UsersTab";
-import { useAppStore } from "@/store/useAppStore";
-import { useState } from "react";
+import { useOrganization } from "@/hooks/api/useOrganization";
+import { useTechnicalSettings } from "@/hooks/api/useTechnicalSettings";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { RefreshCw } from "lucide-react";
 
 const SettingsPage = () => {
-  const { identity, updateIdentity, params, updateParams } = useAppStore();
-  const [localIdentity, setLocalIdentity] = useState(identity);
-  const [localParams, setLocalParams] = useState({
-    volume_batelada: String(params.volume_batelada),
-    densidade_cimento: String(params.densidade_cimento),
-    fator_a: String(params.fator_a),
-    fator_b: String(params.fator_b),
+  const { organization, updateOrganization, isLoading: loadingOrg } = useOrganization();
+  const { settings, updateSettings, isLoading: loadingSettings, isUpdating: savingSettings } = useTechnicalSettings();
+  
+  const [localIdentity, setLocalIdentity] = useState({
+    nome: "",
+    cnpj: "",
+    endereco: "",
+    responsavel_tecnico: "",
   });
 
-  const handleSaveIdentity = () => {
-    updateIdentity(localIdentity);
-    toast.success("Identidade da organização salva com sucesso.");
+  useEffect(() => {
+    if (organization) {
+      setLocalIdentity({
+        nome: organization.nome || "",
+        cnpj: organization.cnpj || "",
+        endereco: organization.endereco || "",
+        responsavel_tecnico: organization.responsavel_tecnico || "",
+      });
+    }
+  }, [organization]);
+
+  const [localParams, setLocalParams] = useState({
+    volume_batelada: "550",
+    densidade_cimento: "3.15",
+    formula_tensao_a: "0.0546",
+    formula_tensao_b: "98.0665",
+  });
+
+  useEffect(() => {
+    if (settings) {
+      setLocalParams({
+        volume_batelada: String(settings.volume_batelada_padrao),
+        densidade_cimento: String(settings.densidade_cimento_padrao),
+        formula_tensao_a: String(settings.formula_tensao_a),
+        formula_tensao_b: String(settings.formula_tensao_b),
+      });
+    }
+  }, [settings]);
+
+  const handleSaveIdentity = async () => {
+    try {
+      await updateOrganization(localIdentity);
+      toast.success("Identidade da organização salva com sucesso.");
+    } catch (error) {
+      toast.error("Erro ao salvar identidade.");
+    }
   };
 
-  const handleSaveParams = () => {
+  const handleSaveParams = async () => {
     const vol = parseFloat(localParams.volume_batelada);
     const dens = parseFloat(localParams.densidade_cimento);
-    const fa = parseFloat(localParams.fator_a);
-    const fb = parseFloat(localParams.fator_b);
+    const fa = parseFloat(localParams.formula_tensao_a);
+    const fb = parseFloat(localParams.formula_tensao_b);
 
     if (isNaN(vol) || isNaN(dens) || isNaN(fa) || isNaN(fb)) {
       toast.error("Por favor, preencha valores numéricos válidos.");
       return;
     }
 
-    updateParams({
-      volume_batelada: vol,
-      densidade_cimento: dens,
-      fator_a: fa,
-      fator_b: fb,
-    });
-    toast.success("Parâmetros de cálculo salvos com sucesso.");
+    try {
+      await updateSettings({
+        volume_batelada_padrao: vol,
+        densidade_cimento_padrao: dens,
+        formula_tensao_a: fa,
+        formula_tensao_b: fb,
+      });
+      toast.success("Parâmetros de cálculo salvos com sucesso.");
+    } catch (error) {
+      toast.error("Erro ao salvar parâmetros.");
+    }
   };
+
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -150,8 +191,8 @@ const SettingsPage = () => {
                   <Input 
                     type="number" 
                     step="0.0001"
-                    value={localParams.fator_a}
-                    onChange={e => setLocalParams(prev => ({ ...prev, fator_a: e.target.value }))}
+                    value={localParams.formula_tensao_a}
+                    onChange={e => setLocalParams(prev => ({ ...prev, formula_tensao_a: e.target.value }))}
                   />
                 </div>
                 <div className="space-y-2">
@@ -159,13 +200,16 @@ const SettingsPage = () => {
                   <Input 
                     type="number" 
                     step="0.0001"
-                    value={localParams.fator_b}
-                    onChange={e => setLocalParams(prev => ({ ...prev, fator_b: e.target.value }))}
+                    value={localParams.formula_tensao_b}
+                    onChange={e => setLocalParams(prev => ({ ...prev, formula_tensao_b: e.target.value }))}
                   />
                 </div>
               </div>
               <p className="text-xs text-muted-foreground">Alterações afetam cálculos futuros. Análises existentes não são recalculadas.</p>
-              <Button onClick={handleSaveParams}>Salvar Parâmetros</Button>
+              <Button onClick={handleSaveParams} disabled={savingSettings}>
+                {savingSettings && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
+                Salvar Parâmetros
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>

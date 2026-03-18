@@ -4,9 +4,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Plus, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { useAppStore } from "@/store/useAppStore";
+import { useAuth } from "@/hooks/useAuth";
 import { hasActionPermission } from "@/lib/permissions";
-import { TIPOS_ANALISE } from "@/lib/analysis-data";
 
 const mockTraces = [
   { nome: "DNA Bloco Estrutural 14x19x39 4MPa", tipo: "bloco_estrutural", resistencia: "4,0 MPa", mf: "3,483", ativo: true },
@@ -16,23 +15,12 @@ const mockTraces = [
 ];
 
 const StandardTracesPage = () => {
-  const currentUserRole = useAppStore((s) => s.currentUserRole);
-  const standardTraces = useAppStore((s) => s.standardTraces);
+  const { profile } = useAuth();
+  const currentUserRole = profile?.role ?? "LABORATORIO";
   
   const canCreate = hasActionPermission(currentUserRole, "material:create");
 
-  // Combine mock traces with saved traces
-  const allTraces = [
-    ...mockTraces,
-    ...standardTraces.map(t => ({
-      nome: t.nome,
-      tipo: t.tipo_produto,
-      resistencia: `${t.resistencia_alvo} MPa`,
-      mf: "—", // MF can be calculated later
-      ativo: true,
-      isSaved: true,
-    }))
-  ];
+  const allTraces = mockTraces;
 
   return (
     <div className="space-y-6 animate-fade-in">

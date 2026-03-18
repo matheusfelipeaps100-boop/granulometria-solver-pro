@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/StatusBadge";
 import { TIPOS_ANALISE } from "@/lib/analysis-data";
 import type { StoredAnalysis, ProductionBatch } from "@/store/useAppStore";
+import type { DBProductionBatch } from "@/hooks/api/useProduction";
 import { useMemo, useState } from "react";
 import { calcDosage } from "@/lib/granulometry-engine";
 import { cn } from "@/lib/utils";
@@ -18,11 +19,11 @@ interface ViewProductionModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   analysis: StoredAnalysis;
-  batch: ProductionBatch | null;
+  batch: DBProductionBatch | null;
 }
 
 export function ViewProductionModal({ open, onOpenChange, analysis, batch }: ViewProductionModalProps) {
-  const [selectedRupture, setSelectedRupture] = useState<RuptureSchedule | null>(null);
+  const [selectedRupture, setSelectedRupture] = useState<any | null>(null);
   const [showRuptureResult, setShowRuptureResult] = useState(false);
 
   if (!analysis) return null;
@@ -130,7 +131,7 @@ export function ViewProductionModal({ open, onOpenChange, analysis, batch }: Vie
 
               <h4 className="font-semibold text-foreground pt-2">Cronograma de Rompimentos</h4>
               <div className="grid grid-cols-4 gap-2">
-                {batch.rupture_schedules.map((s) => {
+                {batch.rupture_schedules?.map((s) => {
                   const isConcluido = s.status === "concluido";
                   return (
                     <button

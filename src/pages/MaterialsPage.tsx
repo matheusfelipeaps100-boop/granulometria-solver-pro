@@ -6,6 +6,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Plus, Search, Pencil, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useAppStore } from "@/store/useAppStore";
+import { useAuth } from "@/hooks/useAuth";
+import { useMaterials } from "@/hooks/api/useMaterials";
 import { hasActionPermission } from "@/lib/permissions";
 import { MaterialModal } from "@/components/materials/MaterialModal";
 import {
@@ -21,7 +23,9 @@ import {
 import { toast } from "sonner";
 
 const MaterialsPage = () => {
-  const { materials, deleteMaterial, currentUserRole } = useAppStore();
+  const { profile } = useAuth();
+  const { materials, deleteMaterial, isLoading } = useMaterials();
+  const currentUserRole = profile?.role ?? "LABORATORIO";
   
   const canCreate = hasActionPermission(currentUserRole, "material:create");
   const canEdit = hasActionPermission(currentUserRole, "material:edit");
@@ -49,13 +53,26 @@ const MaterialsPage = () => {
     setModalOpen(true);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (deleteId) {
-      deleteMaterial(deleteId);
-      toast.success("Material removido com sucesso");
-      setDeleteId(null);
+      try {
+        await deleteMaterial(deleteId);
+        toast.success("Material removido com sucesso");
+      } catch (error: any) {
+        toast.error("Erro ao remover material: " + error.message);
+      } finally {
+        setDeleteId(null);
+      }
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
 
   return (
     <>

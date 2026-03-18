@@ -14,11 +14,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ClipboardList, CheckCircle2, Calendar } from "lucide-react";
 import { toast } from "sonner";
-import { useAppStore, type StoredAnalysis } from "@/store/useAppStore";
 import { ANALISTAS } from "@/lib/analysis-data";
 import { useMemo } from "react";
 import { calcDosage } from "@/lib/granulometry-engine";
 import { cn } from "@/lib/utils";
+import { useProduction } from "@/hooks/api/useProduction";
+import { useProfiles } from "@/hooks/api/useProfiles";
+import { useTechnicalSettings } from "@/hooks/api/useTechnicalSettings";
+import type { StoredAnalysis } from "@/hooks/api/useAnalyses";
 
 interface RegisterProductionModalProps {
   open: boolean;
@@ -27,13 +30,18 @@ interface RegisterProductionModalProps {
 }
 
 export function RegisterProductionModal({ open, onOpenChange, analysis }: RegisterProductionModalProps) {
-  const registerBatch = useAppStore((s) => s.registerBatch);
+  const { createBatch, isCreating } = useProduction();
+  const { settings } = useTechnicalSettings();
+  const { profiles } = useProfiles();
   const [operador, setOperador] = useState("");
   const [maquina, setMaquina] = useState("");
-  const [volume, setVolume] = useState((analysis?.formData.volume_m3 ? analysis.formData.volume_m3 * 1000 : 550).toString());
+  const [volume, setVolume] = useState(() => {
+    if (analysis?.formData.volume_m3) return (analysis.formData.volume_m3 * 1000).toString();
+    if (settings?.volume_batelada_padrao) return settings.volume_batelada_padrao.toString();
+    return "550";
+  });
   const [dataProducao, setDataProducao] = useState(new Date().toISOString().slice(0, 16));
   const [observacoes, setObservacoes] = useState("");
-  const [loading, setLoading] = useState(false);
 
   const dosageResult = useMemo(() => {
     if (!analysis) return null;
@@ -45,19 +53,19 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
       relacao_ac: analysis.formData.relacao_ac,
       consumo_alvo_m3: analysis.formData.consumo_alvo_m3,
       volume_m3: volM3,
-      densidade_cimento: analysis.formData.densidade_cimento,
-      proporcoes_materiais: analysis.formData.materiais_selecionados.map((m) => ({
+      densidade_cimento: settings?.densidade_cimento_padrao || analysis.formData.densidade_cimento,
+      proporcoes_materiais: analysis.formData.materiais_selecionados.map((m: any) => ({
         nome: m.nome,
         proporcao_pct: m.proporcao_pct,
         densidade: m.densidade,
       })),
-      aditivos_ml: analysis.formData.aditivos_ml * (volM3 / analysis.formData.volume_m3),
+      aditivos_ml: analysis.formData.aditivos_ml * (volM3 / (analysis.formData.volume_m3 || (Number(settings?.volume_batelada_padrao) / 1000) || 0.55)),
     });
-  }, [analysis, volume]);
+  }, [analysis, volume, settings]);
 
   if (!analysis) return null;
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
     if (!operador.trim()) {
       toast.error("Selecione o operador");
       return;
@@ -71,24 +79,30 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
       return;
     }
 
-    setLoading(true);
-    setTimeout(() => {
-      const batch = registerBatch(analysis.id, {
-        operador_nome: ANALISTAS.find((a) => a.id === operador)?.nome ?? operador,
+    try {
+      const batchCode = `L-${new Date().getFullYear()}-${Math.floor(Math.random() * 10000).toString().padStart(4, "0")}`;
+      const selectedOperator = profiles.find((p) => p.id === operador);
+      
+      await createBatch({
+        analysis_id: analysis.id,
+        batch_code: batchCode,
+        operador_nome: selectedOperator?.nome ?? operador,
         maquina,
         volume_produzido: Number(volume),
         notas: observacoes,
         produced_at: dataProducao,
       });
 
-      setLoading(false);
       onOpenChange(false);
       resetForm();
 
       toast.success("Lote de produção criado!", {
-        description: `${batch.batch_code} — 4 rompimentos agendados`,
+        description: `${batchCode} — 4 rompimentos agendados automaticamente.`,
       });
-    }, 600);
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao registrar o lote de produção");
+    }
   };
 
   const resetForm = () => {
@@ -114,7 +128,7 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
         <div className="space-y-4 py-2">
           <div className="rounded-md border p-3 bg-muted/30 text-sm space-y-1">
             <p><span className="text-muted-foreground">Análise:</span> <strong>{analysis.codigo}</strong> — {analysis.nome}</p>
-            <p><span className="text-muted-foreground">Tipo:</span> {analysis.tipo_analise}</p>
+            <p><span className="text-muted-foreground">Tipo:</span> {analysis.tipo}</p>
             <p><span className="text-muted-foreground">Resistência:</span> {analysis.resistencia_prevista} MPa</p>
           </div>
 
@@ -125,8 +139,8 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
                 <SelectValue placeholder="Selecione o operador" />
               </SelectTrigger>
               <SelectContent>
-                {ANALISTAS.map((a) => (
-                  <SelectItem key={a.id} value={a.id}>{a.nome}</SelectItem>
+                {profiles.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -205,9 +219,9 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
                   </tbody>
                 </table>
               </div>
-              {dosageResult.massa_total_batelada > 550 && (
+              {dosageResult.massa_total_batelada > (settings?.volume_batelada_padrao || 550) && (
                 <p className="text-[10px] text-destructive font-bold animate-pulse">
-                  ⚠️ ATENÇÃO: Massa total excede a capacidade de 550kg do misturador!
+                  ⚠️ ATENÇÃO: Massa total excede a capacidade de {settings?.volume_batelada_padrao || 550}kg do misturador!
                 </p>
               )}
             </div>
@@ -226,11 +240,11 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isCreating}>
             Cancelar
           </Button>
-          <Button onClick={handleRegister} disabled={loading} className="gap-2">
-            {loading ? "Registrando..." : "Confirmar Registro"}
+          <Button onClick={handleRegister} disabled={isCreating} className="gap-2">
+            {isCreating ? "Registrando..." : "Confirmar Registro"}
           </Button>
         </DialogFooter>
       </DialogContent>

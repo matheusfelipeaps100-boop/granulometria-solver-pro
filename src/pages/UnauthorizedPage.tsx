@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { ShieldOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useAppStore } from "@/store/useAppStore";
+import { useAuth } from "@/hooks/useAuth";
 
 const ROLE_LABELS: Record<string, string> = {
   ADMIN: "Administrativo",
@@ -19,8 +19,9 @@ const ROLE_REDIRECTS: Record<string, string> = {
 
 const UnauthorizedPage = () => {
   const navigate = useNavigate();
-  const currentUserRole = useAppStore((s) => s.currentUserRole);
+  const { profile } = useAuth();
 
+  const currentUserRole = profile?.role ?? "LABORATORIO";
   const homePath = ROLE_REDIRECTS[currentUserRole] || "/";
   const roleLabel = ROLE_LABELS[currentUserRole] || currentUserRole;
 

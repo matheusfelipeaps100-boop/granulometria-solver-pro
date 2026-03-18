@@ -8,13 +8,13 @@ import {
   Package,
   Settings,
   ChevronLeft,
+  LogOut,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
 import logoImg from "@/assets/logo-lajeforro.png";
-import { useAppStore, UserRole } from "@/store/useAppStore";
-import { RoleSwitcher } from "@/components/RoleSwitcher";
-import { LogOut } from "lucide-react";
+import type { UserRole } from "@/store/useAppStore";
+import { useAuth } from "@/hooks/useAuth";
 
 import {
   Sidebar,
@@ -57,12 +57,12 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const location = useLocation();
   const navigate = useNavigate();
-  const currentUserRole = useAppStore((s) => s.currentUserRole);
-  const currentUser = useAppStore((s) => s.currentUser);
-  const logout = useAppStore((s) => s.logout);
+  const { profile, signOut } = useAuth();
 
-  const handleLogout = () => {
-    logout();
+  const currentUserRole: UserRole = profile?.role ?? "LABORATORIO";
+
+  const handleLogout = async () => {
+    await signOut();
     navigate("/login");
   };
   
@@ -175,11 +175,11 @@ export function AppSidebar() {
         <div className={collapsed ? "flex items-center justify-center" : "flex flex-col gap-3"}>
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">
-              {(currentUser?.nome || currentUserRole)[0]}
+              {(profile?.nome || ROLE_LABELS[currentUserRole])[0].toUpperCase()}
             </div>
             {!collapsed && (
               <div className="flex flex-col leading-tight flex-1 min-w-0">
-                <span className="text-sm font-semibold text-foreground truncate">{currentUser?.nome || ROLE_LABELS[currentUserRole]}</span>
+                <span className="text-sm font-semibold text-foreground truncate">{profile?.nome || ROLE_LABELS[currentUserRole]}</span>
                 <span className="text-[11px] text-muted-foreground uppercase tracking-wide">{ROLE_LABELS[currentUserRole]}</span>
               </div>
             )}
@@ -193,7 +193,6 @@ export function AppSidebar() {
               </button>
             )}
           </div>
-          {!collapsed && <RoleSwitcher />}
         </div>
       </SidebarFooter>
     </Sidebar>

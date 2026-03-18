@@ -20,7 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useAppStore } from "@/store/useAppStore";
+import { useAnalyses } from "@/hooks/api/useAnalyses";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -39,26 +39,35 @@ const NewAnalysisPage = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [approved, setApproved] = useState(false);
   const [formData, setFormData] = useState<AnalysisFormData>(createEmptyAnalysis);
+  
+  const { createAnalysis, isCreating } = useAnalyses();
 
   const handleChange = useCallback((updates: Partial<AnalysisFormData>) => {
     setFormData((prev) => ({ ...prev, ...updates }));
   }, []);
 
-  const addAnalysis = useAppStore((s) => s.addAnalysis);
-  const approveAnalysis = useAppStore((s) => s.approveAnalysis);
+  const handleApprove = useCallback(async () => {
+    try {
+      await createAnalysis({ formData, status: 'aprovado' });
+      setApproved(true);
+      setCurrentStep(5);
+      toast.success("Análise salva e aprovada com sucesso!");
+    } catch (error: any) {
+      toast.error("Erro ao salvar análise: " + error.message);
+    }
+  }, [formData, createAnalysis]);
 
-  const handleApprove = useCallback(() => {
-    addAnalysis(formData);
-    approveAnalysis(formData.codigo);
-    setApproved(true);
-    setCurrentStep(5);
-  }, [formData, addAnalysis, approveAnalysis]);
-
-  const handleSaveDraft = useCallback(() => {
-    toast.info("Rascunho salvo", {
-      description: `${formData.codigo} — Etapa ${currentStep} de 5`,
-    });
-  }, [formData.codigo, currentStep]);
+  const handleSaveDraft = useCallback(async () => {
+    try {
+      await createAnalysis({ formData, status: 'rascunho' });
+      toast.success("Rascunho salvo com sucesso", {
+        description: `${formData.codigo} — Etapa ${currentStep} de 5`,
+      });
+      navigate("/analyses");
+    } catch (error: any) {
+      toast.error("Erro ao salvar rascunho: " + error.message);
+    }
+  }, [formData, createAnalysis, navigate, currentStep]);
 
   const canProceed = () => {
     if (currentStep === 1) {

@@ -48,16 +48,16 @@ export interface AnalysisMaterial {
   gradations: SieveData[];
 }
 
-// 8 peneiras padrão conforme PRD consolidado (sem 19 e 12.5)
+// 8 peneiras padrão conforme PRD consolidado (sem 19 e 12.5) -> IDs do Supabase
 export const PENEIRAS_PADRAO: Array<{ sieve_id: number; abertura_mm: number; label: string }> = [
-  { sieve_id: 1, abertura_mm: 9.5, label: "9,5 mm" },
-  { sieve_id: 2, abertura_mm: 6.3, label: "6,3 mm" },
-  { sieve_id: 3, abertura_mm: 4.8, label: "4,8 mm" },
-  { sieve_id: 4, abertura_mm: 2.4, label: "2,4 mm" },
-  { sieve_id: 5, abertura_mm: 1.2, label: "1,2 mm" },
-  { sieve_id: 6, abertura_mm: 0.6, label: "0,6 mm" },
-  { sieve_id: 7, abertura_mm: 0.3, label: "0,3 mm" },
-  { sieve_id: 8, abertura_mm: 0.15, label: "0,15 mm" },
+  { sieve_id: 2, abertura_mm: 9.5, label: "9,5 mm" },
+  { sieve_id: 3, abertura_mm: 6.3, label: "6,3 mm" },
+  { sieve_id: 4, abertura_mm: 4.8, label: "4,8 mm" },
+  { sieve_id: 5, abertura_mm: 2.4, label: "2,4 mm" },
+  { sieve_id: 6, abertura_mm: 1.2, label: "1,2 mm" },
+  { sieve_id: 7, abertura_mm: 0.6, label: "0,6 mm" },
+  { sieve_id: 8, abertura_mm: 0.3, label: "0,3 mm" },
+  { sieve_id: 9, abertura_mm: 0.15, label: "0,15 mm" },
 ];
 
 // Materiais mock com dados reais da planilha
@@ -113,8 +113,8 @@ export const DNAS_PADRAO = [
     resistencia_mpa: 4.0,
     limites: PENEIRAS_PADRAO.map((p) => ({
       sieve_id: p.sieve_id,
-      limite_min: [0, 0.02, 0.05, 0.15, 0.30, 0.50, 0.70, 0.85][p.sieve_id - 1],
-      limite_max: [0.15, 0.25, 0.35, 0.55, 0.70, 0.85, 0.95, 1.0][p.sieve_id - 1],
+      limite_min: [0, 0.02, 0.05, 0.15, 0.30, 0.50, 0.70, 0.85][p.sieve_id - 2],
+      limite_max: [0.15, 0.25, 0.35, 0.55, 0.70, 0.85, 0.95, 1.0][p.sieve_id - 2],
     })),
   },
   {
@@ -124,8 +124,8 @@ export const DNAS_PADRAO = [
     resistencia_mpa: 3.0,
     limites: PENEIRAS_PADRAO.map((p) => ({
       sieve_id: p.sieve_id,
-      limite_min: [0, 0.01, 0.04, 0.12, 0.25, 0.45, 0.65, 0.80][p.sieve_id - 1],
-      limite_max: [0.18, 0.28, 0.40, 0.60, 0.75, 0.88, 0.96, 1.0][p.sieve_id - 1],
+      limite_min: [0, 0.01, 0.04, 0.12, 0.25, 0.45, 0.65, 0.80][p.sieve_id - 2],
+      limite_max: [0.18, 0.28, 0.40, 0.60, 0.75, 0.88, 0.96, 1.0][p.sieve_id - 2],
     })),
   },
   {
@@ -135,8 +135,8 @@ export const DNAS_PADRAO = [
     resistencia_mpa: 35.0,
     limites: PENEIRAS_PADRAO.map((p) => ({
       sieve_id: p.sieve_id,
-      limite_min: [0.02, 0.05, 0.10, 0.20, 0.35, 0.55, 0.72, 0.88][p.sieve_id - 1],
-      limite_max: [0.22, 0.32, 0.42, 0.58, 0.72, 0.88, 0.96, 1.0][p.sieve_id - 1],
+      limite_min: [0.02, 0.05, 0.10, 0.20, 0.35, 0.55, 0.72, 0.88][p.sieve_id - 2],
+      limite_max: [0.22, 0.32, 0.42, 0.58, 0.72, 0.88, 0.96, 1.0][p.sieve_id - 2],
     })),
   },
 ];

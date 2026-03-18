@@ -11,8 +11,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Plus, Pencil, Trash2, Search, Package } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Package, RefreshCw } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
+import { useProducts } from "@/hooks/api/useProducts";
 import { ProductModal } from "./ProductModal";
 import {
   AlertDialog,
@@ -27,38 +28,54 @@ import {
 import { toast } from "sonner";
 
 export function ProductsTab() {
-  const { products, analysisTypes, deleteProduct } = useAppStore();
+  const { analysisTypes } = useAppStore();
+  const { products, isLoading, deleteProduct } = useProducts();
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const filtered = products.filter(
     (p) =>
       p.nome.toLowerCase().includes(search.toLowerCase()) ||
-      p.dimensoes.toLowerCase().includes(search.toLowerCase())
+      (p.dimensoes?.toLowerCase() || "").includes(search.toLowerCase())
   );
 
   const handleEdit = (id: string) => {
-    setEditingProduct(id);
+    setEditingId(id);
     setModalOpen(true);
   };
 
   const handleNew = () => {
-    setEditingProduct(null);
+    setEditingId(null);
     setModalOpen(true);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (deleteId) {
-      deleteProduct(deleteId);
-      toast.success("Produto removido com sucesso");
+      try {
+        await deleteProduct(deleteId);
+        toast.success("Produto removido com sucesso");
+      } catch (error) {
+        toast.error("Erro ao remover produto");
+      }
       setDeleteId(null);
     }
   };
 
   const tipoLabel = (tipo: string) =>
     analysisTypes.find((t) => t.value === tipo)?.label ?? tipo;
+
+  if (isLoading) {
+    return (
+      <Card className="shadow-sm mt-4">
+        <CardContent className="py-12 flex flex-col items-center justify-center text-primary gap-3">
+          <RefreshCw className="h-8 w-8 animate-spin" />
+          <p className="text-sm font-medium">Carregando catálogo...</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <>
@@ -156,7 +173,7 @@ export function ProductsTab() {
       <ProductModal
         open={modalOpen}
         onOpenChange={setModalOpen}
-        editId={editingProduct}
+        editId={editingId}
       />
 
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>

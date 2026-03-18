@@ -32,6 +32,8 @@ import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
 import { TIPOS_ANALISE } from "@/lib/analysis-data";
 import { useAppStore } from "@/store/useAppStore";
+import { useAnalyses } from "@/hooks/api/useAnalyses";
+import { useAuth } from "@/hooks/useAuth";
 import { hasActionPermission } from "@/lib/permissions";
 import { toast } from "sonner";
 
@@ -45,61 +47,53 @@ const STATUS_OPTIONS = [
 
 const AnalysesPage = () => {
   const navigate = useNavigate();
-  const { analyses: storedAnalyses, deleteAnalysis, currentUserRole } = useAppStore();
+  const { analyses, deleteAnalysis, isDeleting } = useAnalyses();
+  const { profile } = useAuth();
+  
+  const currentUserRole = (profile?.role as any) || "visualizador";
   
   const canCreate = hasActionPermission(currentUserRole, "analysis:create");
   const canEdit = hasActionPermission(currentUserRole, "analysis:edit");
   const canDelete = hasActionPermission(currentUserRole, "analysis:delete");
-  const [deletedMockCodes, setDeletedMockCodes] = useState<string[]>([]);
-  const [deleteModal, setDeleteModal] = useState<{ open: boolean; codigo: string; nome: string; isFromStore: boolean }>({
+  
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean; id: string; codigo: string; nome: string }>({
     open: false,
+    id: "",
     codigo: "",
     nome: "",
-    isFromStore: false,
   });
 
-  const openDeleteModal = (codigo: string, nome: string, isFromStore: boolean) => {
-    setDeleteModal({ open: true, codigo, nome, isFromStore });
+  const openDeleteModal = (id: string, codigo: string, nome: string) => {
+    setDeleteModal({ open: true, id, codigo, nome });
   };
 
-  const handleConfirmDelete = () => {
-    if (deleteModal.isFromStore) {
-      deleteAnalysis(deleteModal.codigo);
-    } else {
-      setDeletedMockCodes((prev) => [...prev, deleteModal.codigo]);
+  const handleConfirmDelete = async () => {
+    try {
+      await deleteAnalysis(deleteModal.id);
+      toast.success("Análise excluída com sucesso!");
+    } catch (error: any) {
+      toast.error("Erro ao excluir análise: " + error.message);
+    } finally {
+      setDeleteModal({ open: false, id: "", codigo: "", nome: "" });
     }
-    toast.success("Análise excluída com sucesso!");
-    setDeleteModal({ open: false, codigo: "", nome: "", isFromStore: false });
   };
 
   const [search, setSearch] = useState("");
   const [filterTipo, setFilterTipo] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
 
-  // Merge store analyses + mock data (excluding duplicates and deleted mocks)
   const allAnalyses = useMemo(() => {
-    const mockAnalyses = [
-      { codigo: "ANL-2026-012", nome: "Paver H8 Alta Resistência", tipo: "paver", analista: "Carlos Silva", data: "07/03/2026", status: "aprovado" as const, fromStore: false },
-      { codigo: "ANL-2026-011", nome: "Bloco Estrutural 14x19x39", tipo: "bloco_estrutural", analista: "Maria Santos", data: "05/03/2026", status: "liberado_producao" as const, fromStore: false },
-      { codigo: "ANL-2026-010", nome: "Bloco Vedação Standard", tipo: "bloco_vedacao", analista: "João Oliveira", data: "03/03/2026", status: "em_analise" as const, fromStore: false },
-      { codigo: "ANL-2026-009", nome: "CP Teste Dosagem", tipo: "cp", analista: "Carlos Silva", data: "01/03/2026", status: "rascunho" as const, fromStore: false },
-    ];
-
-    const storeCodes = new Set(storedAnalyses.map((a) => a.codigo));
-    const activeMocks = mockAnalyses.filter((m) => !storeCodes.has(m.codigo) && !deletedMockCodes.includes(m.codigo));
-
-    const storeItems = storedAnalyses.map((a) => ({
+    return analyses.map((a) => ({
+      id: a.id,
       codigo: a.codigo,
       nome: a.nome,
-      tipo: a.tipo_analise,
-      analista: a.analista,
-      data: new Date(a.data).toLocaleDateString("pt-BR"),
+      tipo: a.tipo,
+      // Se não tiver analista por enquanto, exibe vazio ou placeholder:
+      analista: "Você", 
+      data: new Date(a.data_analise).toLocaleDateString("pt-BR"),
       status: a.status,
-      fromStore: true,
     }));
-
-    return [...storeItems, ...activeMocks];
-  }, [storedAnalyses, deletedMockCodes]);
+  }, [analyses]);
 
   const filtered = allAnalyses.filter((a) => {
     const matchSearch =
@@ -180,7 +174,7 @@ const AnalysesPage = () => {
             </TableHeader>
             <TableBody>
               {filtered.map((a) => (
-                <TableRow key={a.codigo} className="cursor-pointer hover:bg-muted/50">
+                <TableRow key={a.id} className="cursor-pointer hover:bg-muted/50">
                   <TableCell className="font-medium">{a.codigo}</TableCell>
                   <TableCell>{a.nome}</TableCell>
                   <TableCell className="capitalize">{a.tipo.replace(/_/g, " ")}</TableCell>
@@ -196,11 +190,11 @@ const AnalysesPage = () => {
                             <Pencil className="h-4 w-4 text-muted-foreground hover:text-foreground" />
                           </Button>
                         )}
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/analyses/${a.codigo}`)} title="Visualizar">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/analyses/${a.id}`)} title="Visualizar">
                           <Eye className="h-4 w-4 text-muted-foreground hover:text-foreground" />
                         </Button>
                         {canDelete && (
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openDeleteModal(a.codigo, a.nome, a.fromStore); }} title="Excluir">
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openDeleteModal(a.id, a.codigo, a.nome); }} title="Excluir" disabled={isDeleting}>
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         )}

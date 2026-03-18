@@ -1,5 +1,4 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,8 +10,12 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { Separator } from "@/components/ui/separator";
 import { ArrowLeft, FlaskConical, CheckCircle2, XCircle, Save } from "lucide-react";
 import { toast } from "sonner";
-import { useAppStore } from "@/store/useAppStore";
-import { ANALISTAS } from "@/lib/analysis-data";
+import { useNavigate, useParams } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { useRuptures, useScheduleDetail } from "@/hooks/api/useRuptures";
+import { useProfiles } from "@/hooks/api/useProfiles";
+import { useTechnicalSettings } from "@/hooks/api/useTechnicalSettings";
+import { TIPOS_ANALISE } from "@/lib/analysis-data";
 import { calcTensao, calcRuptureStats, AREAS_PADRAO } from "@/lib/granulometry-engine";
 import { cn } from "@/lib/utils";
 
@@ -32,21 +35,19 @@ const tipoLabel: Record<TipoAmostra, string> = {
 const RuptureDetailPage = () => {
   const { scheduleId } = useParams<{ scheduleId: string }>();
   const navigate = useNavigate();
-  const batches = useAppStore((s) => s.batches);
-  const analyses = useAppStore((s) => s.analyses);
-  const completeRuptureSchedule = useAppStore((s) => s.completeRuptureSchedule);
+  const { profile } = useAuth();
+  const { profiles } = useProfiles();
+  const { completeRupture, isCompleting } = useRuptures();
+  const { data: scheduleData, isLoading } = useScheduleDetail(scheduleId);
 
-  // Find the schedule across all batches
   const found = useMemo(() => {
-    for (const batch of batches) {
-      const schedule = batch.rupture_schedules.find((s) => s.id === scheduleId);
-      if (schedule) {
-        const analysis = analyses.find((a) => a.id === batch.analysis_id);
-        return { batch, schedule, analysis };
-      }
-    }
-    return null;
-  }, [batches, analyses, scheduleId]);
+    if (!scheduleData) return null;
+    return {
+      batch: scheduleData.batch,
+      schedule: scheduleData,
+      analysis: (scheduleData.batch as any)?.analyses
+    };
+  }, [scheduleData]);
 
   const [dataReal, setDataReal] = useState(new Date().toISOString().split("T")[0]);
   const [responsavel, setResponsavel] = useState("");
@@ -85,6 +86,8 @@ const RuptureDetailPage = () => {
     }));
   }, []);
 
+  const { settings } = useTechnicalSettings();
+
   // Calculate stats per test type in real-time
   const statsPerTipo = useMemo(() => {
     const meta = found?.analysis?.resistencia_prevista ?? 0;
@@ -94,16 +97,25 @@ const RuptureDetailPage = () => {
       cp: null,
     };
 
+    // Usar parâmetros técnicos do banco ou fallbacks do motor
+    const divisorA = settings?.formula_tensao_a;
+    const divisorB = settings?.formula_tensao_b;
+
     for (const tipo of TIPOS_AMOSTRA) {
       const forcas = samples[tipo]
         .map((s) => parseFloat(s.forca_kn))
         .filter((f) => !isNaN(f) && f > 0);
       if (forcas.length > 0) {
-        result[tipo] = calcRuptureStats(forcas, meta, areas[tipo]);
+        result[tipo] = calcRuptureStats(
+          forcas, 
+          meta, 
+          areas[tipo] || divisorA, // Usa área específica ou fallback do divisor A
+          divisorB
+        );
       }
     }
     return result;
-  }, [samples, found, areas]);
+  }, [samples, found, areas, settings]);
 
   if (!found) {
     return (
@@ -127,35 +139,54 @@ const RuptureDetailPage = () => {
     return `${day}/${month}/${year}`;
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!responsavel) {
       toast.error("Selecione o responsável pelo ensaio");
       return;
     }
 
-    const hasAnySample = TIPOS_AMOSTRA.some((tipo) =>
+    const tipoComAmostra = TIPOS_AMOSTRA.find((tipo) =>
       samples[tipo].some((s) => s.forca_kn && parseFloat(s.forca_kn) > 0)
     );
 
-    if (!hasAnySample) {
+    if (!tipoComAmostra) {
       toast.error("Informe ao menos uma amostra com força (kN)");
       return;
     }
 
-    setSaving(true);
-    setTimeout(() => {
-      completeRuptureSchedule(schedule.id, dataReal, {
-        responsavel_id: responsavel,
-        observacoes,
-        amostras: samples,
-        geometrias: areas,
+    const testStats = statsPerTipo[tipoComAmostra];
+    if (!testStats) return;
+
+    try {
+      await completeRupture({
+        scheduleId: scheduleId!,
+        dataExecutada: dataReal,
+        testData: {
+          tipo_amostra: tipoComAmostra,
+          meta_mpa: found?.analysis?.resistencia_prevista ?? 0,
+          media_mpa: testStats.media,
+          min_mpa: testStats.minimo,
+          max_mpa: testStats.maximo,
+          desvio_padrao: testStats.desvio_padrao,
+          status: testStats.status,
+          notas: observacoes,
+          samples: samples[tipoComAmostra].map((s, idx) => ({
+            numero: idx + 1,
+            forca_kn: parseFloat(s.forca_kn),
+            tensao_mpa: calcTensao(parseFloat(s.forca_kn), areas[tipoComAmostra]),
+            status: "concluido"
+          }))
+        }
       });
-      setSaving(false);
+
       toast.success("Ensaio de rompimento salvo!", {
-        description: `${batch.batch_code} — ${schedule.idade_dias} dias`,
+        description: `${found?.batch.batch_code} — ${found?.schedule.idade_dias} dias`,
       });
       navigate("/ruptures");
-    }, 600);
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao salvar rompimento");
+    }
   };
 
   return (
@@ -233,8 +264,8 @@ const RuptureDetailPage = () => {
               <SelectValue placeholder="Selecione o responsável" />
             </SelectTrigger>
             <SelectContent>
-              {ANALISTAS.map((a) => (
-                <SelectItem key={a.id} value={a.id}>{a.nome}</SelectItem>
+              {profiles.map((p) => (
+                <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -374,12 +405,12 @@ const RuptureDetailPage = () => {
 
       {/* Actions */}
       <div className="flex justify-end gap-3">
-        <Button variant="outline" onClick={() => navigate("/ruptures")}>
+        <Button variant="outline" onClick={() => navigate("/ruptures")} disabled={isCompleting}>
           Cancelar
         </Button>
-        <Button onClick={handleSave} disabled={saving} className="gap-2">
+        <Button onClick={handleSave} disabled={isCompleting} className="gap-2">
           <Save className="h-4 w-4" />
-          {saving ? "Salvando..." : "Salvar Rompimento"}
+          {isCompleting ? "Salvando..." : "Salvar Rompimento"}
         </Button>
       </div>
     </div>

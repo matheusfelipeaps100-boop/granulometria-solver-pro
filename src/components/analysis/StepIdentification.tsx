@@ -8,11 +8,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ANALISTAS, type AnalysisFormData } from "@/lib/analysis-data";
-import { useAppStore } from "@/store/useAppStore";
+import { useProducts } from "@/hooks/api/useProducts";
 import { useMemo } from "react";
 import { Layers, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { AnalysisFormData } from "@/lib/analysis-data";
 
 interface StepIdentificationProps {
   data: AnalysisFormData;
@@ -54,10 +54,10 @@ const BLOCOS_TIPOS = TIPO_OPTIONS.filter((t) => t.group === "BLOCOS");
 const PAVERS_TIPOS = TIPO_OPTIONS.filter((t) => t.group === "PAVERS");
 
 export function StepIdentification({ data, onChange }: StepIdentificationProps) {
-  const { products, analysisTypes } = useAppStore();
+  const { products } = useProducts();
 
   const filteredProducts = useMemo(() => {
-    if (!data.tipo_analise) return [];
+    if (!data.tipo_analise || !products) return [];
     return products.filter((p) => p.tipo_produto === data.tipo_analise && p.ativo);
   }, [data.tipo_analise, products]);
 

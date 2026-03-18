@@ -47,6 +47,13 @@
     --info: 210 80% 52%;
     --info-foreground: 0 0% 100%;
 
+    /* Chart palette — derived from logo red */
+    --chart-primary: 0 80% 38%;
+    --chart-primary-light: 0 70% 65%;
+    --chart-amber: 28 90% 52%;
+    --chart-green: 152 60% 42%;
+    --chart-slate: 215 13% 65%;
+
     /* Sidebar */
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 0 0% 12%;
@@ -117,9 +124,13 @@
 }
 
 /* ─── Card do Gráfico de Curva Combinada ─── */
-/* Sticky isolado: apenas este card acompanha a rolagem. */
-/* Não reutilizar em outros elementos.                   */
 .curva-chart-sticky {
   position: sticky;
   top: 20px;
 }
+
+/* ─── KPI Card stagger animation ─── */
+.kpi-card:nth-child(1) { animation-delay: 0ms; }
+.kpi-card:nth-child(2) { animation-delay: 80ms; }
+.kpi-card:nth-child(3) { animation-delay: 160ms; }
+.kpi-card:nth-child(4) { animation-delay: 240ms; }

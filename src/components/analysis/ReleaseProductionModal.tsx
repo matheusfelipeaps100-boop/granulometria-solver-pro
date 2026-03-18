@@ -14,33 +14,39 @@ import { Textarea } from "@/components/ui/textarea";
 import { Factory } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { useAppStore } from "@/store/useAppStore";
+import { useAnalyses } from "@/hooks/api/useAnalyses";
 import type { AnalysisFormData } from "@/lib/analysis-data";
 
 interface ReleaseProductionModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  data: AnalysisFormData;
+  data: AnalysisFormData & { id?: string };
 }
 
 export function ReleaseProductionModal({ open, onOpenChange, data }: ReleaseProductionModalProps) {
   const navigate = useNavigate();
-  const releaseForProduction = useAppStore((s) => s.releaseForProduction);
+  const { updateStatus, isUpdatingStatus } = useAnalyses();
   const [dataHora, setDataHora] = useState(new Date().toISOString().slice(0, 16));
   const [observacoes, setObservacoes] = useState("");
-  const [loading, setLoading] = useState(false);
 
-  const handleRelease = () => {
-    setLoading(true);
-    setTimeout(() => {
-      releaseForProduction(data.codigo);
-      setLoading(false);
+  const handleRelease = async () => {
+    if (!data.id) {
+      toast.error("Erro: ID da análise não encontrado.");
+      return;
+    }
+
+    try {
+      await updateStatus({ id: data.id, status: "liberado_producao" });
+      
       onOpenChange(false);
       toast.success("Análise liberada para produção!", {
         description: `${data.codigo} — Status atualizado para "Liberado para Produção"`,
       });
       navigate("/production");
-    }, 800);
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao liberar para produção.");
+    }
   };
 
   return (
@@ -86,11 +92,11 @@ export function ReleaseProductionModal({ open, onOpenChange, data }: ReleaseProd
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isUpdatingStatus}>
             Cancelar
           </Button>
-          <Button onClick={handleRelease} disabled={loading} className="gap-2">
-            {loading ? "Liberando..." : "Confirmar Liberação"}
+          <Button onClick={handleRelease} disabled={isUpdatingStatus} className="gap-2">
+            {isUpdatingStatus ? "Liberando..." : "Confirmar Liberação"}
           </Button>
         </DialogFooter>
       </DialogContent>

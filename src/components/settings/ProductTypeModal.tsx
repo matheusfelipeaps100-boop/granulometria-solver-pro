@@ -6,8 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { useAppStore } from "@/store/useAppStore";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import { useStandardCurves } from "@/hooks/api/useStandardCurves";
+import { useSieves } from "@/hooks/api/useSieves";
 import { toast } from "sonner";
+import { RefreshCw } from "lucide-react";
 
 interface Props {
   open: boolean;
@@ -15,96 +20,170 @@ interface Props {
   editId: string | null;
 }
 
-function toSlug(text: string): string {
-  return text
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_|_$/g, "");
-}
+const TIPOS_PRODUTO = [
+  { value: "bloco_estrutural", label: "Bloco Estrutural" },
+  { value: "bloco_vedacao", label: "Bloco de Vedação" },
+  { value: "paver", label: "Paver" },
+  { value: "cp", label: "Corpo de Prova (CP)" },
+];
 
 export function ProductTypeModal({ open, onOpenChange, editId }: Props) {
-  const { analysisTypes, addAnalysisType, updateAnalysisType } = useAppStore();
-  const [label, setLabel] = useState("");
-  const [value, setValue] = useState("");
-  const [ativo, setAtivo] = useState(true);
-  const isEdit = !!editId;
+  const { curves, createCurve, updateCurve, isCreating, isUpdating } = useStandardCurves();
+  const { sieves } = useSieves();
+  
+  const isPending = isCreating || isUpdating;
+  
+  const [form, setForm] = useState({
+    nome: "",
+    tipo_produto: "bloco_estrutural",
+    resistencia_alvo: 0,
+    modulo_finura: 0,
+    descricao: "",
+    ativo: true,
+  });
+
+  const [limits, setLimits] = useState<Record<number, { min: number; max: number }>>({});
 
   useEffect(() => {
     if (open && editId) {
-      const at = analysisTypes.find((t) => t.id === editId);
-      if (at) {
-        setLabel(at.label);
-        setValue(at.value);
-        setAtivo(at.ativo);
+      const curve = curves.find(c => c.id === editId);
+      if (curve) {
+        setForm({
+          nome: curve.nome,
+          tipo_produto: curve.tipo_produto,
+          resistencia_alvo: curve.resistencia_alvo || 0,
+          modulo_finura: curve.modulo_finura || 0,
+          descricao: curve.descricao || "",
+          ativo: curve.ativo,
+        });
+
+        const newLimits: Record<number, { min: number; max: number }> = {};
+        curve.standard_curve_items?.forEach(item => {
+          newLimits[item.sieve_id] = { min: item.limite_min, max: item.limite_max };
+        });
+        setLimits(newLimits);
       }
     } else if (open) {
-      setLabel("");
-      setValue("");
-      setAtivo(true);
+      setForm({
+        nome: "",
+        tipo_produto: "bloco_estrutural",
+        resistencia_alvo: 0,
+        modulo_finura: 0,
+        descricao: "",
+        ativo: true,
+      });
+      setLimits({});
     }
-  }, [open, editId, analysisTypes]);
+  }, [open, editId, curves]);
 
-  const handleLabelChange = (v: string) => {
-    setLabel(v);
-    if (!isEdit) setValue(toSlug(v));
-  };
-
-  const handleSave = () => {
-    if (!label.trim() || !value.trim()) {
-      toast.error("Preencha todos os campos");
+  const handleSave = async () => {
+    if (!form.nome.trim()) {
+      toast.error("Preencha o nome da curva");
       return;
     }
 
-    const duplicate = analysisTypes.find(
-      (at) => at.value === value && at.id !== editId
-    );
-    if (duplicate) {
-      toast.error("Já existe um tipo com esse identificador");
-      return;
-    }
+    try {
+      const items = sieves.map(s => ({
+        sieve_id: s.id,
+        limite_min: limits[s.id]?.min || 0,
+        limite_max: limits[s.id]?.max || 1,
+        pct_retido: 0, // Calculado na análise
+        pct_acumulado: 0, // Calculado na análise
+      }));
 
-    if (isEdit) {
-      updateAnalysisType(editId, { label, value, ativo });
-      toast.success("Tipo atualizado");
-    } else {
-      addAnalysisType({ label, value, ativo });
-      toast.success("Tipo criado");
+      if (editId) {
+        // Update not implemented in hook yet, but we could add it
+        toast.error("Edição de DNA ainda não disponível. Remova e crie um novo.");
+      } else {
+        await createCurve({ curve: form, items });
+        toast.success("DNA criado com sucesso");
+      }
+      onOpenChange(false);
+    } catch (error) {
+      toast.error("Erro ao salvar DNA");
     }
-    onOpenChange(false);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Editar Tipo de Análise" : "Novo Tipo de Análise"}</DialogTitle>
+          <DialogTitle>{editId ? "Editar DNA" : "Novo DNA"}</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 py-2">
-          <div className="space-y-2">
-            <Label>Nome</Label>
-            <Input value={label} onChange={(e) => handleLabelChange(e.target.value)} placeholder="Ex: Bloco Estrutural" />
-          </div>
-          <div className="space-y-2">
-            <Label>Identificador (slug)</Label>
-            <Input
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              placeholder="bloco_estrutural"
-              className="font-mono text-sm"
-              disabled={isEdit}
+        
+        <div className="grid grid-cols-2 gap-4 py-2">
+          <div className="space-y-2 col-span-2">
+            <Label>Nome da Curva (DNA) *</Label>
+            <Input 
+              value={form.nome} 
+              onChange={e => setForm(f => ({ ...f, nome: e.target.value }))}
+              placeholder="Ex: Bloco Estrutural 4MPa Padrão"
             />
-            <p className="text-xs text-muted-foreground">Usado internamente para vincular produtos e análises.</p>
           </div>
-          <div className="flex items-center justify-between">
-            <Label>Ativo</Label>
-            <Switch checked={ativo} onCheckedChange={setAtivo} />
+
+          <div className="space-y-2">
+            <Label>Tipo de Produto</Label>
+            <Select 
+              value={form.tipo_produto} 
+              onValueChange={v => setForm(f => ({ ...f, tipo_produto: v }))}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TIPOS_PRODUTO.map(t => (
+                  <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Resistência Alvo (MPa)</Label>
+            <Input 
+              type="number" 
+              value={form.resistencia_alvo} 
+              onChange={e => setForm(f => ({ ...f, resistencia_alvo: parseFloat(e.target.value) || 0 }))}
+            />
           </div>
         </div>
-        <DialogFooter>
+
+        <div className="mt-4">
+          <h3 className="text-sm font-semibold mb-3">Limites Granulométricos (% Acumulada)</h3>
+          <div className="grid grid-cols-3 gap-x-4 gap-y-2 text-xs font-medium text-muted-foreground border-b pb-2 mb-2">
+            <div>Peneira</div>
+            <div className="text-center">Mín (%)</div>
+            <div className="text-center">Máx (%)</div>
+          </div>
+          <div className="space-y-2">
+            {sieves.map(s => (
+              <div key={s.id} className="grid grid-cols-3 gap-4 items-center">
+                <div className="text-sm">{s.nome}</div>
+                <Input 
+                  type="number" 
+                  className="h-8 text-center"
+                  value={limits[s.id]?.min ?? 0}
+                  step="0.01"
+                  onChange={e => setLimits(l => ({ ...l, [s.id]: { ...l[s.id], min: parseFloat(e.target.value) || 0 } }))}
+                />
+                <Input 
+                  type="number" 
+                  className="h-8 text-center"
+                  value={limits[s.id]?.max ?? 1}
+                  step="0.01"
+                  onChange={e => setLimits(l => ({ ...l, [s.id]: { ...l[s.id], max: parseFloat(e.target.value) || 0 } }))}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <DialogFooter className="mt-6">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={handleSave}>{isEdit ? "Salvar" : "Criar"}</Button>
+          <Button onClick={handleSave} disabled={isPending}>
+            {isPending && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
+            {editId ? "Salvar" : "Criar DNA"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

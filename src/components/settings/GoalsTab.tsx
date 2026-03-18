@@ -1,61 +1,78 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useAppStore } from "@/store/useAppStore";
-import { Target } from "lucide-react";
+import { useRuptureSchedules } from "@/hooks/api/useRuptureSchedules";
+import { Target, RefreshCw } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
 
 export function GoalsTab() {
-  const { ruptureDays, ruptureGoals, updateRuptureGoals } = useAppStore();
+  const { schedules, isLoading, upsertSchedule, isProcessing } = useRuptureSchedules();
   
-  // Initialize local state prioritizing existing store goals, fallback to 0
-  const [localGoals, setLocalGoals] = useState<Record<number, string>>(() => {
-    const init: Record<number, string> = {};
-    ruptureDays.forEach(day => {
-      init[day] = ruptureGoals[day] !== undefined ? String(ruptureGoals[day]) : "0";
-    });
-    return init;
-  });
+  const ruptureDays = schedules.map(s => s.dias_rompimento).sort((a, b) => a - b);
 
-  // Sync state if ruptureDays change elsewhere
+  // Initialize local state prioritizing existing DB goals, fallback to 0
+  const [localGoals, setLocalGoals] = useState<Record<number, string>>({});
+
   useEffect(() => {
-    setLocalGoals(prev => {
-      const next: Record<number, string> = { ...prev };
-      ruptureDays.forEach(day => {
-        if (next[day] === undefined) {
-          next[day] = ruptureGoals[day] !== undefined ? String(ruptureGoals[day]) : "0";
-        }
+    if (schedules.length > 0) {
+      const init: Record<number, string> = {};
+      schedules.forEach(s => {
+        init[s.dias_rompimento] = s.meta_resistencia_pct !== null ? String(s.meta_resistencia_pct) : "0";
       });
-      return next;
-    });
-  }, [ruptureDays, ruptureGoals]);
+      setLocalGoals(init);
+    }
+  }, [schedules]);
 
   const handleGoalChange = (day: number, value: string) => {
     setLocalGoals(prev => ({ ...prev, [day]: value }));
   };
 
-  const handleSave = () => {
-    const newGoals: Record<number, number> = {};
+  const handleSave = async () => {
     let hasError = false;
 
-    ruptureDays.forEach(day => {
-      const val = parseFloat(localGoals[day]);
-      if (isNaN(val) || val < 0 || val > 200) {
-        hasError = true;
+    try {
+      for (const day of ruptureDays) {
+        const val = parseFloat(localGoals[day]);
+        if (isNaN(val) || val < 0 || val > 200) {
+          hasError = true;
+          break;
+        }
+        
+        const schedule = schedules.find(s => s.dias_rompimento === day);
+        if (schedule) {
+          await upsertSchedule({
+            tipo_produto: schedule.tipo_produto,
+            dias_rompimento: day,
+            meta_resistencia_pct: val,
+            ativo: true
+          });
+        }
       }
-      newGoals[day] = val;
-    });
 
-    if (hasError) {
-      toast.error("Preencha porcentagens válidas entre 0 e 200 para todos os dias.");
-      return;
+      if (hasError) {
+        toast.error("Preencha porcentagens válidas entre 0 e 200 para todos os dias.");
+        return;
+      }
+
+      toast.success("Metas de resistência atualizadas com sucesso.");
+    } catch (error) {
+      toast.error("Erro ao salvar metas.");
     }
-
-    updateRuptureGoals(newGoals);
-    toast.success("Metas de resistência atualizadas com sucesso.");
   };
+
+  if (isLoading) {
+    return (
+      <Card className="shadow-sm mt-4">
+        <CardContent className="py-12 flex flex-col items-center justify-center text-primary gap-3">
+          <RefreshCw className="h-8 w-8 animate-spin" />
+          <p className="text-sm font-medium">Carregando metas...</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
 
   return (
     <Card className="shadow-sm mt-4">
@@ -100,7 +117,8 @@ export function GoalsTab() {
               ))}
             </div>
 
-            <Button onClick={handleSave} className="w-full sm:w-auto">
+            <Button onClick={handleSave} className="w-full sm:w-auto" disabled={isProcessing}>
+              {isProcessing && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
               Salvar Metas
             </Button>
           </div>

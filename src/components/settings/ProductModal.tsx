@@ -18,8 +18,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAppStore } from "@/store/useAppStore";
-import { type Product } from "@/lib/analysis-data";
+import { useProducts } from "@/hooks/api/useProducts";
 import { toast } from "sonner";
+import { RefreshCw } from "lucide-react";
 
 interface ProductModalProps {
   open: boolean;
@@ -29,14 +30,15 @@ interface ProductModalProps {
 
 const emptyForm = {
   nome: "",
-  tipo_produto: "" as Product["tipo_produto"] | "",
+  tipo_produto: "",
   dimensoes: "",
   resistencia_referencia: 0,
   ativo: true,
 };
 
 export function ProductModal({ open, onOpenChange, editId }: ProductModalProps) {
-  const { products, analysisTypes, addProduct, updateProduct } = useAppStore();
+  const { analysisTypes } = useAppStore();
+  const { products, createProduct, updateProduct, isCreating, isUpdating } = useProducts();
   const [form, setForm] = useState(emptyForm);
 
   useEffect(() => {
@@ -46,8 +48,8 @@ export function ProductModal({ open, onOpenChange, editId }: ProductModalProps) 
         setForm({
           nome: p.nome,
           tipo_produto: p.tipo_produto,
-          dimensoes: p.dimensoes,
-          resistencia_referencia: p.resistencia_referencia,
+          dimensoes: p.dimensoes || "",
+          resistencia_referencia: p.resistencia_referencia || 0,
           ativo: p.ativo,
         });
       }
@@ -56,33 +58,40 @@ export function ProductModal({ open, onOpenChange, editId }: ProductModalProps) 
     }
   }, [open, editId, products]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.nome.trim() || !form.tipo_produto) {
       toast.error("Preencha nome e tipo do produto");
       return;
     }
 
-    if (editId) {
-      updateProduct(editId, {
-        nome: form.nome,
-        tipo_produto: form.tipo_produto as Product["tipo_produto"],
-        dimensoes: form.dimensoes,
-        resistencia_referencia: form.resistencia_referencia,
-        ativo: form.ativo,
-      });
-      toast.success("Produto atualizado");
-    } else {
-      addProduct({
-        nome: form.nome,
-        tipo_produto: form.tipo_produto as Product["tipo_produto"],
-        dimensoes: form.dimensoes,
-        resistencia_referencia: form.resistencia_referencia,
-        ativo: form.ativo,
-      });
-      toast.success("Produto criado com sucesso");
+    try {
+      if (editId) {
+        await updateProduct({
+          id: editId,
+          nome: form.nome,
+          tipo_produto: form.tipo_produto,
+          dimensoes: form.dimensoes,
+          resistencia_referencia: form.resistencia_referencia,
+          ativo: form.ativo,
+        });
+        toast.success("Produto atualizado");
+      } else {
+        await createProduct({
+          nome: form.nome,
+          tipo_produto: form.tipo_produto,
+          dimensoes: form.dimensoes,
+          resistencia_referencia: form.resistencia_referencia,
+          ativo: form.ativo,
+        });
+        toast.success("Produto criado com sucesso");
+      }
+      onOpenChange(false);
+    } catch (error) {
+      toast.error("Erro ao salvar produto");
     }
-    onOpenChange(false);
   };
+
+  const isPending = isCreating || isUpdating;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -105,9 +114,7 @@ export function ProductModal({ open, onOpenChange, editId }: ProductModalProps) 
             <Label>Tipo de Análise *</Label>
             <Select
               value={form.tipo_produto}
-              onValueChange={(v) =>
-                setForm({ ...form, tipo_produto: v as Product["tipo_produto"] })
-              }
+              onValueChange={(v) => setForm({ ...form, tipo_produto: v })}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Selecione o tipo" />
@@ -163,7 +170,8 @@ export function ProductModal({ open, onOpenChange, editId }: ProductModalProps) 
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button onClick={handleSave}>
+          <Button onClick={handleSave} disabled={isPending}>
+            {isPending && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
             {editId ? "Salvar Alterações" : "Criar Produto"}
           </Button>
         </DialogFooter>

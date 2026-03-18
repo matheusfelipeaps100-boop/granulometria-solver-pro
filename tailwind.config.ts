@@ -62,6 +62,13 @@ export default {
           DEFAULT: "hsl(var(--info))",
           foreground: "hsl(var(--info-foreground))",
         },
+        chart: {
+          primary: "hsl(var(--chart-primary))",
+          "primary-light": "hsl(var(--chart-primary-light))",
+          amber: "hsl(var(--chart-amber))",
+          green: "hsl(var(--chart-green))",
+          slate: "hsl(var(--chart-slate))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -91,11 +98,16 @@ export default {
           from: { opacity: "0", transform: "translateY(8px)" },
           to: { opacity: "1", transform: "translateY(0)" },
         },
+        "slide-up": {
+          from: { opacity: "0", transform: "translateY(16px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "fade-in": "fade-in 0.3s ease-out",
+        "slide-up": "slide-up 0.4s ease-out both",
       },
     },
   },

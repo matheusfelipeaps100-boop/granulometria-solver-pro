@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useState, useEffect, useRef } from "react";
+import { useMemo, useCallback, useState } from "react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -37,11 +37,11 @@ import {
 } from "@/lib/granulometry-engine";
 import {
   PENEIRAS_PADRAO,
-  MATERIAIS_DISPONIVEIS,
   DNAS_PADRAO,
   type AnalysisFormData,
   type AnalysisMaterial,
 } from "@/lib/analysis-data";
+import { useMaterials } from "@/hooks/api/useMaterials";
 import { Database, Dna, AlertTriangle, CheckCircle2, AlertCircle, Trash2, Plus } from "lucide-react";
 
 interface StepGranulometryProps {
@@ -56,61 +56,38 @@ export function StepGranulometry({ data, onChange }: StepGranulometryProps) {
   const [isBancoOpen, setIsBancoOpen] = useState(false);
   const [isDnaOpen, setIsDnaOpen] = useState(false);
 
-  // refs para o card flutuante do gráfico
-  const chartPlaceholderRef = useRef<HTMLDivElement>(null);
-  const chartCardRef = useRef<HTMLDivElement>(null);
+  // Estado local temporário para os inputs da tabela.
+  // Chave: "mi-sieveId". Permite apagar, digitar decimais e vírgula
+  // sem que o React force o campo de volta ao valor do store.
+  // O valor só é gravado no store quando o campo perde o foco (onBlur).
+  const [localValues, setLocalValues] = useState<Record<string, string>>({});
+  const getLocalKey = (mi: number, sieveId: number) => `${mi}-${sieveId}`;
 
-  useEffect(() => {
-    const scrollEl = document.getElementById("main-scroll");
-    if (!scrollEl) return;
+  const { materials: dbMaterials } = useMaterials();
+  const materiaisDisponiveis = useMemo<AnalysisMaterial[]>(() => {
+    return dbMaterials.filter(m => m.ativo).map(mat => ({
+      material_id: mat.id,
+      nome: mat.nome,
+      proporcao_pct: 0,
+      densidade: mat.densidade || undefined,
+      gradations: PENEIRAS_PADRAO.map(p => ({
+        sieve_id: p.sieve_id,
+        abertura_mm: p.abertura_mm,
+        massa_retida: 0
+      }))
+    }));
+  }, [dbMaterials]);
 
-    const handleScroll = () => {
-      const placeholder = chartPlaceholderRef.current;
-      const card = chartCardRef.current;
-      if (!placeholder || !card) return;
 
-      const pRect = placeholder.getBoundingClientRect();
-      const scrollRect = scrollEl.getBoundingClientRect();
-
-      const TOP_OFFSET = 20; // distância do topo da tela
-      const topRelativeToViewport = pRect.top;
-
-      if (topRelativeToViewport <= scrollRect.top + TOP_OFFSET) {
-        // Passou o ponto: fixar no topo do viewport
-        card.style.position = "fixed";
-        card.style.top = `${scrollRect.top + TOP_OFFSET}px`;
-        card.style.left = `${pRect.left}px`;
-        card.style.width = `${pRect.width}px`;
-        card.style.zIndex = "10";
-      } else {
-        // Ainda na posição normal
-        card.style.position = "relative";
-        card.style.top = "";
-        card.style.left = "";
-        card.style.width = "";
-        card.style.zIndex = "";
-      }
-    };
-
-    scrollEl.addEventListener("scroll", handleScroll, { passive: true });
-    window.addEventListener("resize", handleScroll, { passive: true });
-    return () => {
-      scrollEl.removeEventListener("scroll", handleScroll);
-      window.removeEventListener("resize", handleScroll);
-    };
-  }, []);
-
-  const materials = data.materiais_selecionados.length > 0
-    ? data.materiais_selecionados
-    : MATERIAIS_DISPONIVEIS;
+  const materials = data.materiais_selecionados || [];
 
   const dna = DNAS_PADRAO.find((d) => d.id === data.dna_selecionado) || DNAS_PADRAO[0];
   const limits = dna?.limites;
 
-  // Inicializa materiais e limites se vazio
-  if (data.materiais_selecionados.length === 0) {
+  // Inicializa limites e material vazio se for a primeira vez
+  if (data.limites_curva?.length === 0 && dna) {
     onChange({ 
-      materiais_selecionados: [...MATERIAIS_DISPONIVEIS],
+      materiais_selecionados: [],
       limites_curva: dna?.limites || []
     });
   }
@@ -393,7 +370,7 @@ export function StepGranulometry({ data, onChange }: StepGranulometryProps) {
       </div>
 
       {/* Layout principal: Coluna Esquerda (Tabela + Dosagem) | Coluna Direita (Gráfico) */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 items-start">
 
         {/* Coluna Esquerda: ocupa 2/3 - Tabela e Proporção */}
         <div className="xl:col-span-2 flex flex-col gap-4">
@@ -476,11 +453,27 @@ export function StepGranulometry({ data, onChange }: StepGranulometryProps) {
                                 step="0.1"
                                 min="0"
                                 className="h-8 text-[11px] font-bold text-center w-full rounded-full border-muted-foreground/20 focus-visible:ring-primary/20"
-                                value={grad?.massa_retida === 0 ? "" : (grad?.massa_retida ?? "")}
-                                onFocus={(e) => e.target.select()}
-                                onChange={(e) =>
-                                  handleMassChange(mi, peneira.sieve_id, e.target.value === "" ? 0 : parseFloat(e.target.value) || 0)
+                                value={
+                                  localValues[getLocalKey(mi, peneira.sieve_id)] 
+                                  ?? (grad?.massa_retida?.toString() ?? "0")
                                 }
+                                onFocus={() => {
+                                  // Inicializa o estado local com o valor atual do store
+                                  const key = getLocalKey(mi, peneira.sieve_id);
+                                  setLocalValues(prev => ({ ...prev, [key]: grad?.massa_retida?.toString() ?? "0" }));
+                                }}
+                                onChange={(e) => {
+                                  // Atualiza apenas o estado local — não grava no store
+                                  const key = getLocalKey(mi, peneira.sieve_id);
+                                  setLocalValues(prev => ({ ...prev, [key]: e.target.value }));
+                                }}
+                                onBlur={(e) => {
+                                  // Grava no store e remove do estado local
+                                  const key = getLocalKey(mi, peneira.sieve_id);
+                                  const parsed = parseFloat(e.target.value);
+                                  handleMassChange(mi, peneira.sieve_id, isNaN(parsed) ? 0 : parsed);
+                                  setLocalValues(prev => { const next = { ...prev }; delete next[key]; return next; });
+                                }}
                               />
                             </TableCell>
                           );
@@ -641,49 +634,47 @@ export function StepGranulometry({ data, onChange }: StepGranulometryProps) {
           </Card>
         </div>
 
-        {/* Painel Direito: placeholder mantém espaço na grid, card flutua via JS */}
-        <div ref={chartPlaceholderRef} className="xl:col-span-1">
-          <div ref={chartCardRef}>
-            <Card className="pt-4 shadow-sm border-destructive/10">
-              <CardContent className="p-4 flex flex-col relative">
-                <div>
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="space-y-0.5">
-                      <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Curva Combinada</p>
-                      <p className="text-4xl font-black text-destructive leading-none tracking-tighter">
-                        {mfCombinado.toFixed(2)}
-                      </p>
-                      <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest pt-1">MF TOTAL</p>
-                    </div>
-
-                    {/* Badge de Compatibilidade */}
-                    <div className="bg-primary/10 border border-primary/20 rounded-md p-2 text-center min-w-[70px]">
-                      <p className="text-[9px] font-black uppercase text-primary/70 mb-0.5 tracking-widest">COMPAT.</p>
-                      <p className="text-xl font-black text-primary leading-none">
-                        {(curvaStatus.indice_compatibilidade * 100).toFixed(0)}%
-                      </p>
-                    </div>
+        {/* Painel Direito: flutua via CSS puro */}
+        <div className="xl:col-span-1 sticky top-24 z-10 transition-all duration-300">
+          <Card className="pt-4 shadow-sm border-destructive/10">
+            <CardContent className="p-4 flex flex-col relative">
+              <div>
+                <div className="flex items-start justify-between mb-2">
+                  <div className="space-y-0.5">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Curva Combinada</p>
+                    <p className="text-4xl font-black text-destructive leading-none tracking-tighter">
+                      {mfCombinado.toFixed(2)}
+                    </p>
+                    <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest pt-1">MF TOTAL</p>
                   </div>
 
-                  {/* Informações de erros se houver */}
-                  {curvaStatus.peneiras_fora > 0 && (
-                    <div className="mb-4 mt-2 border-l-2 border-destructive pl-2 shrink-0">
-                      <p className="text-[10px] font-bold text-destructive">
-                        {curvaStatus.peneiras_fora} peneira(s) fora
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Gráfico preenche o espaço fixo no sticky para caber em qq monitor */}
-                  <div className="mt-2 border rounded-xl overflow-hidden bg-white/50 relative h-[320px]">
-                    <div className="absolute inset-0 pt-4 pb-2">
-                      <GranulometryChart curveResults={curveResults} hasLimits={!!limits} compact />
-                    </div>
+                  {/* Badge de Compatibilidade */}
+                  <div className="bg-primary/10 border border-primary/20 rounded-md p-2 text-center min-w-[70px]">
+                    <p className="text-[9px] font-black uppercase text-primary/70 mb-0.5 tracking-widest">COMPAT.</p>
+                    <p className="text-xl font-black text-primary leading-none">
+                      {(curvaStatus.indice_compatibilidade * 100).toFixed(0)}%
+                    </p>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+
+                {/* Informações de erros se houver */}
+                {curvaStatus.peneiras_fora > 0 && (
+                  <div className="mb-4 mt-2 border-l-2 border-destructive pl-2 shrink-0">
+                    <p className="text-[10px] font-bold text-destructive">
+                      {curvaStatus.peneiras_fora} peneira(s) fora
+                    </p>
+                  </div>
+                )}
+
+                {/* Gráfico */}
+                <div className="mt-2 border rounded-xl overflow-hidden bg-white/50 relative h-[320px]">
+                  <div className="absolute inset-0 pt-4 pb-2">
+                    <GranulometryChart curveResults={curveResults} hasLimits={!!limits} compact />
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
@@ -698,7 +689,7 @@ export function StepGranulometry({ data, onChange }: StepGranulometryProps) {
           </DialogHeader>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
-            {MATERIAIS_DISPONIVEIS.map((mat) => {
+            {materiaisDisponiveis.map((mat) => {
               const isAdded = materials.some(m => m.material_id === mat.material_id);
               return (
                 <div 

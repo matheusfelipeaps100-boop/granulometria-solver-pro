@@ -28,11 +28,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useAppStore } from "@/store/useAppStore";
-import { Plus, Pencil, Trash2, Webhook, Copy, Eye, EyeOff } from "lucide-react";
+import { useWebhooks, type WebhookConfig, type WebhookEvento } from "@/hooks/api/useWebhooks";
+import { Plus, Pencil, Trash2, Webhook, Copy, Eye, EyeOff, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-// Eventos de webhook conforme schema.prisma
+// Eventos de webhook conforme schema
 const WEBHOOK_EVENTOS = [
   { value: "trace_approved", label: "Traço Aprovado" },
   { value: "trace_released", label: "Traço Liberado para Produção" },
@@ -43,20 +43,6 @@ const WEBHOOK_EVENTOS = [
   { value: "report_generated", label: "Relatório Gerado" },
   { value: "batch_rejected", label: "Lote Reprovado" },
 ] as const;
-
-type WebhookEvento = typeof WEBHOOK_EVENTOS[number]["value"];
-
-export interface WebhookConfig {
-  id: string;
-  nome: string;
-  url: string;
-  evento: WebhookEvento;
-  secret: string;
-  ativo: boolean;
-  retry_count: number;
-  timeout_seconds: number;
-  created_at: string;
-}
 
 interface WebhookFormData {
   nome: string;
@@ -76,18 +62,14 @@ const initialFormData: WebhookFormData = {
   ativo: true,
 };
 
-function generateSecret(): string {
-  const array = new Uint8Array(32);
-  crypto.getRandomValues(array);
-  return Array.from(array, (b) => b.toString(16).padStart(2, "0")).join("");
-}
-
 export function WebhooksTab() {
-  const { webhooks, addWebhook, updateWebhook, deleteWebhook } = useAppStore();
+  const { webhooks, isLoading, createWebhook, updateWebhook, deleteWebhook, isCreating, isUpdating, isDeleting } = useWebhooks();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<WebhookFormData>(initialFormData);
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
+
+  const isPending = isCreating || isUpdating || isDeleting;
 
   const handleOpenCreate = () => {
     setEditingId(null);
@@ -108,7 +90,7 @@ export function WebhooksTab() {
     setIsModalOpen(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.nome.trim()) {
       toast.error("Informe o nome do webhook.");
       return;
@@ -122,38 +104,52 @@ export function WebhooksTab() {
       return;
     }
 
-    if (editingId) {
-      updateWebhook(editingId, {
-        nome: formData.nome,
-        url: formData.url,
-        evento: formData.evento as WebhookEvento,
-        retry_count: formData.retry_count,
-        timeout_seconds: formData.timeout_seconds,
-        ativo: formData.ativo,
-      });
-      toast.success("Webhook atualizado com sucesso.");
-    } else {
-      addWebhook({
-        nome: formData.nome,
-        url: formData.url,
-        evento: formData.evento as WebhookEvento,
-        retry_count: formData.retry_count,
-        timeout_seconds: formData.timeout_seconds,
-        ativo: formData.ativo,
-      });
-      toast.success("Webhook criado com sucesso.");
+    try {
+      if (editingId) {
+        await updateWebhook({
+          id: editingId,
+          nome: formData.nome,
+          url: formData.url,
+          evento: formData.evento as WebhookEvento,
+          retry_count: formData.retry_count,
+          timeout_seconds: formData.timeout_seconds,
+          ativo: formData.ativo,
+        });
+        toast.success("Webhook atualizado com sucesso.");
+      } else {
+        await createWebhook({
+          nome: formData.nome,
+          url: formData.url,
+          evento: formData.evento as WebhookEvento,
+          retry_count: formData.retry_count,
+          timeout_seconds: formData.timeout_seconds,
+          ativo: formData.ativo,
+        });
+        toast.success("Webhook criado com sucesso.");
+      }
+      setIsModalOpen(false);
+    } catch (error) {
+      toast.error("Erro ao salvar webhook.");
+      console.error(error);
     }
-    setIsModalOpen(false);
   };
 
-  const handleDelete = (id: string) => {
-    deleteWebhook(id);
-    toast.success("Webhook removido.");
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteWebhook(id);
+      toast.success("Webhook removido.");
+    } catch (error) {
+      toast.error("Erro ao remover webhook.");
+    }
   };
 
-  const handleToggleAtivo = (webhook: WebhookConfig) => {
-    updateWebhook(webhook.id, { ativo: !webhook.ativo });
-    toast.success(webhook.ativo ? "Webhook desativado." : "Webhook ativado.");
+  const handleToggleAtivo = async (webhook: WebhookConfig) => {
+    try {
+      await updateWebhook({ id: webhook.id, ativo: !webhook.ativo });
+      toast.success(webhook.ativo ? "Webhook desativado." : "Webhook ativado.");
+    } catch (error) {
+      toast.error("Erro ao alterar status.");
+    }
   };
 
   const handleCopySecret = (secret: string) => {
@@ -375,10 +371,11 @@ export function WebhooksTab() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsModalOpen(false)}>
+            <Button variant="outline" onClick={() => setIsModalOpen(false)} disabled={isPending}>
               Cancelar
             </Button>
-            <Button onClick={handleSave}>
+            <Button onClick={handleSave} disabled={isPending}>
+              {isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               {editingId ? "Salvar" : "Criar"}
             </Button>
           </DialogFooter>

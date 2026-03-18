@@ -2,30 +2,37 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
-import { Search, FileText, ChevronRight } from "lucide-react";
+import { Search, FileText, ChevronRight, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { useAppStore } from "@/store/useAppStore";
+import { useProduction } from "@/hooks/api/useProduction";
 import { useNavigate } from "react-router-dom";
 import { TIPOS_ANALISE } from "@/lib/analysis-data";
 
 const ReportsPage = () => {
-  const batches = useAppStore((s) => s.batches);
-  const analyses = useAppStore((s) => s.analyses);
+  const { batches, isLoadingBatches } = useProduction();
   const navigate = useNavigate();
 
   const reportItems = batches.map((b) => {
-    const analysis = analyses.find((a) => a.id === b.analysis_id);
-    const tipoLabel = TIPOS_ANALISE.find((t) => t.value === analysis?.tipo_analise)?.label || analysis?.tipo_analise || "—";
+    const analysis = b.analyses;
+    const tipoLabel = TIPOS_ANALISE.find((t) => t.value === analysis?.tipo)?.label || analysis?.tipo || "—";
     
     return {
       id: b.id,
       tipo: "Controle Tecnológico",
       lote: b.batch_code,
       produto: tipoLabel,
-      data: b.produced_at.split("T")[0].split("-").reverse().join("/"),
+      data: new Date(b.produced_at).toLocaleDateString("pt-BR"),
       status: b.status,
     };
   }).sort((a, b) => b.lote.localeCompare(a.lote));
+
+  if (isLoadingBatches) {
+    return (
+      <div className="h-full w-full flex items-center justify-center p-12 text-primary">
+          <RefreshCw className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">

@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useAppStore, type Material } from "@/store/useAppStore";
+import { useMaterials } from "@/hooks/api/useMaterials";
 import { toast } from "sonner";
 
 const TIPOS_MATERIAL = [
@@ -45,7 +45,7 @@ const emptyForm = {
 };
 
 export function MaterialModal({ open, onOpenChange, editId }: MaterialModalProps) {
-  const { materials, addMaterial, updateMaterial } = useAppStore();
+  const { materials, createMaterial, updateMaterial, isCreating, isUpdating } = useMaterials();
   const [form, setForm] = useState(emptyForm);
 
   useEffect(() => {
@@ -55,8 +55,8 @@ export function MaterialModal({ open, onOpenChange, editId }: MaterialModalProps
         setForm({
           nome: m.nome,
           tipo: m.tipo,
-          fornecedor: m.fornecedor,
-          mf: m.mf,
+          fornecedor: m.fornecedor || "",
+          mf: m.mf ? m.mf.toString().replace('.', ',') : "",
           ativo: m.ativo,
         });
       }
@@ -65,20 +65,33 @@ export function MaterialModal({ open, onOpenChange, editId }: MaterialModalProps
     }
   }, [open, editId, materials]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.nome.trim() || !form.tipo) {
       toast.error("Preencha nome e tipo do material");
       return;
     }
 
-    if (editId) {
-      updateMaterial(editId, form);
-      toast.success("Material atualizado");
-    } else {
-      addMaterial(form);
-      toast.success("Material criado com sucesso");
+    try {
+      // Supabase numeric format aceita ponto em vez de vírgula, e null se estiver vazio
+      const mfVal = form.mf ? parseFloat(form.mf.replace(',', '.')) : null;
+      
+      const payload = {
+        ...form,
+        mf: mfVal,
+        fornecedor: form.fornecedor || null
+      };
+
+      if (editId) {
+        await updateMaterial({ id: editId, ...payload });
+        toast.success("Material atualizado");
+      } else {
+        await createMaterial(payload);
+        toast.success("Material criado com sucesso");
+      }
+      onOpenChange(false);
+    } catch (error: any) {
+      toast.error("Erro ao salvar: " + error.message);
     }
-    onOpenChange(false);
   };
 
   return (
@@ -148,8 +161,8 @@ export function MaterialModal({ open, onOpenChange, editId }: MaterialModalProps
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button onClick={handleSave}>
-            {editId ? "Salvar Alterações" : "Criar Material"}
+          <Button onClick={handleSave} disabled={isCreating || isUpdating}>
+            {(isCreating || isUpdating) ? "Salvando..." : (editId ? "Salvar Alterações" : "Criar Material")}
           </Button>
         </DialogFooter>
       </DialogContent>

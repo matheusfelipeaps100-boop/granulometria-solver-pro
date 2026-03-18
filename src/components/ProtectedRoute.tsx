@@ -1,8 +1,8 @@
 import { Navigate, useLocation } from "react-router-dom";
-import { useAppStore } from "@/store/useAppStore";
-import { UserRole } from "@/store/useAppStore";
+import { useAuth } from "@/hooks/useAuth";
+import type { UserRole } from "@/store/useAppStore";
 import { hasRoutePermission } from "@/lib/permissions";
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -10,18 +10,37 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
-  const isAuthenticated = useAppStore((s) => s.isAuthenticated);
-  const currentUserRole = useAppStore((s) => s.currentUserRole);
+  const { session, profile, loading } = useAuth();
   const location = useLocation();
 
-  // 1. Se não estiver autenticado → redireciona para /login
-  if (!isAuthenticated) {
+  // Aguardando verificação de sessão com o Supabase
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+          <span className="text-sm text-slate-500">Carregando...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Não autenticado → redireciona para login
+  if (!session) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // 2. Verifica permissão de role e rota
-  const hasAccess = hasRoutePermission(currentUserRole, location.pathname) &&
-    allowedRoles.includes(currentUserRole);
+  // Usuário inativo
+  if (profile && !profile.ativo) {
+    return <Navigate to="/unauthorized" replace />;
+  }
+
+  const role = profile?.role ?? "LABORATORIO";
+
+  // Verifica permissão de role e rota
+  const hasAccess =
+    hasRoutePermission(role, location.pathname) &&
+    allowedRoles.includes(role);
 
   if (!hasAccess) {
     return <Navigate to="/unauthorized" replace />;

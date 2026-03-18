@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAppStore } from "@/store/useAppStore";
+import { useAuth } from "@/hooks/useAuth";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -17,7 +17,7 @@ const ROLE_HOME: Record<string, string> = {
 
 const LoginPage = () => {
   const navigate = useNavigate();
-  const { login, identity } = useAppStore();
+  const { signIn, profile, session } = useAuth();
 
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
@@ -32,18 +32,27 @@ const LoginPage = () => {
     }
 
     setLoading(true);
-    await new Promise(r => setTimeout(r, 700));
-
-    const success = login(email, senha);
+    const { error } = await signIn(email, senha);
     setLoading(false);
 
-    if (success) {
-      const { currentUserRole } = useAppStore.getState();
-      toast.success("Login realizado com sucesso!");
-      navigate(ROLE_HOME[currentUserRole] || "/");
-    } else {
-      toast.error("E-mail ou senha incorretos, ou usuário inativo.");
+    if (error) {
+      if (error.includes("Invalid login credentials")) {
+        toast.error("E-mail ou senha incorretos.");
+      } else if (error.includes("Email not confirmed")) {
+        toast.error("Confirme seu e-mail antes de entrar.");
+      } else {
+        toast.error("Erro ao entrar: " + error);
+      }
+      return;
     }
+
+    // O profile é carregado pelo onAuthStateChange no useAuth
+    // Aguardar um tick para o estado atualizar
+    setTimeout(() => {
+      const role = profile?.role ?? "LABORATORIO";
+      toast.success("Login realizado com sucesso!");
+      navigate(ROLE_HOME[role] || "/");
+    }, 300);
   };
 
   return (
@@ -100,7 +109,7 @@ const LoginPage = () => {
           <div className="space-y-1">
             <h1 className="text-2xl font-black text-slate-900">Bom dia 👋</h1>
             <p className="text-slate-500 text-sm">
-              {identity.nome ? `Entrando em ${identity.nome}` : "Entre com suas credenciais para continuar."}
+              {profile?.nome ? `Entrando como ${profile.nome}` : "Entre com suas credenciais para continuar."}
             </p>
           </div>
 

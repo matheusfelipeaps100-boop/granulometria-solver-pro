@@ -8,22 +8,25 @@ import { RefreshCw, Eye, ClipboardList, FileEdit, Calendar, Package } from "luci
 import { toast } from "sonner";
 import { ViewProductionModal } from "@/components/production/ViewProductionModal";
 import { RegisterProductionModal } from "@/components/production/RegisterProductionModal";
-import { useAppStore, type StoredAnalysis, type ProductionBatch } from "@/store/useAppStore";
+import { useAuth } from "@/hooks/useAuth";
+import { useAnalyses } from "@/hooks/api/useAnalyses";
+import { useProduction, type DBProductionBatch } from "@/hooks/api/useProduction";
 import { hasActionPermission } from "@/lib/permissions";
 import { TIPOS_ANALISE } from "@/lib/analysis-data";
+import type { StoredAnalysis } from "@/hooks/api/useAnalyses";
 
 const ProductionPage = () => {
-  const currentUserRole = useAppStore((s) => s.currentUserRole);
-  const analyses = useAppStore((s) => s.analyses);
-  const batches = useAppStore((s) => s.batches);
+  const { profile } = useAuth();
+  const { analyses } = useAnalyses();
+  const { batches } = useProduction();
   const releasedAnalyses = analyses.filter((a) => a.status === "liberado_producao");
 
-  const canRegister = hasActionPermission(currentUserRole, "batch:create");
+  const canRegister = profile ? hasActionPermission(profile.role, "batch:create") : false;
 
   const [viewAnalysis, setViewAnalysis] = useState<StoredAnalysis | null>(null);
   const [registerAnalysis, setRegisterAnalysis] = useState<StoredAnalysis | null>(null);
 
-  const handleExportPDF = (analysis: StoredAnalysis) => {
+  const handleExportPDF = (analysis: any) => {
     toast.success("PDF exportado com sucesso!", {
       description: `Relatório de produção ${analysis.codigo} baixado`,
     });
@@ -78,7 +81,7 @@ const ProductionPage = () => {
               <TableBody>
                 {releasedAnalyses.map((analysis) => {
                   const batch = getBatchForAnalysis(analysis.id);
-                  const tipoLabel = TIPOS_ANALISE.find((t) => t.value === analysis.tipo_analise)?.label ?? "—";
+                  const tipoLabel = TIPOS_ANALISE.find((t) => t.value === analysis.tipo)?.label ?? "—";
                   return (
                     <TableRow key={analysis.id}>
                       <TableCell className="pl-6">
@@ -110,7 +113,7 @@ const ProductionPage = () => {
                       <TableCell>
                         {batch ? (
                           <div className="flex gap-1">
-                            {batch.rupture_schedules.map((s) => (
+                            {batch.rupture_schedules?.map((s) => (
                               <Badge key={s.id} variant="outline" className="text-xs">
                                 {s.idade_dias}d
                               </Badge>
