@@ -58,6 +58,7 @@ export function useAnalyses() {
             material_id: am.material_id,
             nome: am.materials?.nome || "",
             tipo: am.materials?.tipo || "",
+            proporcao_kg: am.proporcao_kg ?? (am.proporcao_pct * 550),
             proporcao_pct: am.proporcao_pct,
             densidade: am.materials?.densidade || 2.65,
             gradations: [] // Não precisamos reconstruir pra Produção
@@ -78,24 +79,24 @@ export function useAnalyses() {
       if (!orgId) throw new Error("Usuário não tem organização vinculada");
       if (!profile?.id) throw new Error("Usuário não autenticado");
 
-      // 1. Inserir Análise
+      // 1. Inserir ou Atualizar Análise
       const { data: analysis, error: analysisError } = await supabase
         .from("analyses")
-        .insert([{
+        .upsert([{
           organization_id: orgId,
           codigo: formData.codigo,
           nome: formData.nome,
-          tipo: formData.tipo_analise,
+          tipo: formData.tipo_analise, // Map this correctly for the table
           produto: formData.produto_nome || null,
           resistencia_prevista: formData.resistencia_prevista || null,
           unidade: formData.unidade || null,
           status, // Status dinâmico ou em_analise
-          wizard_step: 5,
+          wizard_step: 1, // Não estamos rastreando steps de forma estrita no backend
           observacoes: formData.observacoes || null,
           data_analise: formData.data,
           analista_id: profile.id, // quem criou a análise
           created_by: profile.id
-        }])
+        }], { onConflict: 'organization_id,codigo' })
         .select()
         .single();
       
@@ -104,6 +105,10 @@ export function useAnalyses() {
       const analysisId = analysis.id;
 
       try {
+        // Limpar dados antigos caso seja uma edição (Upsert via mesmo Código)
+        await supabase.from("analysis_materials").delete().eq("analysis_id", analysisId);
+        await supabase.from("analysis_dosage").delete().eq("analysis_id", analysisId);
+
         // 2. Inserir Materiais e suas Graduações (Retenções)
         if (formData.materiais_selecionados.length > 0) {
           for (let index = 0; index < formData.materiais_selecionados.length; index++) {

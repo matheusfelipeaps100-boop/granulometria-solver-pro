@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import type { AnalysisFormData } from "@/lib/analysis-data";
 import { TIPOS_ANALISE } from "@/lib/analysis-data";
+import { useAppStore } from "@/store/useAppStore";
 
 interface SaveStandardTraceModalProps {
   open: boolean;
@@ -29,6 +30,7 @@ export function SaveStandardTraceModal({ open, onOpenChange, data }: SaveStandar
   const [nomeDna, setNomeDna] = useState(`DNA ${tipoLabel} ${data.resistencia_prevista}MPa`);
   const [descricao, setDescricao] = useState("");
   const [loading, setLoading] = useState(false);
+  const saveStandardTrace = useAppStore((state) => state.saveStandardTrace);
 
   const handleSave = () => {
     if (!nomeDna.trim()) {
@@ -37,8 +39,6 @@ export function SaveStandardTraceModal({ open, onOpenChange, data }: SaveStandar
     }
     setLoading(true);
     setTimeout(() => {
-      // Use the store action to save the standard trace
-      const { saveStandardTrace } = require("@/store/useAppStore").useAppStore.getState();
       saveStandardTrace(nomeDna.trim(), data);
       
       setLoading(false);

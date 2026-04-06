@@ -38,13 +38,16 @@ interface StepReviewProps {
   onApprove: () => void;
 }
 
-function ProportionBar({ label, value, total }: { label: string; value: number; total: number }) {
-  const pct = total > 0 ? (value / total) * 100 : 0;
+function ProportionBar({ label, kg, totalKg }: { label: string; kg: number; totalKg: number }) {
+  const pct = totalKg > 0 ? (kg / totalKg) * 100 : 0;
   return (
     <div className="space-y-1">
       <div className="flex justify-between text-xs">
         <span className="font-medium text-foreground/80">{label}</span>
-        <span className="font-bold">{pct.toFixed(0)}%</span>
+        <div className="flex items-center gap-2">
+          <span className="font-bold text-muted-foreground">{kg.toFixed(0)} kg</span>
+          <span className="font-black">{pct.toFixed(0)}%</span>
+        </div>
       </div>
       <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
         <div
@@ -70,6 +73,11 @@ export function StepReview({ data, onApprove }: StepReviewProps) {
 
   const curvaStatus = useMemo(() => calcCurvaStatus(curveResults), [curveResults]);
 
+  const totalKgMateriais = useMemo(
+    () => data.materiais_selecionados.reduce((s, m) => s + (m.proporcao_kg ?? 0), 0),
+    [data.materiais_selecionados]
+  );
+
   const dosageResult = useMemo(() => {
     if (data.materiais_selecionados.length === 0) return null;
     return calcDosage({
@@ -80,19 +88,18 @@ export function StepReview({ data, onApprove }: StepReviewProps) {
       densidade_cimento: data.densidade_cimento,
       proporcoes_materiais: data.materiais_selecionados.map((m) => ({
         nome: m.nome,
-        proporcao_pct: m.proporcao_pct,
+        proporcao_kg: m.proporcao_kg ?? 0,
+        proporcao_pct: totalKgMateriais > 0 ? (m.proporcao_kg ?? 0) / totalKgMateriais : 0,
         densidade: m.densidade
       })),
       aditivos_ml: data.aditivos_ml,
     });
-  }, [data]);
+  }, [data, totalKgMateriais]);
 
   const chartData = curveResults.map((r) => ({
     label: PENEIRAS_PADRAO.find((p) => p.sieve_id === r.sieve_id)?.label ?? "",
     acumulado: Math.round(r.pct_acumulado * 10000) / 100,
   }));
-
-  const totalProporcao = data.materiais_selecionados.reduce((s, m) => s + m.proporcao_pct, 0);
 
   const statusConfig = {
     conforme: { label: "CONFORME", className: "bg-success/15 text-success border-success/30" },
@@ -151,8 +158,8 @@ export function StepReview({ data, onApprove }: StepReviewProps) {
                     <ProportionBar
                       key={m.material_id}
                       label={m.nome}
-                      value={m.proporcao_pct}
-                      total={totalProporcao}
+                      kg={m.proporcao_kg ?? 0}
+                      totalKg={totalKgMateriais}
                     />
                   ))}
                 </div>

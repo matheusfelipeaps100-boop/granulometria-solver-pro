@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useEffect } from "react";
+import { useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -57,13 +57,19 @@ const CustomConsumoCurveTooltip = ({ active, payload, label }: any) => {
 };
 
 export function StepDosage({ data, onChange }: StepDosageProps) {
-  const proporcoes = useMemo(
-    () => data.materiais_selecionados.map((m) => ({ 
-      nome: m.nome, 
-      proporcao_pct: m.proporcao_pct,
-      densidade: m.densidade 
-    })),
+  const totalKgMateriais = useMemo(
+    () => data.materiais_selecionados.reduce((s, m) => s + (m.proporcao_kg ?? 0), 0),
     [data.materiais_selecionados]
+  );
+
+  const proporcoes = useMemo(
+    () => data.materiais_selecionados.map((m) => ({
+      nome: m.nome,
+      proporcao_kg: m.proporcao_kg ?? 0,
+      proporcao_pct: totalKgMateriais > 0 ? (m.proporcao_kg ?? 0) / totalKgMateriais : 0,
+      densidade: m.densidade
+    })),
+    [data.materiais_selecionados, totalKgMateriais]
   );
 
   const dosageResult = useMemo(() => {
@@ -88,18 +94,8 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
     [data.relacao_ac, data.densidade_cimento, proporcoes]
   );
 
-  // Trava de Segurança do Misturador (Clamp de 550kg)
-  useEffect(() => {
-    if (dosageResult.massa_total_batelada > 550) {
-      if (dosageResult.massa_total_m3 > 0) {
-        const maxVolume = 550 / dosageResult.massa_total_m3;
-        // Evitar loop infinito
-        if (Math.abs(data.volume_m3 - maxVolume) > 0.0001) {
-          onChange({ volume_m3: maxVolume });
-        }
-      }
-    }
-  }, [dosageResult.massa_total_batelada, dosageResult.massa_total_m3, data.volume_m3, onChange]);
+  // Os agregados são definidos em kg absoluto na granulometria —
+  // não há clamp automático de volume; o aviso de capacidade é apenas visual.
 
   const handleAcChange = useCallback(
     ([v]: number[]) => onChange({ relacao_ac: v / 100 }),
@@ -289,6 +285,42 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
                   </Label>
                   <div className="h-10 flex items-center px-3 bg-blue-500/10 text-blue-500 border border-blue-500/20 rounded-md font-black text-sm">
                     {dosageResult.agua_batelada.toFixed(1)} kg
+                  </div>
+                </div>
+              </div>
+
+              {/* Custos Operacionais */}
+              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-border/50">
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                    Custo do Cimento (R$ / ton)
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      className="h-10 font-bold bg-background border border-border/50 focus-visible:ring-primary shadow-none pl-8"
+                      value={data.custo_cimento_ton || ""}
+                      onChange={(e) => onChange({ custo_cimento_ton: parseFloat(e.target.value) || 0 })}
+                    />
+                    <span className="absolute left-3 top-2.5 text-sm font-bold text-muted-foreground">R$</span>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                    Custo do Aditivo (R$ / Litro)
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      className="h-10 font-bold bg-background border border-border/50 focus-visible:ring-primary shadow-none pl-8"
+                      value={data.custo_aditivo_lt || ""}
+                      onChange={(e) => onChange({ custo_aditivo_lt: parseFloat(e.target.value) || 0 })}
+                    />
+                    <span className="absolute left-3 top-2.5 text-sm font-bold text-muted-foreground">R$</span>
                   </div>
                 </div>
               </div>

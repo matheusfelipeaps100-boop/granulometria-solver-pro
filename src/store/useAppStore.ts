@@ -28,6 +28,8 @@ export interface AnalysisType {
 
 export type UserRole = "ADMIN" | "PRODUCAO" | "VENDAS" | "LABORATORIO";
 
+export type AnalysisStatus = "rascunho" | "em_analise" | "aprovado" | "liberado_producao";
+
 export interface OrganizationIdentity {
   nome: string;
   cnpj: string;
@@ -47,6 +49,8 @@ interface AppState {
   updateIdentity: (data: Partial<OrganizationIdentity>) => void;
   params: SystemParams;
   updateParams: (data: Partial<SystemParams>) => void;
+  customDNAs: any[];
+  saveStandardTrace: (nome: string, data: any) => void;
 }
 
 
@@ -76,4 +80,22 @@ export const useAppStore = create<AppState>()(persist((set, get) => ({
     fator_b: 98.0665,
   },
   updateParams: (data) => set((state) => ({ params: { ...state.params, ...data } })),
+
+  customDNAs: [],
+  saveStandardTrace: (nome, data) => set((state) => ({
+    customDNAs: [
+      ...state.customDNAs,
+      {
+        id: crypto.randomUUID(),
+        nome,
+        tipo: data.tipo_analise, // Map this correctly for the table
+        resistencia: `${data.resistencia_prevista} MPa`,
+        // Calculate MF standard just to display (we don't compute the exact DNA mf here but mock it for table)
+        mf: "Ref. Personalizada",
+        ativo: true,
+        isSaved: true,
+        dataTraco: data, // Save the whole object just in case
+      }
+    ]
+  })),
 }), { name: "granulometria-store" }));

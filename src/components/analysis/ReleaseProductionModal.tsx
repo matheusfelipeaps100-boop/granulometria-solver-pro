@@ -15,6 +15,7 @@ import { Factory } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useAnalyses } from "@/hooks/api/useAnalyses";
+import { useAnalysisDraftStore } from "@/store/useAnalysisDraftStore";
 import type { AnalysisFormData } from "@/lib/analysis-data";
 
 interface ReleaseProductionModalProps {
@@ -25,19 +26,22 @@ interface ReleaseProductionModalProps {
 
 export function ReleaseProductionModal({ open, onOpenChange, data }: ReleaseProductionModalProps) {
   const navigate = useNavigate();
-  const { updateStatus, isUpdatingStatus } = useAnalyses();
+  const { updateStatus, createAnalysis, isUpdatingStatus, isCreating } = useAnalyses();
   const [dataHora, setDataHora] = useState(new Date().toISOString().slice(0, 16));
   const [observacoes, setObservacoes] = useState("");
 
   const handleRelease = async () => {
-    if (!data.id) {
-      toast.error("Erro: ID da análise não encontrado.");
-      return;
-    }
-
     try {
-      await updateStatus({ id: data.id, status: "liberado_producao" });
-      
+      if (!data.id) {
+        // É um rascunho novo (criado na NewAnalysisPage sem ir pro banco)
+        await createAnalysis({ formData: data, status: "liberado_producao" });
+      } else {
+        // Análise que já existe no Supabase
+        await updateStatus({ id: data.id, status: "liberado_producao" });
+      }
+      // Limpar rascunho se usava local
+      useAnalysisDraftStore.getState().clearDraft();
+
       onOpenChange(false);
       toast.success("Análise liberada para produção!", {
         description: `${data.codigo} — Status atualizado para "Liberado para Produção"`,
@@ -45,9 +49,14 @@ export function ReleaseProductionModal({ open, onOpenChange, data }: ReleaseProd
       navigate("/production");
     } catch (error) {
       console.error(error);
-      toast.error("Erro ao liberar para produção.");
-    }
+      const msg = (error as any).message || (typeof error === 'object' ? JSON.stringify(error) : String(error));
+      toast.error("Erro ao liberar para produção.", {
+        description: msg
+      });
+    } finally { }
   };
+
+  const isWorking = isUpdatingStatus || isCreating;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -92,11 +101,11 @@ export function ReleaseProductionModal({ open, onOpenChange, data }: ReleaseProd
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isUpdatingStatus}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isWorking}>
             Cancelar
           </Button>
-          <Button onClick={handleRelease} disabled={isUpdatingStatus} className="gap-2">
-            {isUpdatingStatus ? "Liberando..." : "Confirmar Liberação"}
+          <Button onClick={handleRelease} disabled={isWorking} className="gap-2">
+            {isWorking ? "Liberando..." : "Confirmar Liberação"}
           </Button>
         </DialogFooter>
       </DialogContent>

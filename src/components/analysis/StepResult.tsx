@@ -36,6 +36,7 @@ import {
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { useAnalysisDraftStore } from "@/store/useAnalysisDraftStore";
 
 interface StepResultProps {
   data: AnalysisFormData;
@@ -43,6 +44,7 @@ interface StepResultProps {
 
 export function StepResult({ data }: StepResultProps) {
   const navigate = useNavigate();
+  const { clearDraft } = useAnalysisDraftStore();
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [showReleaseModal, setShowReleaseModal] = useState(false);
   const [showTraceModal, setShowTraceModal] = useState(false);
@@ -60,6 +62,11 @@ export function StepResult({ data }: StepResultProps) {
     return calcCombinedCurve(data.materiais_selecionados, dna?.limites);
   }, [data.materiais_selecionados, dna]);
 
+  const totalKgMateriais = useMemo(
+    () => data.materiais_selecionados.reduce((s, m) => s + (m.proporcao_kg ?? 0), 0),
+    [data.materiais_selecionados]
+  );
+
   const dosageResult = useMemo(() => {
     if (data.materiais_selecionados.length === 0) return null;
     return calcDosage({
@@ -70,12 +77,13 @@ export function StepResult({ data }: StepResultProps) {
       densidade_cimento: data.densidade_cimento,
       proporcoes_materiais: data.materiais_selecionados.map((m) => ({
         nome: m.nome,
-        proporcao_pct: m.proporcao_pct,
+        proporcao_kg: m.proporcao_kg ?? 0,
+        proporcao_pct: totalKgMateriais > 0 ? (m.proporcao_kg ?? 0) / totalKgMateriais : 0,
         densidade: m.densidade
       })),
       aditivos_ml: data.aditivos_ml,
     });
-  }, [data]);
+  }, [data, totalKgMateriais]);
 
   const chartData = curveResults.map((r) => ({
     label: PENEIRAS_PADRAO.find((p) => p.sieve_id === r.sieve_id)?.label ?? "",
@@ -88,7 +96,31 @@ export function StepResult({ data }: StepResultProps) {
   }));
 
   // Calcula o "retorno" estimado para cada material (contribuição % na curva)
-  const totalProp = data.materiais_selecionados.reduce((s, m) => s + m.proporcao_pct, 0);
+
+  // Calcula Custo Financeiro
+  const financeiro = useMemo(() => {
+    if (!dosageResult) return null;
+
+    const agregadosBatelada = data.materiais_selecionados.reduce((sum, m, i) => {
+      const kg = dosageResult.materiais_batelada[i]?.kg || 0;
+      const priceKg = (m.custo_tonelada || 0) / 1000;
+      return sum + (kg * priceKg);
+    }, 0);
+
+    const cimentoBatelada = dosageResult.consumo_cimento_batelada * ((data.custo_cimento_ton || 0) / 1000);
+    const aditivoBatelada = (data.aditivos_ml || 0) * ((data.custo_aditivo_lt || 0) / 1000);
+
+    const totalBatelada = agregadosBatelada + cimentoBatelada + aditivoBatelada;
+    const totalM3 = data.volume_m3 > 0 ? totalBatelada / data.volume_m3 : 0;
+
+    return {
+      agregadosBatelada,
+      cimentoBatelada,
+      aditivoBatelada,
+      totalBatelada,
+      totalM3
+    };
+  }, [dosageResult, data]);
 
   const handleExportPDF = () => {
     setGeneratingPdf(true);
@@ -129,6 +161,30 @@ export function StepResult({ data }: StepResultProps) {
         </div>
       </div>
 
+      {/* Custos da Mistura */}
+      {financeiro && (
+        <Card className="bg-success text-success-foreground border-none shadow-sm overflow-hidden">
+          <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-white/10">
+            <div className="p-4 flex flex-col justify-center">
+              <span className="text-[10px] font-bold uppercase tracking-widest opacity-80 mb-1">Agregados (Bat.)</span>
+              <span className="text-xl font-black">R$ {financeiro.agregadosBatelada.toFixed(2)}</span>
+            </div>
+            <div className="p-4 flex flex-col justify-center">
+              <span className="text-[10px] font-bold uppercase tracking-widest opacity-80 mb-1">Cimento (Bat.)</span>
+              <span className="text-xl font-black">R$ {financeiro.cimentoBatelada.toFixed(2)}</span>
+            </div>
+            <div className="p-4 flex flex-col justify-center">
+              <span className="text-[10px] font-bold uppercase tracking-widest opacity-80 mb-1">Total da Batelada</span>
+              <span className="text-xl font-black">R$ {financeiro.totalBatelada.toFixed(2)}</span>
+            </div>
+            <div className="p-4 flex flex-col justify-center bg-black/10">
+              <span className="text-[10px] font-black uppercase tracking-widest mb-1 text-success-foreground">Custo por m³</span>
+              <span className="text-3xl font-black">R$ {financeiro.totalM3.toFixed(2)}</span>
+            </div>
+          </div>
+        </Card>
+      )}
+
       {/* RELATÓRIO DE TRAÇO - PRODUÇÃO */}
       <Card>
         <CardHeader className="pb-2 border-b">
@@ -163,7 +219,12 @@ export function StepResult({ data }: StepResultProps) {
                 {/* Cimento */}
                 <TableRow className="font-medium">
                   <TableCell className="font-bold">Cimento</TableCell>
-                  <TableCell className="text-right font-bold">{dosageResult.consumo_cimento_batelada.toFixed(2)} kg</TableCell>
+                  <TableCell className="text-right font-bold">
+                    {data.consumo_alvo_m3.toFixed(0)} kg/m³
+                    <span className="block text-[10px] font-normal text-muted-foreground">
+                      {dosageResult.consumo_cimento_batelada.toFixed(1)} kg/bat.
+                    </span>
+                  </TableCell>
                   <TableCell className="text-right">
                     <Badge variant="outline" className="text-[10px] font-bold bg-muted/40">
                       —
@@ -174,8 +235,8 @@ export function StepResult({ data }: StepResultProps) {
                 {/* Agregados */}
                 {dosageResult.materiais_batelada.map((m, i) => {
                   const material = data.materiais_selecionados[i];
-                  const pctRetorno = material && totalProp > 0
-                    ? ((material.proporcao_pct / totalProp) * 100).toFixed(0)
+                  const pctRetorno = material && totalKgMateriais > 0
+                    ? (((material.proporcao_kg ?? 0) / totalKgMateriais) * 100).toFixed(0)
                     : "—";
                   return (
                     <TableRow key={m.nome}>
@@ -338,7 +399,10 @@ export function StepResult({ data }: StepResultProps) {
           <Factory className="h-4 w-4" />
           INICIAR PRODUÇÃO
         </Button>
-        <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground" onClick={() => navigate("/analyses")}>
+        <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground" onClick={() => {
+          clearDraft();
+          navigate("/analyses");
+        }}>
           <Printer className="h-3 w-3" />
           Voltar para Análises
         </Button>

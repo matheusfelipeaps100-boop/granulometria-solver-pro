@@ -109,7 +109,8 @@ const MaterialsPage = () => {
                   <TableHead>Nome</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Fornecedor</TableHead>
-                  <TableHead>MF</TableHead>
+                  <TableHead>Módulo de Finura</TableHead>
+                  <TableHead>Custo (R$/ton)</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
@@ -120,7 +121,10 @@ const MaterialsPage = () => {
                     <TableCell className="font-medium">{m.nome}</TableCell>
                     <TableCell className="capitalize">{m.tipo.replace("_", " ")}</TableCell>
                     <TableCell>{m.fornecedor}</TableCell>
-                    <TableCell className="font-mono">{m.mf}</TableCell>
+                    <TableCell className="font-mono">{m.mf || "-"}</TableCell>
+                    <TableCell className="font-mono text-muted-foreground">
+                      {m.custo_tonelada ? `R$ ${m.custo_tonelada.toFixed(2).replace('.', ',')}` : "-"}
+                    </TableCell>
                     <TableCell>
                       <StatusBadge status={m.ativo ? "aprovado" : "arquivado"} />
                     </TableCell>

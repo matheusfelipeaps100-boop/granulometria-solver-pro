@@ -19,8 +19,8 @@ interface Notification {
 }
 
 export function NotificationsDropdown() {
-  const batches = useAppStore((s) => s.batches);
-  const analyses = useAppStore((s) => s.analyses);
+  const batches = useAppStore((s) => (s as any).batches) ?? [];
+  const analyses = useAppStore((s) => (s as any).analyses) ?? [];
   const navigate = useNavigate();
 
   const today = useMemo(() => new Date().toISOString().split("T")[0], []);

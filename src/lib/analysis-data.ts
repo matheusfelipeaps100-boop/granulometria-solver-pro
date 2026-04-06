@@ -16,6 +16,7 @@ export interface Product {
 }
 
 export interface AnalysisFormData {
+  id?: string;
   // Step 1 — Identification
   tipo_analise: "bloco_estrutural" | "bloco_vedacao" | "paver" | "cp" | "";
   nome: string;
@@ -37,14 +38,18 @@ export interface AnalysisFormData {
   volume_m3: number;
   densidade_cimento: number;
   aditivos_ml: number;
+  custo_cimento_ton: number;
+  custo_aditivo_lt: number;
   limites_curva?: Array<{ sieve_id: number; limite_min: number; limite_max: number }>;
 }
 
 export interface AnalysisMaterial {
   material_id: string;
   nome: string;
-  proporcao_pct: number; // 0 to 1
+  proporcao_kg: number;  // kg absoluto na batelada (referência 550 kg) — campo primário
+  proporcao_pct: number; // derivado: proporcao_kg / soma_total_kg — mantido para compatibilidade
   densidade?: number; // g/cm³ ou kg/dm³
+  custo_tonelada?: number;
   gradations: SieveData[];
 }
 
@@ -58,6 +63,7 @@ export const PENEIRAS_PADRAO: Array<{ sieve_id: number; abertura_mm: number; lab
   { sieve_id: 7, abertura_mm: 0.6, label: "0,6 mm" },
   { sieve_id: 8, abertura_mm: 0.3, label: "0,3 mm" },
   { sieve_id: 9, abertura_mm: 0.15, label: "0,15 mm" },
+  { sieve_id: 10, abertura_mm: 0, label: "Fundo" },
 ];
 
 // Materiais mock com dados reais da planilha
@@ -65,41 +71,45 @@ export const MATERIAIS_DISPONIVEIS: AnalysisMaterial[] = [
   {
     material_id: "mat-areia-cava",
     nome: "Areia Cava BMW",
+    proporcao_kg: 137,
     proporcao_pct: 0.25,
     gradations: PENEIRAS_PADRAO.map((p) => ({
       sieve_id: p.sieve_id,
       abertura_mm: p.abertura_mm,
-      massa_retida: [0, 0, 2.5, 18.3, 42.1, 85.6, 120.4, 55.2][p.sieve_id - 1],
+      massa_retida: [0, 0, 2.5, 18.3, 42.1, 85.6, 120.4, 55.2][p.sieve_id - 2] || 0,
     })),
   },
   {
     material_id: "mat-po-pedra",
     nome: "Pó Pedra Britasul",
+    proporcao_kg: 192,
     proporcao_pct: 0.35,
     gradations: PENEIRAS_PADRAO.map((p) => ({
       sieve_id: p.sieve_id,
       abertura_mm: p.abertura_mm,
-      massa_retida: [5.2, 28.4, 62.1, 98.3, 72.5, 45.8, 28.1, 12.6][p.sieve_id - 1],
+      massa_retida: [5.2, 28.4, 62.1, 98.3, 72.5, 45.8, 28.1, 12.6][p.sieve_id - 2] || 0,
     })),
   },
   {
     material_id: "mat-brita",
     nome: "Brita Britasul",
+    proporcao_kg: 137,
     proporcao_pct: 0.25,
     gradations: PENEIRAS_PADRAO.map((p) => ({
       sieve_id: p.sieve_id,
       abertura_mm: p.abertura_mm,
-      massa_retida: [185.3, 92.1, 32.5, 8.2, 2.1, 0.8, 0.3, 0.1][p.sieve_id - 1],
+      massa_retida: [185.3, 92.1, 32.5, 8.2, 2.1, 0.8, 0.3, 0.1][p.sieve_id - 2] || 0,
     })),
   },
   {
     material_id: "mat-areia-rio",
     nome: "Areia Rio Rafael",
+    proporcao_kg: 84,
     proporcao_pct: 0.15,
     gradations: PENEIRAS_PADRAO.map((p) => ({
       sieve_id: p.sieve_id,
       abertura_mm: p.abertura_mm,
-      massa_retida: [0, 1.2, 5.8, 22.4, 55.3, 95.2, 105.8, 38.6][p.sieve_id - 1],
+      massa_retida: [0, 1.2, 5.8, 22.4, 55.3, 95.2, 105.8, 38.6][p.sieve_id - 2] || 0,
     })),
   },
 ];
@@ -205,6 +215,8 @@ export function createEmptyAnalysis(): AnalysisFormData {
     volume_m3: 0.55,
     densidade_cimento: 3.15,
     aditivos_ml: 0,
+    custo_cimento_ton: 0,
+    custo_aditivo_lt: 0,
     limites_curva: [],
   };
 }

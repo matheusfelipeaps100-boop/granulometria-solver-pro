@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
+import { useAnalysisDraftStore } from "@/store/useAnalysisDraftStore";
 import { Button } from "@/components/ui/button";
 import { WizardStepper } from "@/components/WizardStepper";
 import { StepIdentification } from "@/components/analysis/StepIdentification";
@@ -36,33 +37,38 @@ const NewAnalysisPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isEditMode = !!searchParams.get("edit");
-  const [currentStep, setCurrentStep] = useState(1);
+  const { currentStep, formData, setStep: setCurrentStep, setFormData, clearDraft } = useAnalysisDraftStore();
   const [approved, setApproved] = useState(false);
-  const [formData, setFormData] = useState<AnalysisFormData>(createEmptyAnalysis);
   
   const { createAnalysis, isCreating } = useAnalyses();
 
   const handleChange = useCallback((updates: Partial<AnalysisFormData>) => {
-    setFormData((prev) => ({ ...prev, ...updates }));
-  }, []);
+    setFormData(updates);
+  }, [setFormData]);
 
   const handleApprove = useCallback(async () => {
     try {
-      await createAnalysis({ formData, status: 'aprovado' });
+      if (!formData.id) {
+        const result = await createAnalysis({ formData, status: 'aprovado' });
+        setFormData({ id: result.id });
+      }
       setApproved(true);
       setCurrentStep(5);
       toast.success("Análise salva e aprovada com sucesso!");
     } catch (error: any) {
       toast.error("Erro ao salvar análise: " + error.message);
     }
-  }, [formData, createAnalysis]);
+  }, [formData, createAnalysis, setFormData]);
 
   const handleSaveDraft = useCallback(async () => {
     try {
-      await createAnalysis({ formData, status: 'rascunho' });
+      if (!formData.id) {
+        await createAnalysis({ formData, status: 'rascunho' });
+      }
       toast.success("Rascunho salvo com sucesso", {
         description: `${formData.codigo} — Etapa ${currentStep} de 5`,
       });
+      clearDraft();
       navigate("/analyses");
     } catch (error: any) {
       toast.error("Erro ao salvar rascunho: " + error.message);
@@ -89,7 +95,10 @@ const NewAnalysisPage = () => {
             variant="ghost"
             size="sm"
             className="gap-1.5 text-muted-foreground hover:text-foreground"
-            onClick={() => navigate("/analyses")}
+            onClick={() => {
+              clearDraft();
+              navigate("/analyses");
+            }}
           >
             <X className="h-3.5 w-3.5" />
             CANCELAR
@@ -156,7 +165,7 @@ const NewAnalysisPage = () => {
             {currentStep > 1 && (
               <Button
                 variant="outline"
-                onClick={() => setCurrentStep((s) => Math.max(1, s - 1))}
+                onClick={() => setCurrentStep(Math.max(1, currentStep - 1))}
                 className="gap-2"
               >
                 <ArrowLeft className="h-4 w-4" />
@@ -166,7 +175,7 @@ const NewAnalysisPage = () => {
 
             {currentStep < 4 && (
               <Button
-                onClick={() => setCurrentStep((s) => s + 1)}
+                onClick={() => setCurrentStep(currentStep + 1)}
                 disabled={!canProceed()}
                 className="gap-2 font-bold"
               >

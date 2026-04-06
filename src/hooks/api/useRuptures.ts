@@ -188,6 +188,74 @@ export function useRuptures() {
     }
   });
 
+  const finalizeWithCurrentTestMutation = useMutation({
+    mutationFn: async ({
+      scheduleId,
+      batchId,
+      dataExecutada,
+      motivo,
+      testData
+    }: {
+      scheduleId: string;
+      batchId: string;
+      dataExecutada: string;
+      motivo: string;
+      testData: {
+        tipo_amostra: string;
+        meta_mpa: number;
+        media_mpa: number;
+        min_mpa: number;
+        max_mpa: number;
+        desvio_padrao: number;
+        status: string;
+        notas?: string;
+        samples: { numero: number; forca_kn: number; tensao_mpa: number; status: string }[];
+      };
+    }) => {
+      // 1. Marcar schedule atual como concluído
+      const { error: sError } = await supabase
+        .from("rupture_schedules")
+        .update({ status: "concluido", data_executada: dataExecutada, responsavel_id: profile?.id, responsavel_nome: profile?.nome })
+        .eq("id", scheduleId);
+      if (sError) throw sError;
+
+      // 2. Criar o teste de rompimento
+      const { data: test, error: tError } = await supabase
+        .from("rupture_tests")
+        .insert([{ schedule_id: scheduleId, tipo_amostra: testData.tipo_amostra, meta_mpa: testData.meta_mpa, media_mpa: testData.media_mpa, min_mpa: testData.min_mpa, max_mpa: testData.max_mpa, desvio_padrao: testData.desvio_padrao, status: testData.status, notas: testData.notas }])
+        .select().single();
+      if (tError) throw tError;
+
+      // 3. Inserir amostras
+      const { error: smError } = await supabase
+        .from("rupture_samples")
+        .insert(testData.samples.map(s => ({ test_id: test.id, numero: s.numero, forca_kn: s.forca_kn, tensao_mpa: s.tensao_mpa, status: s.status, registrado_por: profile?.id })));
+      if (smError) throw smError;
+
+      // 4. Ignorar todos os demais agendamentos pendentes do mesmo lote
+      const { error: ignError } = await supabase
+        .from("rupture_schedules")
+        .update({ status: "ignorado" })
+        .eq("batch_id", batchId)
+        .neq("id", scheduleId)
+        .in("status", ["pendente", "atrasado", "em_andamento"]);
+      if (ignError) throw ignError;
+
+      // 5. Atualizar status do lote
+      const { error: bError } = await supabase
+        .from("production_batches")
+        .update({ status: "liberado_antecipado", notas: `Finalizado no dia atual: ${motivo}` })
+        .eq("id", batchId);
+      if (bError) throw bError;
+
+      return { scheduleId, test };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["rupture_schedules", orgId] });
+      queryClient.invalidateQueries({ queryKey: ["production_batches", orgId] });
+    }
+  });
+
   const releaseEarlyMutation = useMutation({
     mutationFn: async ({ batchId, motivo }: { batchId: string; motivo: string }) => {
       // 1. Marcar todos os agendamentos pendentes como 'ignorado'
@@ -224,6 +292,8 @@ export function useRuptures() {
     getScheduleDetail,
     completeRupture: completeRuptureMutation.mutateAsync,
     isCompleting: completeRuptureMutation.isPending,
+    finalizeWithCurrentTest: finalizeWithCurrentTestMutation.mutateAsync,
+    isFinalizing: finalizeWithCurrentTestMutation.isPending,
     releaseEarly: releaseEarlyMutation.mutateAsync,
     isReleasing: releaseEarlyMutation.isPending
   };

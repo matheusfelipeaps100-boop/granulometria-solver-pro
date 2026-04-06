@@ -41,6 +41,7 @@ const emptyForm = {
   tipo: "",
   fornecedor: "",
   mf: "",
+  custo_tonelada: "",
   ativo: true,
 };
 
@@ -57,6 +58,7 @@ export function MaterialModal({ open, onOpenChange, editId }: MaterialModalProps
           tipo: m.tipo,
           fornecedor: m.fornecedor || "",
           mf: m.mf ? m.mf.toString().replace('.', ',') : "",
+          custo_tonelada: m.custo_tonelada ? m.custo_tonelada.toString().replace('.', ',') : "",
           ativo: m.ativo,
         });
       }
@@ -74,11 +76,14 @@ export function MaterialModal({ open, onOpenChange, editId }: MaterialModalProps
     try {
       // Supabase numeric format aceita ponto em vez de vírgula, e null se estiver vazio
       const mfVal = form.mf ? parseFloat(form.mf.replace(',', '.')) : null;
+      const custoVal = form.custo_tonelada ? parseFloat(form.custo_tonelada.replace(',', '.')) : null;
       
       const payload = {
         ...form,
         mf: mfVal,
-        fornecedor: form.fornecedor || null
+        custo_tonelada: custoVal,
+        fornecedor: form.fornecedor || null,
+        densidade: null
       };
 
       if (editId) {
@@ -145,6 +150,15 @@ export function MaterialModal({ open, onOpenChange, editId }: MaterialModalProps
               value={form.mf}
               onChange={(e) => setForm({ ...form, mf: e.target.value })}
               placeholder="Ex: 2,699"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Preço de Custo (R$ / ton)</Label>
+            <Input
+              value={form.custo_tonelada}
+              onChange={(e) => setForm({ ...form, custo_tonelada: e.target.value })}
+              placeholder="Ex: 85,50"
             />
           </div>
 

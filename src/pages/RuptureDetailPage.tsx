@@ -8,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, FlaskConical, CheckCircle2, XCircle, Save } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ArrowLeft, FlaskConical, CheckCircle2, XCircle, Save, Flag, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -37,7 +38,7 @@ const RuptureDetailPage = () => {
   const navigate = useNavigate();
   const { profile } = useAuth();
   const { profiles } = useProfiles();
-  const { completeRupture, isCompleting } = useRuptures();
+  const { completeRupture, isCompleting, finalizeWithCurrentTest, isFinalizing } = useRuptures();
   const { data: scheduleData, isLoading } = useScheduleDetail(scheduleId);
 
   const found = useMemo(() => {
@@ -53,6 +54,8 @@ const RuptureDetailPage = () => {
   const [responsavel, setResponsavel] = useState("");
   const [observacoes, setObservacoes] = useState("");
   const [saving, setSaving] = useState(false);
+  const [finalizeModalOpen, setFinalizeModalOpen] = useState(false);
+  const [finalizeMotivo, setFinalizeMotivo] = useState("");
 
   // 3 samples per test type
   const [samples, setSamples] = useState<Record<TipoAmostra, SampleInput[]>>({
@@ -137,6 +140,65 @@ const RuptureDetailPage = () => {
   const formatDate = (dateStr: string) => {
     const [year, month, day] = dateStr.split("-");
     return `${day}/${month}/${year}`;
+  };
+
+  const handleFinalize = async () => {
+    if (!finalizeMotivo.trim()) {
+      toast.error("Informe o motivo técnico da finalização");
+      return;
+    }
+    if (!responsavel) {
+      toast.error("Selecione o responsável pelo ensaio");
+      return;
+    }
+
+    const tipoComAmostra = TIPOS_AMOSTRA.find((tipo) =>
+      samples[tipo].some((s) => s.forca_kn && parseFloat(s.forca_kn) > 0)
+    );
+    if (!tipoComAmostra) {
+      toast.error("Informe ao menos uma amostra com força (kN)");
+      return;
+    }
+
+    const testStats = statsPerTipo[tipoComAmostra];
+    if (!testStats) return;
+
+    const batchId = (found?.batch as any)?.id;
+    if (!batchId) { toast.error("Lote não identificado"); return; }
+
+    try {
+      await finalizeWithCurrentTest({
+        scheduleId: scheduleId!,
+        batchId,
+        dataExecutada: dataReal,
+        motivo: finalizeMotivo,
+        testData: {
+          tipo_amostra: tipoComAmostra,
+          meta_mpa: found?.analysis?.resistencia_prevista ?? 0,
+          media_mpa: testStats.media,
+          min_mpa: testStats.minimo,
+          max_mpa: testStats.maximo,
+          desvio_padrao: testStats.desvio_padrao,
+          status: testStats.status,
+          notas: observacoes,
+          samples: samples[tipoComAmostra].map((s, idx) => ({
+            numero: idx + 1,
+            forca_kn: parseFloat(s.forca_kn),
+            tensao_mpa: calcTensao(parseFloat(s.forca_kn), areas[tipoComAmostra]),
+            status: "concluido"
+          }))
+        }
+      });
+
+      toast.success("Análise finalizada com sucesso!", {
+        description: `${found?.batch.batch_code} — ${found?.schedule.idade_dias} dias — Demais ensaios ignorados`,
+      });
+      setFinalizeModalOpen(false);
+      navigate("/ruptures");
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao finalizar análise");
+    }
   };
 
   const handleSave = async () => {
@@ -404,15 +466,84 @@ const RuptureDetailPage = () => {
       </div>
 
       {/* Actions */}
-      <div className="flex justify-end gap-3">
-        <Button variant="outline" onClick={() => navigate("/ruptures")} disabled={isCompleting}>
+      <div className="flex flex-col sm:flex-row justify-end gap-3">
+        <Button variant="outline" onClick={() => navigate("/ruptures")} disabled={isCompleting || isFinalizing}>
           Cancelar
         </Button>
-        <Button onClick={handleSave} disabled={isCompleting} className="gap-2">
+        <Button onClick={handleSave} disabled={isCompleting || isFinalizing} className="gap-2">
           <Save className="h-4 w-4" />
-          {isCompleting ? "Salvando..." : "Salvar Rompimento"}
+          {isCompleting ? "Salvando..." : "Salvar Ensaio"}
+        </Button>
+        <Button
+          onClick={() => setFinalizeModalOpen(true)}
+          disabled={isCompleting || isFinalizing}
+          variant="outline"
+          className="gap-2 border-amber-500 text-amber-700 hover:bg-amber-50 font-bold"
+        >
+          <Flag className="h-4 w-4" />
+          Finalizar Análise Aqui
         </Button>
       </div>
+
+      {/* Modal Finalização Antecipada */}
+      <Dialog open={finalizeModalOpen} onOpenChange={setFinalizeModalOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-600">
+              <Flag className="h-5 w-5" /> Finalizar Análise com Este Ensaio
+            </DialogTitle>
+            <DialogDescription>
+              Os ensaios futuros deste lote serão ignorados e o ciclo será encerrado com os resultados do {found?.schedule.idade_dias}º dia.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="bg-amber-50 border border-amber-200 p-3 rounded-md flex items-start gap-3 mt-2">
+            <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+            <div className="text-sm text-amber-800">
+              <p className="font-bold">Ação irreversível</p>
+              <p className="mt-1 leading-snug">
+                Os ensaios seguintes serão marcados como <strong>ignorados</strong> e este lote constará como <strong>liberado antecipadamente</strong> em todos os relatórios.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="text-muted-foreground text-xs">Lote</p>
+                <p className="font-black">{found?.batch.batch_code}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground text-xs">Ensaio Atual</p>
+                <p className="font-bold">{found?.schedule.idade_dias} dias</p>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Motivo Técnico da Finalização *</Label>
+              <Textarea
+                placeholder="Ex: Resultado do 3º dia ultrapassou 110% do fck previsto. Aprovado tecnicamente para finalizar o ciclo."
+                value={finalizeMotivo}
+                onChange={(e) => setFinalizeMotivo(e.target.value)}
+                rows={4}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFinalizeModalOpen(false)} disabled={isFinalizing}>
+              Cancelar
+            </Button>
+            <Button
+              className="bg-amber-600 hover:bg-amber-700"
+              onClick={handleFinalize}
+              disabled={isFinalizing}
+            >
+              {isFinalizing ? "Finalizando..." : "Confirmar Finalização"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

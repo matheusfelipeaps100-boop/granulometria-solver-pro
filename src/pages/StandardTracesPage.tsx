@@ -6,6 +6,7 @@ import { Plus, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import { hasActionPermission } from "@/lib/permissions";
+import { useAppStore } from "@/store/useAppStore";
 
 const mockTraces = [
   { nome: "DNA Bloco Estrutural 14x19x39 4MPa", tipo: "bloco_estrutural", resistencia: "4,0 MPa", mf: "3,483", ativo: true },
@@ -17,10 +18,11 @@ const mockTraces = [
 const StandardTracesPage = () => {
   const { profile } = useAuth();
   const currentUserRole = profile?.role ?? "LABORATORIO";
+  const customDNAs = useAppStore((state) => state.customDNAs) || [];
   
   const canCreate = hasActionPermission(currentUserRole, "material:create");
 
-  const allTraces = mockTraces;
+  const allTraces = [...customDNAs, ...mockTraces];
 
   return (
     <div className="space-y-6 animate-fade-in">

@@ -33,11 +33,11 @@ type NavItem = { title: string; url: string; icon: React.ElementType; allowedRol
 
 const mainItems: NavItem[] = [
   { title: "Métricas", url: "/", icon: LayoutDashboard, allowedRoles: ["ADMIN", "PRODUCAO", "VENDAS", "LABORATORIO"] },
-  { title: "Produção", url: "/production", icon: Factory, allowedRoles: ["ADMIN", "PRODUCAO", "VENDAS"] },
   { title: "Análises", url: "/analyses", icon: FlaskConical, allowedRoles: ["ADMIN", "VENDAS", "LABORATORIO"] },
+  { title: "Produção", url: "/production", icon: Factory, allowedRoles: ["ADMIN", "PRODUCAO", "VENDAS"] },
+  { title: "Rompimentos", url: "/ruptures", icon: Hammer, allowedRoles: ["ADMIN", "VENDAS", "LABORATORIO"] },
   { title: "Traços Padrão", url: "/standard-traces", icon: Boxes, allowedRoles: ["ADMIN", "LABORATORIO"] },
   { title: "Materiais", url: "/materials", icon: Package, allowedRoles: ["ADMIN", "LABORATORIO"] },
-  { title: "Rompimentos", url: "/ruptures", icon: Hammer, allowedRoles: ["ADMIN", "VENDAS", "LABORATORIO"] },
   { title: "Relatórios", url: "/reports", icon: FileText, allowedRoles: ["ADMIN", "VENDAS", "LABORATORIO"] },
 ];
 

@@ -51,7 +51,7 @@ export interface DosageInput {
   consumo_alvo_m3: number;
   volume_m3: number; // Volume em metros cúbicos
   densidade_cimento: number; // g/cm3 ou kg/dm3
-  proporcoes_materiais: Array<{ nome: string; proporcao_pct: number; densidade?: number }>;
+  proporcoes_materiais: Array<{ nome: string; proporcao_kg: number; proporcao_pct: number; densidade?: number }>;
   aditivos_ml: number;
 }
 
@@ -250,44 +250,49 @@ export function calcRuptureStats(
  */
 export function calcDosage(input: DosageInput): DosageResult {
   const c = input.consumo_alvo_m3 || 0;
-  const r = input.relacao_cimento;
   const ac = input.relacao_ac;
-
-  // Massa por m3 baseada diretamente no consumo alvo
-  const agua_m3 = c * ac;
-  const massa_agregados_m3 = c * r;
-  const massa_total_m3 =
-    c + massa_agregados_m3 + agua_m3 + (input.aditivos_ml / 1000);
-
-  // Conversão para batelada
   const volBatch = input.volume_m3;
+
+  // Cimento: definido pelo consumo alvo e volume da batelada
+  const consumo_cimento_m3 = c;
   const consumo_cimento_batelada = c * volBatch;
-  const agua_batelada = agua_m3 * volBatch;
-  const massa_agregados_batelada = massa_agregados_m3 * volBatch;
-  const massa_total_batelada = massa_total_m3 * volBatch;
+
+  // Água
+  const agua_m3 = c * ac;
+  const agua_batelada = consumo_cimento_batelada * ac;
+
+  // Agregados: usa proporcao_kg diretamente (absoluto, independente)
+  const materiais_batelada = input.proporcoes_materiais.map((m) => ({
+    nome: m.nome,
+    kg: Math.round(m.proporcao_kg * 10) / 10,
+  }));
+
+  const totalAggKg = materiais_batelada.reduce((s, m) => s + m.kg, 0);
 
   const materiais_m3 = input.proporcoes_materiais.map((m) => ({
     nome: m.nome,
-    kg: Math.round(massa_agregados_m3 * m.proporcao_pct * 10) / 10,
+    kg: volBatch > 0 ? Math.round((m.proporcao_kg / volBatch) * 10) / 10 : 0,
   }));
 
-  const materiais_batelada = input.proporcoes_materiais.map((m) => ({
-    nome: m.nome,
-    kg: Math.round(massa_agregados_batelada * m.proporcao_pct * 10) / 10,
-  }));
-
-  // Densidade Efetiva (kg/dm³ ou t/m³)
+  // Totais
+  const massa_total_batelada = consumo_cimento_batelada + totalAggKg + agua_batelada + (input.aditivos_ml / 1000);
+  const massa_total_m3 = volBatch > 0 ? massa_total_batelada / volBatch : 0;
   const densidade_efetiva = massa_total_m3 / 1000;
 
+  // Traço calculado: soma_agregados / cimento_batelada
+  const relacao_calculada = consumo_cimento_batelada > 0
+    ? totalAggKg / consumo_cimento_batelada
+    : input.relacao_cimento;
+
   return {
-    consumo_cimento_m3: Math.round(c * 10) / 10,
+    consumo_cimento_m3: Math.round(consumo_cimento_m3 * 10) / 10,
     consumo_cimento_batelada: Math.round(consumo_cimento_batelada * 10) / 10,
     densidade_efetiva: Math.round(densidade_efetiva * 100) / 100,
     massa_total_m3: Math.round(massa_total_m3 * 10) / 10,
     massa_total_batelada: Math.round(massa_total_batelada * 10) / 10,
     agua_m3: Math.round(agua_m3 * 10) / 10,
     agua_batelada: Math.round(agua_batelada * 10) / 10,
-    traco_final: `1:${r.toFixed(1)}`,
+    traco_final: `1:${relacao_calculada.toFixed(1)}`,
     materiais_m3,
     materiais_batelada,
   };

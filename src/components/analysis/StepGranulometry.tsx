@@ -55,6 +55,7 @@ export function StepGranulometry({ data, onChange }: StepGranulometryProps) {
   const [unidadeAtiva, setUnidadeAtiva] = useState<"pct" | "kg">("pct");
   const [isBancoOpen, setIsBancoOpen] = useState(false);
   const [isDnaOpen, setIsDnaOpen] = useState(false);
+  const [bancoDraft, setBancoDraft] = useState<string[]>([]); // Staging array para modal de materiais
 
   // Estado local temporário para os inputs da tabela.
   // Chave: "mi-sieveId". Permite apagar, digitar decimais e vírgula
@@ -68,6 +69,7 @@ export function StepGranulometry({ data, onChange }: StepGranulometryProps) {
     return dbMaterials.filter(m => m.ativo).map(mat => ({
       material_id: mat.id,
       nome: mat.nome,
+      proporcao_kg: 0,
       proporcao_pct: 0,
       densidade: mat.densidade || undefined,
       gradations: PENEIRAS_PADRAO.map(p => ({
@@ -78,24 +80,38 @@ export function StepGranulometry({ data, onChange }: StepGranulometryProps) {
     }));
   }, [dbMaterials]);
 
-
   const materials = data.materiais_selecionados || [];
+
+  // KG total dos agregados na batelada
+  const totalKgMistura = useMemo(
+    () => materials.reduce((sum, m) => sum + (m.proporcao_kg ?? 0), 0),
+    [materials]
+  );
+
+  // proporcao_pct derivado de proporcao_kg — usado na curva granulométrica
+  const materialsWithPct = useMemo(() => {
+    const total = totalKgMistura || 1;
+    return materials.map(m => ({
+      ...m,
+      proporcao_pct: (m.proporcao_kg ?? 0) / total,
+    }));
+  }, [materials, totalKgMistura]);
 
   const dna = DNAS_PADRAO.find((d) => d.id === data.dna_selecionado) || DNAS_PADRAO[0];
   const limits = dna?.limites;
 
-  // Inicializa limites e material vazio se for a primeira vez
+  // Inicializa limites se for a primeira vez
   if (data.limites_curva?.length === 0 && dna) {
-    onChange({ 
+    onChange({
       materiais_selecionados: [],
       limites_curva: dna?.limites || []
     });
   }
 
-  // Curva combinada
+  // Curva combinada — usa proporcao_pct derivado
   const curveResults = useMemo(
-    () => calcCombinedCurve(materials, limits),
-    [materials, limits]
+    () => calcCombinedCurve(materialsWithPct, limits),
+    [materialsWithPct, limits]
   );
 
   const curvaStatus = useMemo(
@@ -112,19 +128,22 @@ export function StepGranulometry({ data, onChange }: StepGranulometryProps) {
     [materials]
   );
 
-  // MF combinado
+  // MF combinado — ponderado pelo proporcao_kg
   const mfCombinado = useMemo(() => {
-    const totalProp = materials.reduce((s, m) => s + m.proporcao_pct, 0);
-    if (totalProp === 0) return 0;
+    if (totalKgMistura === 0) return 0;
     return materials.reduce((sum, m, i) => {
-      return sum + (mfPerMaterial[i].mf * m.proporcao_pct) / totalProp;
+      return sum + (mfPerMaterial[i].mf * (m.proporcao_kg ?? 0)) / totalKgMistura;
     }, 0);
-  }, [materials, mfPerMaterial]);
+  }, [materials, mfPerMaterial, totalKgMistura]);
 
-  // Peso total da mistura
-  const pesoTotalMistura = useMemo(() => {
-    return materials.reduce((sum, m) => sum + (m.proporcao_pct * 100), 0);
-  }, [materials]);
+  // Custo base ponderado dos agregados (R$ / ton de mistura agregada)
+  const custoBaseAgregadosTon = useMemo(() => {
+    if (totalKgMistura === 0) return 0;
+    return materials.reduce((sum, m) => {
+      const custo = m.custo_tonelada || 0;
+      return sum + (custo * ((m.proporcao_kg ?? 0) / totalKgMistura));
+    }, 0);
+  }, [materials, totalKgMistura]);
 
   const handleMassChange = useCallback(
     (materialIndex: number, sieveId: number, value: number) => {
@@ -143,11 +162,10 @@ export function StepGranulometry({ data, onChange }: StepGranulometryProps) {
   );
 
   const handleProportionChange = useCallback(
-    (materialIndex: number, newValue: number) => {
-      const updated = materials.map((m, i) => {
-        if (i === materialIndex) return { ...m, proporcao_pct: newValue / 100 };
-        return m;
-      });
+    (materialIndex: number, newKg: number) => {
+      const updated = materials.map((m, i) =>
+        i === materialIndex ? { ...m, proporcao_kg: newKg } : m
+      );
       onChange({ materiais_selecionados: updated });
     },
     [materials, onChange]
@@ -172,23 +190,31 @@ export function StepGranulometry({ data, onChange }: StepGranulometryProps) {
     [materials, onChange]
   );
 
-  const handleSelectMaterial = useCallback((material: AnalysisMaterial) => {
-    const isAlreadyAdded = materials.some(m => m.material_id === material.material_id);
-    if (isAlreadyAdded) {
-      toast.warning(`${material.nome} já está na mistura.`);
-      return;
+  const handleConfirmBanco = useCallback(() => {
+    // Pegar quem foi selecionado no draft que ainda não existe na mistura
+    const novosMateriais = materiaisDisponiveis
+      .filter((mat) => bancoDraft.includes(mat.material_id))
+      .filter((mat) => !materials.some((m) => m.material_id === mat.material_id))
+      .map((mat) => ({
+        ...mat,
+        custo_tonelada: mat.custo_tonelada || 0,
+        proporcao_kg: 0,
+        proporcao_pct: 0,
+      }));
+
+    if (novosMateriais.length > 0) {
+      onChange({ materiais_selecionados: [...materials, ...novosMateriais] });
+      toast.success(`${novosMateriais.length} material(ais) adicionado(s) com sucesso!`);
     }
     
-    // Adiciona material com proporção 0 para não quebrar a soma de 100% imediatamente
-    const newMaterial: AnalysisMaterial = {
-      ...material,
-      proporcao_pct: 0, 
-    };
-    
-    onChange({ materiais_selecionados: [...materials, newMaterial] });
-    toast.success(`${material.nome} adicionado à tabela.`);
     setIsBancoOpen(false);
-  }, [materials, onChange]);
+  }, [bancoDraft, materials, materiaisDisponiveis, onChange]);
+
+  const toggleBancoDraft = useCallback((id: string) => {
+    setBancoDraft(prev => 
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  }, []);
 
   const handleSelectDna = useCallback((dnaId: string) => {
     const selectedDna = DNAS_PADRAO.find(d => d.id === dnaId);
@@ -201,66 +227,66 @@ export function StepGranulometry({ data, onChange }: StepGranulometryProps) {
   }, [onChange]);
 
   const handleNormalize = useCallback(() => {
-    const total = materials.reduce((sum, m) => sum + m.proporcao_pct, 0);
+    const total = materials.reduce((sum, m) => sum + (m.proporcao_kg ?? 0), 0);
     if (total === 0) return;
+    const scale = 550 / total;
     const updated = materials.map((m) => ({
       ...m,
-      proporcao_pct: m.proporcao_pct / total,
+      proporcao_kg: Math.round((m.proporcao_kg ?? 0) * scale),
     }));
     onChange({ materiais_selecionados: updated });
-    toast.success("Mistura normalizada com sucesso!");
+    toast.success("Mistura normalizada para 550 kg!");
   }, [materials, onChange]);
 
   const handleOptimize = useCallback(() => {
     if (!limits || materials.length === 0) return;
 
-    let bestProportions = materials.map((m) => m.proporcao_pct);
+    // Otimizador trabalha em frações (0-1) e converte para kg ao final
+    const toFracs = (mats: typeof materials) => {
+      const total = mats.reduce((s, m) => s + (m.proporcao_kg ?? 0), 0) || 1;
+      return mats.map(m => (m.proporcao_kg ?? 0) / total);
+    };
+
+    let bestFracs = toFracs(materials);
     let bestDeviation = Infinity;
 
-    const getDeviation = (props: number[]) => {
-      const testMaterials = materials.map((m, i) => ({ ...m, proporcao_pct: props[i] }));
+    const getDeviation = (fracs: number[]) => {
+      const testMaterials = materials.map((m, i) => ({ ...m, proporcao_pct: fracs[i] }));
       const res = calcCombinedCurve(testMaterials, limits);
       return res.reduce((sum, r) => sum + (r.desvio_absoluto || 0), 0);
     };
 
-    bestDeviation = getDeviation(bestProportions);
+    bestDeviation = getDeviation(bestFracs);
 
-    // Monte Carlo search simples
+    // Monte Carlo
     for (let i = 0; i < 2000; i++) {
-      const randomProps = materials.map(() => Math.random());
-      const sum = randomProps.reduce((a, b) => a + b, 0);
-      const normalizedProps = randomProps.map(p => p / sum);
-
-      const dev = getDeviation(normalizedProps);
-      if (dev < bestDeviation) {
-        bestDeviation = dev;
-        bestProportions = normalizedProps;
-      }
+      const rand = materials.map(() => Math.random());
+      const randSum = rand.reduce((a, b) => a + b, 0);
+      const fracs = rand.map(p => p / randSum);
+      const dev = getDeviation(fracs);
+      if (dev < bestDeviation) { bestDeviation = dev; bestFracs = fracs; }
     }
 
-    // Hill climbing refinement
-    let currentProps = [...bestProportions];
+    // Hill climbing
+    let current = [...bestFracs];
     for (let step = 0; step < 500; step++) {
       const idx1 = Math.floor(Math.random() * materials.length);
       const idx2 = Math.floor(Math.random() * materials.length);
       if (idx1 === idx2) continue;
-
       const delta = (Math.random() * 0.05) - 0.025;
-
-      const newProps = [...currentProps];
-      newProps[idx1] += delta;
-      newProps[idx2] -= delta;
-
-      if (newProps[idx1] < 0 || newProps[idx1] > 1 || newProps[idx2] < 0 || newProps[idx2] > 1) continue;
-
-      const newDev = getDeviation(newProps);
-      if (newDev < bestDeviation) {
-        bestDeviation = newDev;
-        currentProps = newProps;
-      }
+      const next = [...current];
+      next[idx1] += delta;
+      next[idx2] -= delta;
+      if (next[idx1] < 0 || next[idx2] < 0) continue;
+      const dev = getDeviation(next);
+      if (dev < bestDeviation) { bestDeviation = dev; current = next; }
     }
 
-    const updated = materials.map((m, i) => ({ ...m, proporcao_pct: currentProps[i] }));
+    // Converte frações para kg (referência 550 kg)
+    const updated = materials.map((m, i) => ({
+      ...m,
+      proporcao_kg: Math.round(current[i] * 550),
+    }));
     onChange({ materiais_selecionados: updated });
     toast.success("Traço otimizado (Centro da Faixa)!");
   }, [materials, limits, onChange]);
@@ -383,7 +409,10 @@ export function StepGranulometry({ data, onChange }: StepGranulometryProps) {
                 variant="outline" 
                 size="sm" 
                 className="h-7 text-xs gap-1"
-                onClick={() => setIsBancoOpen(true)}
+                onClick={() => {
+                  setBancoDraft(materials.map(m => m.material_id));
+                  setIsBancoOpen(true);
+                }}
               >
                 <Database className="h-3 w-3" />
                 BANCO DE AGREGADOS
@@ -419,7 +448,7 @@ export function StepGranulometry({ data, onChange }: StepGranulometryProps) {
                               MF: {mfPerMaterial[mi]?.mf.toFixed(2)}
                             </span>
                             <span className="text-[9px] font-bold border-l pl-1.5 text-muted-foreground border-muted-foreground/30">
-                              {(m.proporcao_pct * 100).toFixed(1)}%
+                              {totalKgMistura > 0 ? ((m.proporcao_kg ?? 0) / totalKgMistura * 100).toFixed(1) : "0.0"}%
                             </span>
                           </div>
                         </div>
@@ -541,13 +570,13 @@ export function StepGranulometry({ data, onChange }: StepGranulometryProps) {
                 <Badge
                   className={cn(
                     "px-3 py-1 text-[11px] uppercase tracking-widest font-black rounded-full flex items-center gap-1.5",
-                    Math.abs(pesoTotalMistura - 100) < 1
+                    Math.abs(totalKgMistura - 550) < 10
                       ? "bg-success hover:bg-success/90 text-white"
                       : "bg-warning hover:bg-warning/90 text-white"
                   )}
                 >
-                  {pesoTotalMistura.toFixed(1)} %
-                  {Math.abs(pesoTotalMistura - 100) < 1 ? <CheckCircle2 className="w-3.5 h-3.5" /> : <AlertTriangle className="w-3.5 h-3.5" />}
+                  {totalKgMistura.toFixed(0)} kg
+                  {Math.abs(totalKgMistura - 550) < 10 ? <CheckCircle2 className="w-3.5 h-3.5" /> : <AlertTriangle className="w-3.5 h-3.5" />}
                 </Badge>
               </div>
             </CardHeader>
@@ -576,8 +605,11 @@ export function StepGranulometry({ data, onChange }: StepGranulometryProps) {
                         </p>
                         <p className="text-sm font-black text-destructive tracking-tight">
                           {unidadeAtiva === "pct"
-                            ? `${(m.proporcao_pct * 100).toFixed(1)}%`
-                            : `${(m.proporcao_pct * 550).toFixed(0)} kg`}
+                            ? `${totalKgMistura > 0 ? ((m.proporcao_kg ?? 0) / totalKgMistura * 100).toFixed(1) : "0.0"}%`
+                            : `${(m.proporcao_kg ?? 0).toFixed(0)} kg`}
+                        </p>
+                        <p className="text-[9px] font-bold text-success/80 mt-1 uppercase">
+                          {m.custo_tonelada ? `R$ ${m.custo_tonelada.toFixed(2)}/ton` : "Sem custo def."}
                         </p>
                       </div>
                     </div>
@@ -602,10 +634,10 @@ export function StepGranulometry({ data, onChange }: StepGranulometryProps) {
                     {/* Slider */}
                     <div className="px-1">
                       <Slider
-                        defaultValue={[m.proporcao_pct * 100]}
-                        max={100}
+                        min={0}
+                        max={550}
                         step={1}
-                        value={[m.proporcao_pct * 100]}
+                        value={[m.proporcao_kg ?? 0]}
                         onValueChange={(vals) => handleProportionChange(i, vals[0])}
                         className="cursor-grab active:cursor-grabbing"
                       />
@@ -666,6 +698,18 @@ export function StepGranulometry({ data, onChange }: StepGranulometryProps) {
                   </div>
                 )}
 
+                {/* Indicador de Custo Parcial Agregados */}
+                <div className="flex justify-between items-center bg-muted/20 border p-3 rounded-lg mt-2 relative overflow-hidden">
+                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-success"></div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Custo Agregados Base</p>
+                    <p className="text-sm font-bold text-success">R$ {custoBaseAgregadosTon.toFixed(2)}</p>
+                  </div>
+                  <Badge variant="outline" className="text-[9px] font-black border-success/30 text-success bg-success/5 uppercase font-mono">
+                    POR TON
+                  </Badge>
+                </div>
+
                 {/* Gráfico */}
                 <div className="mt-2 border rounded-xl overflow-hidden bg-white/50 relative h-[320px]">
                   <div className="absolute inset-0 pt-4 pb-2">
@@ -679,7 +723,13 @@ export function StepGranulometry({ data, onChange }: StepGranulometryProps) {
       </div>
 
       {/* MODAL BANCO DE AGREGADOS */}
-      <Dialog open={isBancoOpen} onOpenChange={setIsBancoOpen}>
+      <Dialog 
+        open={isBancoOpen} 
+        onOpenChange={(v) => {
+          if (!v) setBancoDraft([]); // Limpa ao fechar
+          setIsBancoOpen(v);
+        }}
+      >
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle className="text-xl font-black uppercase tracking-tighter">BANCO DE AGREGADOS</DialogTitle>
@@ -688,38 +738,71 @@ export function StepGranulometry({ data, onChange }: StepGranulometryProps) {
             </DialogDescription>
           </DialogHeader>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4 max-h-[50vh] overflow-y-auto p-1">
             {materiaisDisponiveis.map((mat) => {
-              const isAdded = materials.some(m => m.material_id === mat.material_id);
+              const isAlreadyInMixture = materials.some(m => m.material_id === mat.material_id);
+              const isSelectedInDraft = bancoDraft.includes(mat.material_id);
+
               return (
                 <div 
                   key={mat.material_id}
                   className={cn(
-                    "flex items-center justify-between p-4 rounded-xl border transition-all",
-                    isAdded ? "bg-muted/50 border-primary/20 opacity-60" : "bg-white border-border hover:border-primary hover:shadow-md cursor-pointer"
+                    "flex items-center justify-between p-4 rounded-xl border-2 transition-all cursor-pointer",
+                    isAlreadyInMixture 
+                      ? "bg-muted/50 border-transparent opacity-60 cursor-not-allowed" // Já está na mistura
+                      : isSelectedInDraft
+                        ? "bg-primary/5 border-primary shadow-sm" // Selecionado agora
+                        : "bg-white border-border hover:border-primary/50 hover:shadow-md" // Disponível
                   )}
-                  onClick={() => !isAdded && handleSelectMaterial(mat)}
+                  onClick={() => {
+                    if (!isAlreadyInMixture) {
+                      toggleBancoDraft(mat.material_id);
+                    }
+                  }}
                 >
                   <div className="flex items-center gap-3">
                     <div className={cn(
-                      "w-10 h-10 rounded-full flex items-center justify-center shadow-sm",
-                      isAdded ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary"
+                      "w-10 h-10 rounded-full flex items-center justify-center transition-all",
+                      isAlreadyInMixture 
+                        ? "bg-muted text-muted-foreground" 
+                        : isSelectedInDraft 
+                          ? "bg-primary text-white scale-110 shadow-md"
+                          : "bg-primary/10 text-primary"
                     )}>
                       <Database className="w-5 h-5" />
                     </div>
                     <div>
-                      <p className="text-xs font-black uppercase tracking-tight">{mat.nome}</p>
+                      <p className={cn("text-xs font-black uppercase tracking-tight", isSelectedInDraft && "text-primary")}>
+                        {mat.nome}
+                      </p>
                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Insumo Base</p>
                     </div>
                   </div>
-                  {isAdded ? (
-                    <Badge variant="outline" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">ADICIONADO</Badge>
+                  
+                  {isAlreadyInMixture ? (
+                    <Badge variant="outline" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground border-muted-foreground/30">NA MISTURA</Badge>
+                  ) : isSelectedInDraft ? (
+                    <div className="bg-primary text-white p-1 rounded-full shadow-sm">
+                      <CheckCircle2 className="w-4 h-4" />
+                    </div>
                   ) : (
-                    <Button size="sm" className="h-8 rounded-full text-[10px] font-black px-4">ADICIONAR</Button>
+                    <div className="w-4 h-4 rounded-full border-2 border-muted-foreground/30" />
                   )}
                 </div>
               );
             })}
+          </div>
+
+          <div className="flex justify-end border-t pt-4 mt-2">
+            <Button 
+              size="lg" 
+              className="font-black uppercase tracking-widest text-[11px] gap-2 rounded-full w-full sm:w-auto px-8"
+              onClick={handleConfirmBanco}
+              disabled={bancoDraft.filter(id => !materials.some(m => m.material_id === id)).length === 0}
+            >
+              CONFIRMAR SELEÇÃO
+              <CheckCircle2 className="w-4 h-4" />
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

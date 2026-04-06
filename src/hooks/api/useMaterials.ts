@@ -9,6 +9,7 @@ export interface Material {
   fornecedor: string | null;
   densidade: number | null;
   mf: number | string | null;
+  custo_tonelada: number | null;
   ativo: boolean;
   created_at: string;
 }
