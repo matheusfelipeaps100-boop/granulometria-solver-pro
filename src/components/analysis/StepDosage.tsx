@@ -1,4 +1,4 @@
-import { useMemo, useCallback } from "react";
+import { useMemo, useCallback, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -94,17 +94,34 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
     [data.relacao_ac, data.densidade_cimento, proporcoes]
   );
 
-  // Os agregados são definidos em kg absoluto na granulometria —
-  // não há clamp automático de volume; o aviso de capacidade é apenas visual.
+  // Relação calculada: Total Agregados (kg) ÷ Consumo Alvo (kg/m³)
+  // Volume é independente — apenas determina as massas de batelada (informativo).
+  const relacaoCalculada = useMemo(() => {
+    if (data.consumo_alvo_m3 > 0 && totalKgMateriais > 0) {
+      return Math.round((totalKgMateriais / data.consumo_alvo_m3) * 10) / 10;
+    }
+    return data.relacao_cimento;
+  }, [totalKgMateriais, data.consumo_alvo_m3, data.relacao_cimento]);
+
+  // Sincroniza relacao_cimento no store quando consumo ou agregados mudarem
+  useEffect(() => {
+    if (data.consumo_alvo_m3 > 0 && totalKgMateriais > 0) {
+      const rel = Math.round((totalKgMateriais / data.consumo_alvo_m3) * 10) / 10;
+      if (Math.abs(rel - data.relacao_cimento) > 0.05) {
+        onChange({ relacao_cimento: rel });
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [totalKgMateriais, data.consumo_alvo_m3]);
 
   const handleAcChange = useCallback(
     ([v]: number[]) => onChange({ relacao_ac: v / 100 }),
     [onChange]
   );
 
+  // Batelada: apenas ajusta volume (traço e consumo não mudam)
   const handleMassaBateladaChange = useCallback(
     (massa: number) => {
-      // Volume = Massa / (kg/m3)
       if (dosageResult.massa_total_m3 > 0) {
         onChange({ volume_m3: massa / dosageResult.massa_total_m3 });
       }
@@ -114,12 +131,21 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
 
   const handleCimentoBateladaChange = useCallback(
     (cimento: number) => {
-      // Volume = Cimento / (kg/m3)
       if (dosageResult.consumo_cimento_m3 > 0) {
         onChange({ volume_m3: cimento / dosageResult.consumo_cimento_m3 });
       }
     },
     [dosageResult.consumo_cimento_m3, onChange]
+  );
+
+  const handleAguaBateladaChange = useCallback(
+    (agua: number) => {
+      if (dosageResult.consumo_cimento_batelada > 0 && agua > 0) {
+        const novoAc = agua / dosageResult.consumo_cimento_batelada;
+        onChange({ relacao_ac: Math.max(0.01, novoAc) });
+      }
+    },
+    [dosageResult.consumo_cimento_batelada, onChange]
   );
 
   return (
@@ -157,8 +183,14 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
                     step="0.1"
                     min="1"
                     className="w-32 h-12 text-2xl font-black text-center border-2 focus-visible:ring-primary"
-                    value={data.relacao_cimento}
-                    onChange={(e) => onChange({ relacao_cimento: parseFloat(e.target.value) || 1 })}
+                    value={relacaoCalculada}
+                    onChange={(e) => {
+                      let rel = parseFloat(e.target.value);
+                      if (isNaN(rel) || rel <= 0) rel = 1;
+                      // Ao editar o traço → recalcula o Consumo Alvo
+                      const cons = totalKgMateriais > 0 ? Math.round((totalKgMateriais / rel) * 10) / 10 : data.consumo_alvo_m3;
+                      onChange({ relacao_cimento: rel, consumo_alvo_m3: cons });
+                    }}
                   />
                   <span className="text-sm font-medium text-muted-foreground">(em massa)</span>
                 </div>
@@ -200,7 +232,14 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
                       min="0"
                       className="w-28 text-5xl font-black text-foreground tracking-tighter h-14 bg-transparent border-none p-0 focus-visible:ring-0 shadow-none"
                       value={data.consumo_alvo_m3 || ""}
-                      onChange={(e) => onChange({ consumo_alvo_m3: parseFloat(e.target.value) || 0 })}
+                      onChange={(e) => {
+                        const cons = parseFloat(e.target.value) || 0;
+                        // Ao editar o consumo → recalcula o traço (sem envolver volume)
+                        const rel = cons > 0 && totalKgMateriais > 0
+                          ? Math.round((totalKgMateriais / cons) * 10) / 10
+                          : data.relacao_cimento;
+                        onChange({ consumo_alvo_m3: cons, relacao_cimento: rel });
+                      }}
                     />
                     <span className="text-sm font-bold text-muted-foreground">kg/m³</span>
                   </div>
@@ -234,7 +273,10 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
                       min="0"
                       className="h-10 font-black bg-background border-2 border-border/50 focus-visible:ring-primary shadow-none"
                       value={data.volume_m3 || ""}
-                      onChange={(e) => onChange({ volume_m3: parseFloat(e.target.value) || 0 })}
+                      onChange={(e) => {
+                        // Volume é independente: não afeta o traço
+                        onChange({ volume_m3: parseFloat(e.target.value) || 0 });
+                      }}
                     />
                     <span className="absolute right-3 top-2.5 text-[10px] font-bold text-muted-foreground uppercase">m³</span>
                   </div>
@@ -283,8 +325,16 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
                   <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                     Água / Batelada
                   </Label>
-                  <div className="h-10 flex items-center px-3 bg-blue-500/10 text-blue-500 border border-blue-500/20 rounded-md font-black text-sm">
-                    {dosageResult.agua_batelada.toFixed(1)} kg
+                  <div className="relative">
+                    <Input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      className="h-10 font-black bg-blue-500/10 text-blue-600 border-blue-500/20 focus-visible:ring-blue-500 shadow-none dark:text-blue-400"
+                      value={Math.round(dosageResult.agua_batelada * 10) / 10 || ""}
+                      onChange={(e) => handleAguaBateladaChange(parseFloat(e.target.value) || 0)}
+                    />
+                    <span className="absolute right-3 top-2.5 text-[10px] font-bold text-blue-500 uppercase">kg</span>
                   </div>
                 </div>
               </div>

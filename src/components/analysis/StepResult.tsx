@@ -37,6 +37,7 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAnalysisDraftStore } from "@/store/useAnalysisDraftStore";
+import { useMaterials } from "@/hooks/api/useMaterials";
 
 interface StepResultProps {
   data: AnalysisFormData;
@@ -48,6 +49,16 @@ export function StepResult({ data }: StepResultProps) {
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [showReleaseModal, setShowReleaseModal] = useState(false);
   const [showTraceModal, setShowTraceModal] = useState(false);
+
+  // Busca preços atuais do banco — evita depender do snapshot do store
+  const { materials: dbMaterials } = useMaterials();
+  const precosAtuais = useMemo(() => {
+    const map = new Map<string, number>();
+    dbMaterials.forEach((m) => {
+      if (m.custo_tonelada != null) map.set(m.id, m.custo_tonelada);
+    });
+    return map;
+  }, [dbMaterials]);
 
   const dna = DNAS_PADRAO.find((d) => d.id === data.dna_selecionado);
   const tipoLabel = TIPOS_ANALISE.find((t) => t.value === data.tipo_analise)?.label ?? "—";
@@ -103,7 +114,9 @@ export function StepResult({ data }: StepResultProps) {
 
     const agregadosBatelada = data.materiais_selecionados.reduce((sum, m, i) => {
       const kg = dosageResult.materiais_batelada[i]?.kg || 0;
-      const priceKg = (m.custo_tonelada || 0) / 1000;
+      // Prioriza preço atual do banco; fallback para valor salvo no store
+      const custoTon = precosAtuais.get(m.material_id) ?? m.custo_tonelada ?? 0;
+      const priceKg = custoTon / 1000;
       return sum + (kg * priceKg);
     }, 0);
 
@@ -111,16 +124,25 @@ export function StepResult({ data }: StepResultProps) {
     const aditivoBatelada = (data.aditivos_ml || 0) * ((data.custo_aditivo_lt || 0) / 1000);
 
     const totalBatelada = agregadosBatelada + cimentoBatelada + aditivoBatelada;
-    const totalM3 = data.volume_m3 > 0 ? totalBatelada / data.volume_m3 : 0;
+    const vol = data.volume_m3 > 0 ? data.volume_m3 : 1;
+    const totalM3 = totalBatelada / vol;
+
+    // Valores por m³ (consumo real de projeto)
+    const agregadosM3 = agregadosBatelada / vol;
+    const cimentoM3 = cimentoBatelada / vol;
+    const aditivoM3 = aditivoBatelada / vol;
 
     return {
       agregadosBatelada,
       cimentoBatelada,
       aditivoBatelada,
       totalBatelada,
-      totalM3
+      totalM3,
+      agregadosM3,
+      cimentoM3,
+      aditivoM3,
     };
-  }, [dosageResult, data]);
+  }, [dosageResult, data, precosAtuais]);
 
   const handleExportPDF = () => {
     setGeneratingPdf(true);
@@ -163,23 +185,56 @@ export function StepResult({ data }: StepResultProps) {
 
       {/* Custos da Mistura */}
       {financeiro && (
-        <Card className="bg-success text-success-foreground border-none shadow-sm overflow-hidden">
-          <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-white/10">
-            <div className="p-4 flex flex-col justify-center">
-              <span className="text-[10px] font-bold uppercase tracking-widest opacity-80 mb-1">Agregados (Bat.)</span>
-              <span className="text-xl font-black">R$ {financeiro.agregadosBatelada.toFixed(2)}</span>
+        <Card className="border-none shadow-sm overflow-hidden">
+          {/* BLOCO 1: Por m³ (valor real de projeto) */}
+          <div className="bg-success text-success-foreground">
+            <div className="px-4 pt-3 pb-1 flex items-center gap-2">
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-70">Custo por m³ de concreto produzido</span>
+              <span className="text-[9px] font-bold opacity-50 uppercase">— valor real do projeto</span>
             </div>
-            <div className="p-4 flex flex-col justify-center">
-              <span className="text-[10px] font-bold uppercase tracking-widest opacity-80 mb-1">Cimento (Bat.)</span>
-              <span className="text-xl font-black">R$ {financeiro.cimentoBatelada.toFixed(2)}</span>
+            <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-white/10">
+              <div className="p-4 flex flex-col justify-center">
+                <span className="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1">Agregados / m³</span>
+                <span className="text-xl font-black">R$ {financeiro.agregadosM3.toFixed(2)}</span>
+              </div>
+              <div className="p-4 flex flex-col justify-center">
+                <span className="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1">Cimento / m³</span>
+                <span className="text-xl font-black">R$ {financeiro.cimentoM3.toFixed(2)}</span>
+              </div>
+              <div className="p-4 flex flex-col justify-center">
+                <span className="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1">Aditivo / m³</span>
+                <span className="text-xl font-black">R$ {financeiro.aditivoM3.toFixed(2)}</span>
+              </div>
+              <div className="p-4 flex flex-col justify-center bg-black/10">
+                <span className="text-[10px] font-black uppercase tracking-widest mb-1">Total / m³</span>
+                <span className="text-3xl font-black">R$ {financeiro.totalM3.toFixed(2)}</span>
+              </div>
             </div>
-            <div className="p-4 flex flex-col justify-center">
-              <span className="text-[10px] font-bold uppercase tracking-widest opacity-80 mb-1">Total da Batelada</span>
-              <span className="text-xl font-black">R$ {financeiro.totalBatelada.toFixed(2)}</span>
+          </div>
+
+          {/* BLOCO 2: Por batelada (referência operacional) */}
+          <div className="bg-muted/30 border-t border-border/50">
+            <div className="px-4 pt-2 pb-1 flex items-center gap-2">
+              <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground">Por batelada</span>
+              <span className="text-[9px] text-muted-foreground opacity-60 uppercase">— referência para cada betonada de {data.volume_m3.toFixed(3)} m³</span>
             </div>
-            <div className="p-4 flex flex-col justify-center bg-black/10">
-              <span className="text-[10px] font-black uppercase tracking-widest mb-1 text-success-foreground">Custo por m³</span>
-              <span className="text-3xl font-black">R$ {financeiro.totalM3.toFixed(2)}</span>
+            <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-border/40">
+              <div className="p-3 flex flex-col justify-center">
+                <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-0.5">Agregados</span>
+                <span className="text-sm font-black text-foreground">R$ {financeiro.agregadosBatelada.toFixed(2)}</span>
+              </div>
+              <div className="p-3 flex flex-col justify-center">
+                <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-0.5">Cimento</span>
+                <span className="text-sm font-black text-foreground">R$ {financeiro.cimentoBatelada.toFixed(2)}</span>
+              </div>
+              <div className="p-3 flex flex-col justify-center">
+                <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-0.5">Aditivo</span>
+                <span className="text-sm font-black text-foreground">R$ {financeiro.aditivoBatelada.toFixed(2)}</span>
+              </div>
+              <div className="p-3 flex flex-col justify-center bg-muted/20">
+                <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-0.5">Total Batelada</span>
+                <span className="text-base font-black text-foreground">R$ {financeiro.totalBatelada.toFixed(2)}</span>
+              </div>
             </div>
           </div>
         </Card>

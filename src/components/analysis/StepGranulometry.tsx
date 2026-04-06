@@ -72,6 +72,7 @@ export function StepGranulometry({ data, onChange }: StepGranulometryProps) {
       proporcao_kg: 0,
       proporcao_pct: 0,
       densidade: mat.densidade || undefined,
+      custo_tonelada: mat.custo_tonelada ?? undefined,
       gradations: PENEIRAS_PADRAO.map(p => ({
         sieve_id: p.sieve_id,
         abertura_mm: p.abertura_mm,
@@ -136,14 +137,15 @@ export function StepGranulometry({ data, onChange }: StepGranulometryProps) {
     }, 0);
   }, [materials, mfPerMaterial, totalKgMistura]);
 
-  // Custo base ponderado dos agregados (R$ / ton de mistura agregada)
+  // Custo base ponderado dos agregados — busca pre\u00e7o atualizado de materiaisDisponiveis (DB)
   const custoBaseAgregadosTon = useMemo(() => {
     if (totalKgMistura === 0) return 0;
     return materials.reduce((sum, m) => {
-      const custo = m.custo_tonelada || 0;
+      const dbMat = materiaisDisponiveis.find((d) => d.material_id === m.material_id);
+      const custo = dbMat?.custo_tonelada ?? m.custo_tonelada ?? 0;
       return sum + (custo * ((m.proporcao_kg ?? 0) / totalKgMistura));
     }, 0);
-  }, [materials, totalKgMistura]);
+  }, [materials, totalKgMistura, materiaisDisponiveis]);
 
   const handleMassChange = useCallback(
     (materialIndex: number, sieveId: number, value: number) => {

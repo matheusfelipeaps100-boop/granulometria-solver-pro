@@ -279,10 +279,8 @@ export function calcDosage(input: DosageInput): DosageResult {
   const massa_total_m3 = volBatch > 0 ? massa_total_batelada / volBatch : 0;
   const densidade_efetiva = massa_total_m3 / 1000;
 
-  // Traço calculado: soma_agregados / cimento_batelada
-  const relacao_calculada = consumo_cimento_batelada > 0
-    ? totalAggKg / consumo_cimento_batelada
-    : input.relacao_cimento;
+  // Traço calculado utiliza a relação parametrizada ou ajustada na interface
+  const relacao_calculada = input.relacao_cimento;
 
   return {
     consumo_cimento_m3: Math.round(consumo_cimento_m3 * 10) / 10,
