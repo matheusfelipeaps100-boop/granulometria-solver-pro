@@ -58,43 +58,51 @@ export function NotificationsDropdown() {
     fetchNotifications();
 
     // Subscribe to realtime notifications for this user
-    const subscription = supabase
-      .from("notifications")
-      .on("INSERT", (payload: any) => {
-        if (payload.new.recipient_id === profile.id) {
-          setNotifications((prev) => [
-            {
-              id: payload.new.id,
-              type: payload.new.type,
-              title: payload.new.title,
-              description: payload.new.message,
-              read: payload.new.read,
-              created_at: payload.new.created_at,
-            },
-            ...prev,
-          ]);
+    const channel = supabase
+      .channel("notifications-realtime")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "notifications" },
+        (payload: any) => {
+          if (payload.new.recipient_id === profile.id) {
+            setNotifications((prev) => [
+              {
+                id: payload.new.id,
+                type: payload.new.type,
+                title: payload.new.title,
+                description: payload.new.message,
+                read: payload.new.read,
+                created_at: payload.new.created_at,
+              },
+              ...prev,
+            ]);
+          }
         }
-      })
-      .on("UPDATE", (payload: any) => {
-        if (payload.new.recipient_id === profile.id) {
-          setNotifications((prev) =>
-            prev.map((n) =>
-              n.id === payload.new.id
-                ? {
-                    ...n,
-                    read: payload.new.read,
-                    title: payload.new.title,
-                    description: payload.new.message,
-                  }
-                : n
-            )
-          );
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "notifications" },
+        (payload: any) => {
+          if (payload.new.recipient_id === profile.id) {
+            setNotifications((prev) =>
+              prev.map((n) =>
+                n.id === payload.new.id
+                  ? {
+                      ...n,
+                      read: payload.new.read,
+                      title: payload.new.title,
+                      description: payload.new.message,
+                    }
+                  : n
+              )
+            );
+          }
         }
-      })
+      )
       .subscribe();
 
     return () => {
-      subscription.unsubscribe();
+      supabase.removeChannel(channel);
     };
   }, [profile?.id]);
 

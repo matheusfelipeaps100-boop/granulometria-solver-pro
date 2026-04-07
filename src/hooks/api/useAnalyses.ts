@@ -28,56 +28,75 @@ export function useAnalyses() {
   const { data: analyses = [], isLoading, error } = useQuery({
     queryKey: ["analyses", orgId],
     queryFn: async () => {
-      if (!orgId) return [];
+      if (!orgId) {
+        console.warn("[useAnalyses] orgId não encontrado, retornando vazio");
+        return [];
+      }
 
-      const { data, error } = await supabase
-        .from("analyses")
-        .select(`
-          *,
-          analysis_dosage(*),
-          analysis_materials(
+      if (!supabase) {
+        console.error("[useAnalyses] Supabase não inicializado");
+        throw new Error("Supabase não inicializado");
+      }
+
+      try {
+        console.log("[useAnalyses] Buscando análises para org:", orgId);
+        const { data, error } = await supabase
+          .from("analyses")
+          .select(`
             *,
-            materials(id, nome, tipo, densidade, custo_tonelada)
-          )
-        `)
-        .eq("organization_id", orgId)
-        .order("created_at", { ascending: false });
-      
-      if (error) throw error;
+            analysis_dosage(*),
+            analysis_materials(
+              *,
+              materials(id, nome, tipo, densidade, custo_tonelada)
+            )
+          `)
+          .eq("organization_id", orgId)
+          .order("created_at", { ascending: false });
 
-      return (data || []).map((row: any) => {
-        // analysis_dosage pode retornar array (has-many) — pegar o primeiro
-        const dosage = Array.isArray(row.analysis_dosage)
-          ? row.analysis_dosage[0]
-          : row.analysis_dosage;
+        if (error) {
+          console.error("[useAnalyses] Erro Supabase:", error);
+          throw error;
+        }
 
-        const formData = {
-          volume_m3: dosage?.volume_batelada_litros ? dosage.volume_batelada_litros / 1000 : 0.55,
-          densidade_cimento: dosage?.densidade_cimento || 3.15,
-          relacao_cimento: dosage?.relacao_cimento || 0,
-          relacao_ac: dosage?.relacao_ac || 0,
-          consumo_alvo_m3: dosage?.consumo_cimento_kg || 0,
-          aditivos_ml: dosage?.aditivos_ml || 0,
-          materiais_selecionados: (row.analysis_materials || []).map((am: any) => ({
-            material_id: am.material_id,
-            nome: am.materials?.nome || "",
-            proporcao_kg: am.proporcao_kg ?? (am.proporcao_pct * 550),
-            proporcao_pct: am.proporcao_pct,
-            densidade: am.materials?.densidade || 2.65,
-            custo_tonelada: am.materials?.custo_tonelada ?? undefined,
-            gradations: (am.analysis_material_gradations || []).map((g: any) => ({
-              sieve_id: g.sieve_id,
-              abertura_mm: 0,
-              massa_retida: g.massa_retida ?? 0,
+        console.log("[useAnalyses] Dados carregados:", data?.length || 0);
+
+        return (data || []).map((row: any) => {
+          // analysis_dosage pode retornar array (has-many) — pegar o primeiro
+          const dosage = Array.isArray(row.analysis_dosage)
+            ? row.analysis_dosage[0]
+            : row.analysis_dosage;
+
+          const formData = {
+            volume_m3: dosage?.volume_batelada_litros ? dosage.volume_batelada_litros / 1000 : 0.55,
+            densidade_cimento: dosage?.densidade_cimento || 3.15,
+            relacao_cimento: dosage?.relacao_cimento || 0,
+            relacao_ac: dosage?.relacao_ac || 0,
+            consumo_alvo_m3: dosage?.consumo_cimento_kg || 0,
+            aditivos_ml: dosage?.aditivos_ml || 0,
+            materiais_selecionados: (row.analysis_materials || []).map((am: any) => ({
+              material_id: am.material_id,
+              nome: am.materials?.nome || "",
+              proporcao_kg: am.proporcao_kg ?? (am.proporcao_pct * 550),
+              proporcao_pct: am.proporcao_pct,
+              densidade: am.materials?.densidade || 2.65,
+              custo_tonelada: am.materials?.custo_tonelada ?? undefined,
+              gradations: (am.analysis_material_gradations || []).map((g: any) => ({
+                sieve_id: g.sieve_id,
+                abertura_mm: 0,
+                massa_retida: g.massa_retida ?? 0,
+              }))
             }))
-          }))
-        };
+          };
 
-        return {
-          ...row,
-          formData
-        } as StoredAnalysis;
-      });
+          return {
+            ...row,
+            formData
+          } as StoredAnalysis;
+        });
+      } catch (err) {
+        console.error("[useAnalyses] Erro na query:", err);
+        throw err;
+      }
     },
     enabled: !!orgId,
   });

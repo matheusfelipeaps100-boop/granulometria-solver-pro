@@ -45,24 +45,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   async function loadProfile(userId: string) {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("id, nome, role, organization_id, ativo")
-      .eq("id", userId)
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, nome, role, organization_id, ativo")
+        .eq("id", userId)
+        .single();
 
-    if (error || !data) {
+      if (error || !data) {
+        console.error("[loadProfile] Erro ao carregar perfil:", error);
+        setProfile(null);
+        return;
+      }
+
+      setProfile({
+        id: data.id,
+        nome: data.nome,
+        role: ROLE_MAP[data.role] ?? "LABORATORIO",
+        organization_id: data.organization_id,
+        ativo: data.ativo,
+      });
+    } catch (err) {
+      console.error("[loadProfile] Erro inesperado:", err);
       setProfile(null);
-      return;
     }
-
-    setProfile({
-      id: data.id,
-      nome: data.nome,
-      role: ROLE_MAP[data.role] ?? "LABORATORIO",
-      organization_id: data.organization_id,
-      ativo: data.ativo,
-    });
   }
 
   useEffect(() => {

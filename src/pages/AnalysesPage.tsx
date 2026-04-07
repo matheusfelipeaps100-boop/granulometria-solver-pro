@@ -49,7 +49,7 @@ const AnalysesPage = () => {
   const navigate = useNavigate();
   const { analyses, deleteAnalysis, isDeleting } = useAnalyses();
   const { profile } = useAuth();
-  
+
   const currentUserRole = (profile?.role as any) || "visualizador";
   
   const canCreate = hasActionPermission(currentUserRole, "analysis:create");
