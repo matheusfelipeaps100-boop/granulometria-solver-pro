@@ -37,7 +37,7 @@ export function useAnalyses() {
           analysis_dosage(*),
           analysis_materials(
             *,
-            materials(id, nome, tipo, densidade)
+            materials(id, nome, tipo, densidade, custo_tonelada)
           )
         `)
         .eq("organization_id", orgId)
@@ -46,22 +46,30 @@ export function useAnalyses() {
       if (error) throw error;
 
       return (data || []).map((row: any) => {
-        // Reconstrói o formData essencial para algumas telas baseadas no banco
+        // analysis_dosage pode retornar array (has-many) — pegar o primeiro
+        const dosage = Array.isArray(row.analysis_dosage)
+          ? row.analysis_dosage[0]
+          : row.analysis_dosage;
+
         const formData = {
-          volume_m3: row.analysis_dosage?.volume_batelada_litros ? row.analysis_dosage.volume_batelada_litros / 1000 : 0.55,
-          densidade_cimento: row.analysis_dosage?.densidade_cimento || 3.15,
-          relacao_cimento: row.analysis_dosage?.relacao_cimento || 0,
-          relacao_ac: row.analysis_dosage?.relacao_ac || 0,
-          consumo_alvo_m3: row.analysis_dosage?.consumo_cimento_kg || 0,
-          aditivos_ml: row.analysis_dosage?.aditivos_ml || 0,
+          volume_m3: dosage?.volume_batelada_litros ? dosage.volume_batelada_litros / 1000 : 0.55,
+          densidade_cimento: dosage?.densidade_cimento || 3.15,
+          relacao_cimento: dosage?.relacao_cimento || 0,
+          relacao_ac: dosage?.relacao_ac || 0,
+          consumo_alvo_m3: dosage?.consumo_cimento_kg || 0,
+          aditivos_ml: dosage?.aditivos_ml || 0,
           materiais_selecionados: (row.analysis_materials || []).map((am: any) => ({
             material_id: am.material_id,
             nome: am.materials?.nome || "",
-            tipo: am.materials?.tipo || "",
             proporcao_kg: am.proporcao_kg ?? (am.proporcao_pct * 550),
             proporcao_pct: am.proporcao_pct,
             densidade: am.materials?.densidade || 2.65,
-            gradations: [] // Não precisamos reconstruir pra Produção
+            custo_tonelada: am.materials?.custo_tonelada ?? undefined,
+            gradations: (am.analysis_material_gradations || []).map((g: any) => ({
+              sieve_id: g.sieve_id,
+              abertura_mm: 0,
+              massa_retida: g.massa_retida ?? 0,
+            }))
           }))
         };
 
@@ -121,6 +129,7 @@ export function useAnalyses() {
                 analysis_id: analysisId,
                 material_id: m.material_id,
                 proporcao_pct: m.proporcao_pct,
+                proporcao_kg: m.proporcao_kg ?? 0,
                 ordem: index
               }])
               .select("id")
@@ -222,4 +231,79 @@ export function useAnalyses() {
     isUpdatingStatus: updateStatusMutation.isPending,
     isDeleting: deleteMutation.isPending,
   };
+}
+
+/**
+ * Busca UMA an\u00e1lise completa pelo c\u00f3digo (incluindo gradua\u00e7\u00f5es).
+ * Usado ao abrir uma an\u00e1lise existente para edi\u00e7\u00e3o.
+ */
+export function useAnalysis(codigo: string | null) {
+  const { profile } = useAuth();
+  const orgId = profile?.organization_id;
+
+  return useQuery({
+    queryKey: ["analysis", codigo, orgId],
+    enabled: !!codigo && !!orgId,
+    queryFn: async () => {
+      if (!codigo || !orgId) return null;
+
+      const cleanCode = codigo.trim();
+      console.log(`[useAnalysis] Buscando por: '${cleanCode}' (original: '${codigo}') em org: ${orgId}`);
+
+      // Busca análise com dosagem e materiais
+      // Usando ilike para ignorar case e usando % caso haja espaços invisíveis
+      const { data, error } = await supabase
+        .from("analyses")
+        .select(`
+          *,
+          analysis_dosage(*),
+          analysis_materials(
+            *,
+            materials(id, nome, tipo, densidade, custo_tonelada)
+          )
+        `)
+        .eq("organization_id", orgId)
+        .ilike("codigo", `%${cleanCode}%`)
+        .maybeSingle();
+
+      if (error) {
+        console.error("[useAnalysis] Erro no Supabase:", error);
+        throw error;
+      }
+      
+      if (!data) {
+        console.warn(`[useAnalysis] Nenhum dado encontrado para '${cleanCode}'. Tente verificar as permiss\u00f5es ou se o c\u00f3digo est\u00e1 exato no banco.`);
+        return null;
+      }
+
+      // Busca grada\u00e7\u00f5es separadamente por material
+      const materialIds = (data.analysis_materials || []).map((am: any) => am.id);
+      let gradationsByMaterialId: Record<string, any[]> = {};
+
+      if (materialIds.length > 0) {
+        const { data: grads } = await supabase
+          .from("analysis_material_gradations")
+          .select("analysis_material_id, sieve_id, massa_retida")
+          .in("analysis_material_id", materialIds);
+
+        if (grads) {
+          grads.forEach((g: any) => {
+            if (!gradationsByMaterialId[g.analysis_material_id]) {
+              gradationsByMaterialId[g.analysis_material_id] = [];
+            }
+            gradationsByMaterialId[g.analysis_material_id].push(g);
+          });
+        }
+      }
+
+      // Injeta grada\u00e7\u00f5es em cada material
+      const materialsWithGrads = (data.analysis_materials || []).map((am: any) => ({
+        ...am,
+        analysis_material_gradations: gradationsByMaterialId[am.id] || [],
+      }));
+
+      return { ...data, analysis_materials: materialsWithGrads } as any;
+    },
+    staleTime: 30_000,
+  });
 }
