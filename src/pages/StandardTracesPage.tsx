@@ -69,7 +69,6 @@ const StandardTracesPage = () => {
     },
   });
 
-  // Combinar dados da API com mocks
   const dbTraces = curves.map((c) => ({
     id: c.id,
     nome: c.nome,

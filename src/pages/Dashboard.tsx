@@ -64,9 +64,6 @@ const BRAND_RED        = "hsl(0, 80%, 38%)";  // escuro — cor principal da log
 const BRAND_RED_MED    = "hsl(0, 68%, 56%)";  // médio
 const BRAND_RED_LIGHT  = "hsl(0, 65%, 76%)";  // claro
 
-// ── Dados ─────────────────────────────────────────────────────
-// Mocks removidos para uso de dados reais via hooks dentro do componente Dashboard
-
 // ── Tooltip customizado ────────────────────────────────────────
 const CustomBarTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
