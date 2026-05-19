@@ -7,7 +7,7 @@ interface AnalysisDraftState {
   formData: AnalysisFormData;
   setStep: (step: number) => void;
   setFormData: (updates: Partial<AnalysisFormData>) => void;
-  loadAnalysis: (data: AnalysisFormData) => void;
+  loadAnalysis: (data: AnalysisFormData, step?: number) => void;
   clearDraft: () => void;
 }
 
@@ -21,8 +21,8 @@ export const useAnalysisDraftStore = create<AnalysisDraftState>()(
         set((state) => ({
           formData: { ...state.formData, ...updates },
         })),
-      // Carrega uma análise existente do banco: substitui formData inteiro e reseta step
-      loadAnalysis: (data) => set({ currentStep: 1, formData: data }),
+      // Carrega uma anáĺise existente do banco: substitui formData inteiro e restaura o step (padrão 1 se não informado)
+      loadAnalysis: (data, step = 1) => set({ currentStep: step, formData: data }),
       clearDraft: () =>
         set({
           currentStep: 1,

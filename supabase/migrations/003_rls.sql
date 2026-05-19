@@ -193,6 +193,12 @@ CREATE POLICY "own_preferences" ON notification_preferences
 CREATE POLICY "org_isolation" ON technical_settings
   USING (organization_id = my_org_id());
 
+CREATE POLICY "gestor_insert" ON technical_settings
+  FOR INSERT WITH CHECK (
+    organization_id = my_org_id() 
+    AND my_role() IN ('admin', 'gestor')
+  );
+
 CREATE POLICY "gestor_write" ON technical_settings
   FOR UPDATE USING (organization_id = my_org_id())
   WITH CHECK (my_role() IN ('admin', 'gestor'));

@@ -1,7 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../useAuth";
-import type { BatchStatus, ScheduleStatus } from "@/store/useAppStore";
+import type { BatchStatus } from "@/types/database.types";
+import type { ScheduleStatus } from "@/hooks/api/useRuptures";
 
 export interface DBProductionBatch {
   id: string;
@@ -102,10 +103,26 @@ export function useProduction() {
     },
   });
 
+  const deleteBatchMutation = useMutation({
+    mutationFn: async (batchId: string) => {
+      const { error } = await supabase
+        .from("production_batches")
+        .delete()
+        .eq("id", batchId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["production_batches", orgId] });
+      queryClient.invalidateQueries({ queryKey: ["rupture_schedules", orgId] });
+    },
+  });
+
   return {
     batches,
     isLoadingBatches,
     createBatch: createBatchMutation.mutateAsync,
+    deleteBatch: deleteBatchMutation.mutateAsync,
     isCreating: createBatchMutation.isPending,
+    isDeleting: deleteBatchMutation.isPending,
   };
 }

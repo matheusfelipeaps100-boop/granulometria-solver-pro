@@ -103,6 +103,7 @@ const MaterialsPage = () => {
             </div>
           </CardHeader>
           <CardContent>
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -110,7 +111,7 @@ const MaterialsPage = () => {
                   <TableHead>Tipo</TableHead>
                   <TableHead>Fornecedor</TableHead>
                   <TableHead>Módulo de Finura</TableHead>
-                  <TableHead>Custo (R$/ton)</TableHead>
+                  <TableHead>Custo</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
@@ -123,7 +124,15 @@ const MaterialsPage = () => {
                     <TableCell>{m.fornecedor}</TableCell>
                     <TableCell className="font-mono">{m.mf || "-"}</TableCell>
                     <TableCell className="font-mono text-muted-foreground">
-                      {m.custo_tonelada ? `R$ ${m.custo_tonelada.toFixed(2).replace('.', ',')}` : "-"}
+                      {m.custo_valor
+                        ? `R$ ${Number(m.custo_valor).toFixed(2).replace('.', ',')} / ${
+                            m.custo_unidade === 'tonelada' ? 'ton' :
+                            m.custo_unidade === 'kg' ? 'kg' :
+                            m.custo_unidade === 'm3' ? 'm³' :
+                            m.custo_unidade === 'saco' ? 'saco' :
+                            m.custo_unidade === 'unidade' ? 'un.' : m.custo_unidade
+                          }`
+                        : "-"}
                     </TableCell>
                     <TableCell>
                       <StatusBadge status={m.ativo ? "aprovado" : "arquivado"} />
@@ -154,6 +163,7 @@ const MaterialsPage = () => {
                 ))}
               </TableBody>
             </Table>
+            </div>
           </CardContent>
         </Card>
       </div>

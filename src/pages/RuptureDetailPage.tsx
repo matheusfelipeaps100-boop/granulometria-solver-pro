@@ -17,11 +17,14 @@ import { useRuptures, useScheduleDetail } from "@/hooks/api/useRuptures";
 import { useProfiles } from "@/hooks/api/useProfiles";
 import { useTechnicalSettings } from "@/hooks/api/useTechnicalSettings";
 import { TIPOS_ANALISE } from "@/lib/analysis-data";
-import { calcTensao, calcRuptureStats, AREAS_PADRAO } from "@/lib/granulometry-engine";
+import { calcTensao, calcRuptureStats, AREAS_PADRAO, calcTensaoPaver, calcRuptureStatsPaver } from "@/lib/granulometry-engine";
+
 import { cn } from "@/lib/utils";
+import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LineChart, Line } from "recharts";
 
 interface SampleInput {
   forca_kn: string;
+  peso_kg?: string;
 }
 
 const TIPOS_AMOSTRA = ["bloco", "paver", "cp"] as const;
@@ -59,9 +62,21 @@ const RuptureDetailPage = () => {
 
   // 3 samples per test type
   const [samples, setSamples] = useState<Record<TipoAmostra, SampleInput[]>>({
-    bloco: [{ forca_kn: "" }, { forca_kn: "" }, { forca_kn: "" }],
-    paver: [{ forca_kn: "" }, { forca_kn: "" }, { forca_kn: "" }],
-    cp: [{ forca_kn: "" }, { forca_kn: "" }, { forca_kn: "" }],
+    bloco: [
+      { forca_kn: "", peso_kg: "" },
+      { forca_kn: "", peso_kg: "" },
+      { forca_kn: "", peso_kg: "" }
+    ],
+    paver: [
+      { forca_kn: "", peso_kg: "" },
+      { forca_kn: "", peso_kg: "" },
+      { forca_kn: "", peso_kg: "" }
+    ],
+    cp: [
+      { forca_kn: "", peso_kg: "" },
+      { forca_kn: "", peso_kg: "" },
+      { forca_kn: "", peso_kg: "" }
+    ],
   });
 
   const [areas, setAreas] = useState<Record<TipoAmostra, number>>({
@@ -82,14 +97,68 @@ const RuptureDetailPage = () => {
     }
   }, [found?.schedule]);
 
-  const updateSample = useCallback((tipo: TipoAmostra, index: number, value: string) => {
+  const updateSample = useCallback((tipo: TipoAmostra, index: number, field: keyof SampleInput, value: string) => {
     setSamples((prev) => ({
       ...prev,
-      [tipo]: prev[tipo].map((s, i) => (i === index ? { forca_kn: value } : s)),
+      [tipo]: prev[tipo].map((s, i) => (i === index ? { ...s, [field]: value } : s)),
     }));
   }, []);
 
   const { settings } = useTechnicalSettings();
+
+  // Coletar pares (peso, resistência) para todas as amostras válidas
+  const scatterData = useMemo(() => {
+    const data: { tipo: string; peso: number; resistencia: number }[] = [];
+    for (const tipo of TIPOS_AMOSTRA) {
+      samples[tipo].forEach((s) => {
+        const peso = parseFloat(s.peso_kg || "");
+        const forca = parseFloat(s.forca_kn || "");
+        if (!isNaN(peso) && peso > 0 && !isNaN(forca) && forca > 0) {
+          // Calcular resistência (MPa)
+          let resistencia: number;
+          if (tipo === "paver" && settings?.formula_tensao_paver) {
+            resistencia = calcTensaoPaver(forca, settings.formula_tensao_paver, areas[tipo], settings?.formula_tensao_b);
+          } else {
+            resistencia = calcTensao(forca, areas[tipo], settings?.formula_tensao_b);
+          }
+          data.push({ tipo, peso, resistencia });
+        }
+      });
+    }
+    return data;
+  }, [samples, areas, settings]);
+
+  // Dados para gráfico Peso × Tempo de Ciclo
+  // Supondo que cada schedule tem um idade_dias e samples preenchidas
+  // Aqui, para a página de detalhe, só temos o ciclo atual, então mostramos os pesos das amostras deste ciclo
+  // Para múltiplos ciclos, seria necessário buscar dados históricos
+  const pesoPorCiclo = useMemo(() => {
+    // Se houver batch ou schedule com histórico, pode-se adaptar para múltiplos ciclos
+    // Aqui, apenas o ciclo atual
+    const idade = found?.schedule?.idade_dias;
+    const pesos: number[] = [];
+    for (const tipo of TIPOS_AMOSTRA) {
+      samples[tipo].forEach((s) => {
+        const peso = parseFloat(s.peso_kg || "");
+        if (!isNaN(peso) && peso > 0) pesos.push(peso);
+      });
+    }
+    return idade ? [{ ciclo: idade, peso_medio: pesos.length ? (pesos.reduce((a, b) => a + b, 0) / pesos.length) : 0 }] : [];
+  }, [samples, found]);
+
+  // Calcular correlação de Pearson entre peso e resistência
+  const pearsonCorrelation = useMemo(() => {
+    if (scatterData.length < 2) return null;
+    const pesos = scatterData.map((d) => d.peso);
+    const resistencias = scatterData.map((d) => d.resistencia);
+    const meanPeso = pesos.reduce((a, b) => a + b, 0) / pesos.length;
+    const meanRes = resistencias.reduce((a, b) => a + b, 0) / resistencias.length;
+    const num = pesos.reduce((sum, p, i) => sum + (p - meanPeso) * (resistencias[i] - meanRes), 0);
+    const denPeso = Math.sqrt(pesos.reduce((sum, p) => sum + Math.pow(p - meanPeso, 2), 0));
+    const denRes = Math.sqrt(resistencias.reduce((sum, r) => sum + Math.pow(r - meanRes, 2), 0));
+    const corr = denPeso && denRes ? num / (denPeso * denRes) : null;
+    return corr;
+  }, [scatterData]);
 
   // Calculate stats per test type in real-time
   const statsPerTipo = useMemo(() => {
@@ -103,18 +172,31 @@ const RuptureDetailPage = () => {
     // Usar parâmetros técnicos do banco ou fallbacks do motor
     const divisorA = settings?.formula_tensao_a;
     const divisorB = settings?.formula_tensao_b;
+    const multiplicadorPaver = settings?.formula_tensao_paver;
 
     for (const tipo of TIPOS_AMOSTRA) {
       const forcas = samples[tipo]
         .map((s) => parseFloat(s.forca_kn))
         .filter((f) => !isNaN(f) && f > 0);
       if (forcas.length > 0) {
-        result[tipo] = calcRuptureStats(
-          forcas, 
-          meta, 
-          areas[tipo] || divisorA, // Usa área específica ou fallback do divisor A
-          divisorB
-        );
+        if (tipo === "paver" && multiplicadorPaver) {
+          // Para paver, usar a fórmula especial: Tensão × multiplicador
+          result[tipo] = calcRuptureStatsPaver(
+            forcas, 
+            meta, 
+            multiplicadorPaver,
+            areas[tipo] || AREAS_PADRAO.paver,
+            divisorB
+          );
+        } else {
+          // Para bloco e cp, usar a fórmula padrão: Força ÷ divisor_a ÷ divisor_b
+          result[tipo] = calcRuptureStats(
+            forcas, 
+            meta, 
+            areas[tipo] || divisorA, // Usa área específica ou fallback do divisor A
+            divisorB
+          );
+        }
       }
     }
     return result;
@@ -184,6 +266,7 @@ const RuptureDetailPage = () => {
           samples: samples[tipoComAmostra].map((s, idx) => ({
             numero: idx + 1,
             forca_kn: parseFloat(s.forca_kn),
+            peso_kg: s.peso_kg ? parseFloat(s.peso_kg) : undefined,
             tensao_mpa: calcTensao(parseFloat(s.forca_kn), areas[tipoComAmostra]),
             status: "concluido"
           }))
@@ -235,6 +318,7 @@ const RuptureDetailPage = () => {
           samples: samples[tipoComAmostra].map((s, idx) => ({
             numero: idx + 1,
             forca_kn: parseFloat(s.forca_kn),
+            peso_kg: s.peso_kg ? parseFloat(s.peso_kg) : undefined,
             tensao_mpa: calcTensao(parseFloat(s.forca_kn), areas[tipoComAmostra]),
             status: "concluido"
           }))
@@ -378,17 +462,29 @@ const RuptureDetailPage = () => {
                       <Label className="text-[10px] font-bold text-muted-foreground uppercase absolute -top-2 left-2 bg-background px-1 z-10">
                         Amostra {i + 1}
                       </Label>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 mb-1">
                         <Input
                           type="number"
                           step="0.1"
-                          placeholder="0.0"
+                          placeholder="Força (kN)"
                           className="h-10 font-bold focus-visible:ring-primary/30"
                           value={sample.forca_kn === "0" ? "" : sample.forca_kn}
                           onFocus={(e) => e.target.select()}
-                          onChange={(e) => updateSample(tipo, i, e.target.value)}
+                          onChange={(e) => updateSample(tipo, i, "forca_kn", e.target.value)}
                         />
                         <span className="text-[10px] font-black text-muted-foreground mr-2">kN</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder="Peso (kg)"
+                          className="h-10 font-bold focus-visible:ring-primary/30"
+                          value={sample.peso_kg === "0" ? "" : sample.peso_kg}
+                          onFocus={(e) => e.target.select()}
+                          onChange={(e) => updateSample(tipo, i, "peso_kg", e.target.value)}
+                        />
+                        <span className="text-[10px] font-black text-muted-foreground mr-2">kg</span>
                       </div>
                       {tensao !== null && (
                         <p className="text-[11px] mt-1 flex justify-between px-1">
@@ -405,7 +501,7 @@ const RuptureDetailPage = () => {
               {stats && (
                 <div className="pt-2">
                   <Separator className="mb-4 opacity-50" />
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 items-center">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 items-center">
                     <div className="text-center sm:text-left">
                       <p className="text-[10px] uppercase text-muted-foreground font-bold mb-0.5">Média (MPa)</p>
                       <p className="text-lg font-black text-primary leading-tight">{stats.media.toFixed(2)}</p>
@@ -463,6 +559,58 @@ const RuptureDetailPage = () => {
           onChange={(e) => setObservacoes(e.target.value)}
           rows={3}
         />
+      </div>
+
+
+      {/* Correlação Peso x Resistência - Gráfico melhorado */}
+      <div className="mt-8">
+        <h2 className="text-lg font-bold mb-2">Correlação Peso × Resistência</h2>
+        {scatterData.length >= 2 ? (
+          <>
+            <div className="mb-2 text-sm">
+              <span className="font-semibold">Coeficiente de correlação de Pearson:</span> {pearsonCorrelation !== null ? pearsonCorrelation.toFixed(3) : "—"}
+            </div>
+            <ResponsiveContainer width="100%" height={320}>
+              <ScatterChart margin={{ top: 20, right: 30, left: 10, bottom: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis type="number" dataKey="peso" name="Peso (kg)" unit="kg" tick={{ fontSize: 14 }} label={{ value: 'Peso (kg)', position: 'insideBottom', offset: -5, fontWeight: 'bold', fontSize: 16 }} />
+                <YAxis type="number" dataKey="resistencia" name="Resistência (MPa)" unit="MPa" tick={{ fontSize: 14 }} label={{ value: 'Resistência (MPa)', angle: -90, position: 'insideLeft', fontWeight: 'bold', fontSize: 16 }} />
+                <Tooltip 
+                  cursor={{ strokeDasharray: '3 3' }}
+                  formatter={(value: any, name: any) => {
+                    if (name === 'peso') return [`${value} kg`, 'Peso (kg)'];
+                    if (name === 'resistencia') return [`${value} MPa`, 'Resistência (MPa)'];
+                    return [value, name];
+                  }}
+                  labelFormatter={() => ''}
+                />
+                <Legend verticalAlign="top" height={36} />
+                <Scatter name="Amostras" data={scatterData} fill="#d7263d" shape="circle" line={{ stroke: '#d7263d', strokeWidth: 2 }} legendType="circle" />
+              </ScatterChart>
+            </ResponsiveContainer>
+          </>
+        ) : (
+          <div className="text-muted-foreground text-sm">Preencha ao menos duas amostras com peso e força para visualizar a correlação.</div>
+        )}
+      </div>
+
+      {/* Peso × Tempo de Ciclo */}
+      <div className="mt-8">
+        <h2 className="text-lg font-bold mb-2">Peso Médio × Tempo de Ciclo</h2>
+        {pesoPorCiclo.length > 0 ? (
+          <ResponsiveContainer width="100%" height={260}>
+            <LineChart data={pesoPorCiclo} margin={{ top: 20, right: 30, left: 10, bottom: 10 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis dataKey="ciclo" name="Ciclo (dias)" unit="dias" tick={{ fontSize: 14 }} label={{ value: 'Tempo de Ciclo (dias)', position: 'insideBottom', offset: -5, fontWeight: 'bold', fontSize: 16 }} />
+              <YAxis dataKey="peso_medio" name="Peso Médio (kg)" unit="kg" tick={{ fontSize: 14 }} label={{ value: 'Peso Médio (kg)', angle: -90, position: 'insideLeft', fontWeight: 'bold', fontSize: 16 }} />
+              <Tooltip formatter={(value: any, name: any) => [`${value}`, name === 'ciclo' ? 'Ciclo (dias)' : 'Peso Médio (kg)']} />
+              <Legend verticalAlign="top" height={36} />
+              <Line type="monotone" dataKey="peso_medio" name="Peso Médio" stroke="#2563eb" strokeWidth={3} dot={{ r: 6, fill: '#2563eb' }} />
+            </LineChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="text-muted-foreground text-sm">Preencha pesos para visualizar o gráfico de evolução do peso médio.</div>
+        )}
       </div>
 
       {/* Actions */}

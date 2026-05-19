@@ -21,7 +21,7 @@ import {
   AlertTriangle,
   RefreshCw,
 } from "lucide-react";
-import { TIPOS_ANALISE, DNAS_PADRAO } from "@/lib/analysis-data";
+import { TIPOS_ANALISE } from "@/lib/analysis-data";
 import {
   calcRuptureStats,
   calcCombinedCurve,
@@ -30,6 +30,7 @@ import {
 } from "@/lib/granulometry-engine";
 import { cn } from "@/lib/utils";
 import { GranulometryChart } from "@/components/analysis/GranulometryChart";
+import { useStandardCurves } from "@/hooks/api/useStandardCurves";
 import {
   LineChart,
   Line,
@@ -115,6 +116,7 @@ const QualityReportPage = () => {
   const navigate = useNavigate();
   const identity = useAppStore((s) => s.identity);
   const { data, isLoading, isError, authLoading } = useBatchReport(batchId);
+  const { curves: dbCurves } = useStandardCurves();
 
   const batch = data?.batch as any;
   const analysis = batch?.analyses as any;
@@ -172,8 +174,15 @@ const QualityReportPage = () => {
 
   const limitesDNA = useMemo(() => {
     const dnaId = analysis?.dna_selecionado;
-    return DNAS_PADRAO.find((d) => d.id === dnaId)?.limites ?? DNAS_PADRAO[0].limites;
-  }, [analysis]);
+    // Buscar limites a partir das curvas carregadas do banco
+    const curve = dbCurves.find((c) => c.id === dnaId) ?? dbCurves[0];
+    if (!curve?.standard_curve_items?.length) return [];
+    return curve.standard_curve_items.map((item) => ({
+      sieve_id: item.sieve_id,
+      limite_min: item.limite_min,
+      limite_max: item.limite_max,
+    }));
+  }, [analysis, dbCurves]);
 
   const combinedCurve = useMemo(() => {
     if (materiaisParaCurva.length === 0) return [];
@@ -186,28 +195,22 @@ const QualityReportPage = () => {
   const materialsDetail = useMemo(() => {
     if (!dosagem) return [];
     const volM3 = (batch?.volume_produzido ?? 0) / 1000;
-    const dosageCalc = calcDosage({
-      relacao_cimento: dosagem.relacao_cimento ?? 0,
-      relacao_ac: dosagem.relacao_ac ?? 0,
-      consumo_alvo_m3: dosagem.consumo_cimento_kg ?? 0,
-      volume_m3: 1,
-      densidade_cimento: dosagem.densidade_cimento ?? 3.15,
-      proporcoes_materiais: materials.map((m: any) => ({
-        nome: m.material?.nome ?? "",
-        proporcao_pct: m.proporcao_pct,
-        densidade: m.material?.densidade ?? 2.65,
-      })),
-      aditivos_ml: dosagem.aditivos_ml ?? 0,
-    });
+    const consumoCimento = dosagem.consumo_cimento_kg ?? 0;
+    const volBatelada = dosagem.volume_batelada_litros ? dosagem.volume_batelada_litros / 1000 : 0.55;
 
     return materials.map((m: any) => {
-      const kgM3 = dosageCalc.materiais_m3.find((dm) => dm.nome === m.material?.nome)?.kg ?? 0;
+      const massaKg = m.massa_kg ?? 0;
+      // kg/m³: massa absoluta dividida pelo volume da batelada original
+      const kgM3 = volBatelada > 0 ? massaKg / volBatelada : 0;
+      // Batelada para o lote: kg/m³ × volume do lote em m³
+      const kgBatelada = kgM3 * volM3;
       return {
         nome: m.material?.nome ?? "—",
         densidade: m.material?.densidade,
         proporcao_pct: m.proporcao_pct,
+        massa_kg: massaKg,
         kg_m3: kgM3,
-        kg_batelada: kgM3 * volM3,
+        kg_batelada: kgBatelada,
       };
     });
   }, [materials, dosagem, batch]);
@@ -251,11 +254,11 @@ const QualityReportPage = () => {
             <div className="space-y-1">
               <h1 className="text-3xl font-black uppercase tracking-tighter text-foreground flex items-center gap-2">
                 <FlaskConical className="h-8 w-8 text-primary" />
-                {identity.nome || "Relatório Técnico Mestre"}
+                {identity.nome || "Laudo Técnico"}
               </h1>
               <div className="flex flex-col gap-0.5 mt-2">
                 <p className="text-sm font-bold text-muted-foreground uppercase opacity-70">
-                  {identity.cnpj ? `CNPJ: ${identity.cnpj} • ` : ""}Relatório Técnico Mestre
+                  {identity.cnpj ? `CNPJ: ${identity.cnpj} • ` : ""}Laudo Técnico
                 </p>
                 {identity.endereco && (
                   <p className="text-[10px] font-medium text-muted-foreground opacity-60">{identity.endereco}</p>
@@ -284,7 +287,7 @@ const QualityReportPage = () => {
           )}
 
           {/* Dados Gerais */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8">
             <div className="space-y-1">
               <p className="text-[10px] uppercase font-black text-muted-foreground">Produto / Análise</p>
               <p className="text-sm font-bold">{analysisTypeMeta?.label || analysis.tipo}</p>
@@ -304,7 +307,7 @@ const QualityReportPage = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10">
             {/* Granulometria */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -378,7 +381,7 @@ const QualityReportPage = () => {
                       <tr key={i} className="hover:bg-muted/5">
                         <td className="py-2.5 px-4 font-bold">{m.nome}</td>
                         <td className="py-2.5 px-2 text-center">
-                          <Badge variant="secondary" className="font-bold text-[10px]">{m.proporcao_pct}%</Badge>
+                          <Badge variant="secondary" className="font-bold text-[10px]">{(m.proporcao_pct * 100).toFixed(1)}%</Badge>
                         </td>
                         <td className="py-2.5 px-2 text-right font-black">{m.kg_m3.toFixed(1)}</td>
                         <td className="py-2.5 px-2 text-right font-black text-primary">{m.kg_batelada.toFixed(1)}</td>
@@ -451,7 +454,7 @@ const QualityReportPage = () => {
           <div className="pt-10 flex justify-between items-end border-t border-dashed">
             <div className="space-y-1.5 text-[8px] text-muted-foreground max-w-[450px] leading-relaxed">
               <p className="font-black text-[9px] opacity-80">DECLARAÇÃO TÉCNICA E RESPONSABILIDADE:</p>
-              <p>Os resultados apresentados neste Relatório Técnico Mestre foram obtidos através de ensaios laboratoriais seguindo rigorosamente as Normas Brasileiras Regulamentadoras (NBR). A amostragem foi realizada de acordo com o plano de controle de qualidade da unidade executora.</p>
+              <p>Os resultados apresentados neste Laudo Técnico foram obtidos através de ensaios laboratoriais seguindo rigorosamente as Normas Brasileiras Regulamentadoras (NBR). A amostragem foi realizada de acordo com o plano de controle de qualidade da unidade executora.</p>
               <p className="font-mono opacity-60 text-[7px]">Ref: {batch.id?.toUpperCase()}</p>
             </div>
             <div className="text-center w-[250px] space-y-2 pb-2">

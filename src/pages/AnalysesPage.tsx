@@ -27,11 +27,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Search, Eye, Pencil, Trash2 } from "lucide-react";
+import { Plus, Search, Eye, Pencil, Trash2, FileEdit, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
 import { TIPOS_ANALISE } from "@/lib/analysis-data";
 import { useAppStore } from "@/store/useAppStore";
+import { useAnalysisDraftStore } from "@/store/useAnalysisDraftStore";
 import { useAnalyses } from "@/hooks/api/useAnalyses";
 import { useAuth } from "@/hooks/useAuth";
 import { hasActionPermission } from "@/lib/permissions";
@@ -45,10 +46,13 @@ const STATUS_OPTIONS = [
   { value: "liberado_producao", label: "Liberado" },
 ];
 
+const STEP_NAMES = ["Identificação", "Granulometria", "Dosagem", "Revisão", "Resultado"];
+
 const AnalysesPage = () => {
   const navigate = useNavigate();
   const { analyses, deleteAnalysis, isDeleting } = useAnalyses();
   const { profile } = useAuth();
+  const { currentStep, formData, clearDraft } = useAnalysisDraftStore();
 
   const currentUserRole = (profile?.role as any) || "visualizador";
   
@@ -105,8 +109,43 @@ const AnalysesPage = () => {
     return matchSearch && matchTipo && matchStatus;
   });
 
+  const hasDraft = currentStep > 1 || !!formData.tipo_analise || !!formData.nome;
+
   return (
     <div className="space-y-6 animate-fade-in">
+      {/* Banner: rascunho em andamento */}
+      {hasDraft && (
+        <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30 px-4 py-3">
+          <FileEdit className="h-5 w-5 text-amber-600 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-foreground">
+              Rascunho em andamento: <span className="font-mono">{formData.codigo}</span>
+              {formData.nome ? ` — ${formData.nome}` : ""}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Etapa {currentStep}/5 ({STEP_NAMES[currentStep - 1]})
+            </p>
+          </div>
+          <Button
+            size="sm"
+            variant="default"
+            className="gap-1.5"
+            onClick={() => navigate("/analyses/new")}
+          >
+            Continuar
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="gap-1 text-muted-foreground hover:text-destructive"
+            onClick={() => clearDraft()}
+          >
+            <X className="h-3.5 w-3.5" />
+            Descartar
+          </Button>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Análises</h1>
@@ -133,7 +172,7 @@ const AnalysesPage = () => {
               />
             </div>
             <Select value={filterTipo} onValueChange={setFilterTipo}>
-              <SelectTrigger className="w-[160px]">
+              <SelectTrigger className="w-full sm:w-[160px]">
                 <SelectValue placeholder="Tipo" />
               </SelectTrigger>
               <SelectContent>
@@ -146,7 +185,7 @@ const AnalysesPage = () => {
               </SelectContent>
             </Select>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-[160px]">
+              <SelectTrigger className="w-full sm:w-[160px]">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -160,6 +199,7 @@ const AnalysesPage = () => {
           </div>
         </CardHeader>
         <CardContent>
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -185,12 +225,12 @@ const AnalysesPage = () => {
                   </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
-                        {canEdit && (
+                        {canEdit && a.status !== "aprovado" && a.status !== "liberado_producao" && (
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/analyses/new?edit=${a.codigo}`)} title="Revisar / Editar">
                             <Pencil className="h-4 w-4 text-muted-foreground hover:text-foreground" />
                           </Button>
                         )}
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/analyses/${a.id}`)} title="Visualizar">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/analyses/${a.codigo}`)} title="Visualizar">
                           <Eye className="h-4 w-4 text-muted-foreground hover:text-foreground" />
                         </Button>
                         {canDelete && (
@@ -211,6 +251,7 @@ const AnalysesPage = () => {
               )}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
 

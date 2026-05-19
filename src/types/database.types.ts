@@ -178,6 +178,7 @@ export interface RuptureSample {
   test_id: string
   sample_number: number
   resistance: number
+  peso_kg?: number // peso da amostra em kg
   unit: 'MPa' | 'kgf/cm²'
   created_at: string
 }

@@ -1,22 +1,27 @@
-import { useParams, useNavigate } from "react-router-dom";
+﻿import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
+import { useAnalysis } from "@/hooks/api/useAnalyses";
+import { StepGranulometry } from "@/components/analysis/StepGranulometry";
+import { StepDosage } from "@/components/analysis/StepDosage";
+import { StepReview } from "@/components/analysis/StepReview";
 
-const mockAnalyses = [
-  { codigo: "ANL-2026-012", nome: "Paver H8 Alta Resistência", tipo: "paver", analista: "Carlos Silva", data: "07/03/2026", status: "aprovado" as const },
-  { codigo: "ANL-2026-011", nome: "Bloco Estrutural 14x19x39", tipo: "bloco_estrutural", analista: "Maria Santos", data: "05/03/2026", status: "liberado_producao" as const },
-  { codigo: "ANL-2026-010", nome: "Bloco Vedação Standard", tipo: "bloco_vedacao", analista: "João Oliveira", data: "03/03/2026", status: "em_analise" as const },
-  { codigo: "ANL-2026-009", nome: "CP Teste Dosagem", tipo: "cp", analista: "Carlos Silva", data: "01/03/2026", status: "rascunho" as const },
-];
-
-const AnalysisDetailPage = () => {
+export default function AnalysisDetailPage() {
   const { codigo } = useParams<{ codigo: string }>();
   const navigate = useNavigate();
-  const analysis = mockAnalyses.find((a) => a.codigo === codigo);
+  const { data: analysis, isLoading, isError } = useAnalysis(codigo || null);
 
-  if (!analysis) {
+  if (isLoading) {
+    return (
+      <div className="flex h-[50vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (isError || !analysis) {
     return (
       <div className="space-y-6 animate-fade-in">
         <Button variant="ghost" onClick={() => navigate("/analyses")} className="gap-2">
@@ -46,9 +51,8 @@ const AnalysisDetailPage = () => {
           <CardContent className="space-y-2 text-sm">
             <div className="flex justify-between"><span className="text-muted-foreground">Código</span><span className="font-medium">{analysis.codigo}</span></div>
             <div className="flex justify-between"><span className="text-muted-foreground">Nome</span><span className="font-medium">{analysis.nome}</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">Tipo</span><span className="font-medium capitalize">{analysis.tipo.replace(/_/g, " ")}</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">Analista</span><span className="font-medium">{analysis.analista}</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">Data</span><span className="font-medium">{analysis.data}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Tipo</span><span className="font-medium capitalize">{String(analysis.tipo).replace(/_/g, " ")}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Data</span><span className="font-medium">{new Date(analysis.data_analise).toLocaleDateString("pt-BR")}</span></div>
           </CardContent>
         </Card>
 
@@ -59,8 +63,42 @@ const AnalysisDetailPage = () => {
           </CardContent>
         </Card>
       </div>
+
+      {analysis.formData && (
+        <div className="mt-8 border-t pt-8 pb-32 flex flex-col gap-12">
+          <section>
+            <h2 className="text-xl font-bold mb-6 text-primary">1. Granulometria</h2>
+            <div className={analysis.status === 'aprovado' || analysis.status === 'liberado_producao' ? "pointer-events-none" : ""}>
+              <StepGranulometry 
+                data={analysis.formData} 
+                onChange={() => {}} 
+                readOnly={true} 
+              />
+            </div>
+          </section>
+          
+          <section>
+            <h2 className="text-xl font-bold mb-6 text-primary">2. Dosagem</h2>
+            <div className={analysis.status === 'aprovado' || analysis.status === 'liberado_producao' ? "pointer-events-none" : ""}>
+              <StepDosage 
+                data={analysis.formData} 
+                onChange={() => {}} 
+              />
+            </div>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-bold mb-6 text-primary">3. Revisão Final</h2>
+            <StepReview 
+              data={analysis.formData} 
+              onApprove={() => {}}
+              readOnly={true}
+            />
+          </section>
+        </div>
+      )}
     </div>
   );
-};
+}
 
-export default AnalysisDetailPage;
+

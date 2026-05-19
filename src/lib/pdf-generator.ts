@@ -7,13 +7,16 @@ import jsPDF from "jspdf";
 import { calcCombinedCurve, calcDosage } from "./granulometry-engine";
 import {
   PENEIRAS_PADRAO,
-  DNAS_PADRAO,
   TIPOS_ANALISE,
   ANALISTAS,
   type AnalysisFormData,
 } from "./analysis-data";
 
-export function generateAnalysisPDF(data: AnalysisFormData): void {
+interface PDFOptions {
+  limitesDna?: Array<{ sieve_id: number; limite_min: number; limite_max: number }>;
+}
+
+export function generateAnalysisPDF(data: AnalysisFormData, options?: PDFOptions): void {
   const doc = new jsPDF("p", "mm", "a4");
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 16;
@@ -93,9 +96,9 @@ export function generateAnalysisPDF(data: AnalysisFormData): void {
   addLine(y);
   y += 6;
 
-  const dna = DNAS_PADRAO.find((d) => d.id === data.dna_selecionado);
+  const dnaLimites = options?.limitesDna;
   const curveResults = data.materiais_selecionados.length > 0
-    ? calcCombinedCurve(data.materiais_selecionados, dna?.limites)
+    ? calcCombinedCurve(data.materiais_selecionados, dnaLimites)
     : [];
 
   if (curveResults.length > 0) {

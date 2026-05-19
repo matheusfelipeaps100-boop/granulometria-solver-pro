@@ -19,7 +19,28 @@ const ProductionPage = () => {
   const { profile } = useAuth();
   const { analyses } = useAnalyses();
   const { batches } = useProduction();
+  // Filtros
+  const [batchFilter, setBatchFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+
   const releasedAnalyses = analyses.filter((a) => a.status === "liberado_producao");
+
+  // Opções de status possíveis
+  const statusOptions = [
+    { value: "", label: "Todos" },
+    { value: "aguardando_rompimentos", label: "Aguardando Rompimentos" },
+    { value: "aprovado", label: "Aprovado" },
+    { value: "aprovado_antecipado", label: "Aprovado Antecipado" },
+    { value: "reprovado", label: "Reprovado" },
+    { value: "liberado_producao", label: "Liberado Produção" },
+  ];
+
+  // Filtragem dos lotes
+  const filteredBatches = batches.filter((batch) => {
+    const matchesBatch = batchFilter ? batch.batch_code?.toLowerCase().includes(batchFilter.toLowerCase()) : true;
+    const matchesStatus = statusFilter ? batch.status === statusFilter : true;
+    return matchesBatch && matchesStatus;
+  });
 
   const canRegister = profile ? hasActionPermission(profile.role, "batch:create") : false;
 
@@ -54,6 +75,32 @@ const ProductionPage = () => {
         </Button>
       </div>
 
+      {/* Filtros */}
+      <div className="flex gap-4 mb-4">
+        <div>
+          <label className="block text-xs font-semibold mb-1">Filtrar por Lote</label>
+          <input
+            type="text"
+            className="border rounded px-2 py-1 text-sm w-40"
+            placeholder="Buscar lote..."
+            value={batchFilter}
+            onChange={(e) => setBatchFilter(e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold mb-1">Status</label>
+          <select
+            className="border rounded px-2 py-1 text-sm w-48"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            {statusOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       {releasedAnalyses.length === 0 && batches.length === 0 ? (
         <Card>
           <CardContent className="p-12 text-center">
@@ -67,6 +114,7 @@ const ProductionPage = () => {
       ) : (
         <Card className="shadow-sm">
           <CardContent className="p-0">
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -79,39 +127,35 @@ const ProductionPage = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {releasedAnalyses.map((analysis) => {
-                  const batch = getBatchForAnalysis(analysis.id);
-                  const tipoLabel = TIPOS_ANALISE.find((t) => t.value === analysis.tipo)?.label ?? "—";
-                  return (
-                    <TableRow key={analysis.id}>
-                      <TableCell className="pl-6">
-                        <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
-                            <ClipboardList className="h-5 w-5 text-muted-foreground" />
+                {filteredBatches.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Nenhum lote encontrado.</TableCell>
+                  </TableRow>
+                ) : (
+                  filteredBatches.map((batch) => {
+                    const analysis = analyses.find((a) => a.id === batch.analysis_id);
+                    const tipoLabel = TIPOS_ANALISE.find((t) => t.value === analysis?.tipo)?.label ?? "—";
+                    return (
+                      <TableRow key={batch.id}>
+                        <TableCell className="pl-6">
+                          <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
+                              <ClipboardList className="h-5 w-5 text-muted-foreground" />
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground font-mono">{analysis?.codigo ?? "—"}</p>
+                              <p className="font-medium text-foreground">{analysis?.nome ?? "—"}</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground font-mono">{analysis.codigo}</p>
-                            <p className="font-medium text-foreground">{analysis.nome}</p>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">{tipoLabel}</TableCell>
-                      <TableCell>
-                        {batch ? (
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">{tipoLabel}</TableCell>
+                        <TableCell>
                           <StatusBadge status={batch.status} />
-                        ) : (
-                          <StatusBadge status="liberado_producao" />
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {batch ? (
+                        </TableCell>
+                        <TableCell>
                           <span className="font-mono text-sm">{batch.batch_code}</span>
-                        ) : (
-                          <span className="text-muted-foreground text-sm">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {batch ? (
+                        </TableCell>
+                        <TableCell>
                           <div className="flex gap-1">
                             {batch.rupture_schedules?.map((s) => (
                               <Badge key={s.id} variant="outline" className="text-xs">
@@ -119,30 +163,24 @@ const ProductionPage = () => {
                               </Badge>
                             ))}
                           </div>
-                        ) : (
-                          <span className="text-muted-foreground text-sm">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right pr-6">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button variant="ghost" size="icon" title="Visualizar" onClick={() => setViewAnalysis(analysis)}>
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          {!batch && canRegister && (
-                            <Button variant="ghost" size="icon" title="Registrar Produção" onClick={() => setRegisterAnalysis(analysis)}>
-                              <ClipboardList className="h-4 w-4" />
+                        </TableCell>
+                        <TableCell className="text-right pr-6">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button variant="ghost" size="icon" title="Visualizar" onClick={() => setViewAnalysis(analysis)}>
+                              <Eye className="h-4 w-4" />
                             </Button>
-                          )}
-                          <Button variant="ghost" size="icon" title="Exportar PDF" onClick={() => handleExportPDF(analysis)}>
-                            <FileEdit className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
+                            <Button variant="ghost" size="icon" title="Exportar PDF" onClick={() => handleExportPDF(analysis)}>
+                              <FileEdit className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
               </TableBody>
             </Table>
+            </div>
           </CardContent>
         </Card>
       )}

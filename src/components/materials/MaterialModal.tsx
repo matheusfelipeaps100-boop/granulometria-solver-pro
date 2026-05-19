@@ -41,7 +41,8 @@ const emptyForm = {
   tipo: "",
   fornecedor: "",
   mf: "",
-  custo_tonelada: "",
+  custo_valor: "",
+  custo_unidade: "tonelada",
   ativo: true,
 };
 
@@ -58,7 +59,8 @@ export function MaterialModal({ open, onOpenChange, editId }: MaterialModalProps
           tipo: m.tipo,
           fornecedor: m.fornecedor || "",
           mf: m.mf ? m.mf.toString().replace('.', ',') : "",
-          custo_tonelada: m.custo_tonelada ? m.custo_tonelada.toString().replace('.', ',') : "",
+          custo_valor: m.custo_valor ? m.custo_valor.toString().replace('.', ',') : "",
+          custo_unidade: m.custo_unidade || "tonelada",
           ativo: m.ativo,
         });
       }
@@ -76,16 +78,14 @@ export function MaterialModal({ open, onOpenChange, editId }: MaterialModalProps
     try {
       // Supabase numeric format aceita ponto em vez de vírgula, e null se estiver vazio
       const mfVal = form.mf ? parseFloat(form.mf.replace(',', '.')) : null;
-      const custoVal = form.custo_tonelada ? parseFloat(form.custo_tonelada.replace(',', '.')) : null;
-      
+      const custoVal = form.custo_valor ? parseFloat(form.custo_valor.replace(',', '.')) : null;
       const payload = {
         ...form,
         mf: mfVal,
-        custo_tonelada: custoVal,
+        custo_valor: custoVal,
         fornecedor: form.fornecedor || null,
         densidade: null
       };
-
       if (editId) {
         await updateMaterial({ id: editId, ...payload });
         toast.success("Material atualizado");
@@ -154,12 +154,30 @@ export function MaterialModal({ open, onOpenChange, editId }: MaterialModalProps
           </div>
 
           <div className="space-y-2">
-            <Label>Preço de Custo (R$ / ton)</Label>
-            <Input
-              value={form.custo_tonelada}
-              onChange={(e) => setForm({ ...form, custo_tonelada: e.target.value })}
-              placeholder="Ex: 85,50"
-            />
+            <Label>Preço de Custo</Label>
+            <div className="flex gap-2">
+              <Input
+                value={form.custo_valor}
+                onChange={(e) => setForm({ ...form, custo_valor: e.target.value })}
+                placeholder="Ex: 85,50"
+                className="w-32"
+              />
+              <Select
+                value={form.custo_unidade}
+                onValueChange={(v) => setForm({ ...form, custo_unidade: v })}
+              >
+                <SelectTrigger className="w-32">
+                  <SelectValue placeholder="Unidade" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="tonelada">R$ / ton</SelectItem>
+                  <SelectItem value="kg">R$ / kg</SelectItem>
+                  <SelectItem value="m3">R$ / m³</SelectItem>
+                  <SelectItem value="saco">R$ / saco</SelectItem>
+                  <SelectItem value="unidade">R$ / un.</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="flex items-center justify-between">

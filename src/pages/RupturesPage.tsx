@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Package, Unlock, AlertTriangle } from "lucide-react";
+import { Search, Package, Unlock, AlertTriangle, ClipboardList } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -197,7 +197,7 @@ const RupturesPage = () => {
               />
             </div>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-[160px]">
+              <SelectTrigger className="w-full sm:w-[160px]">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -226,11 +226,12 @@ const RupturesPage = () => {
               </p>
             </div>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="pl-6">Lote</TableHead>
-                  <TableHead>Produto</TableHead>
+                  <TableHead className="pl-6">ANÁLISE / TRAÇO</TableHead>
+                  <TableHead>LOTE</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Rompimentos</TableHead>
                   <TableHead>Data Produção</TableHead>
@@ -247,10 +248,18 @@ const RupturesPage = () => {
 
                   return (
                     <TableRow key={batch.id}>
-                      <TableCell className="pl-6 font-mono text-sm font-medium">
-                        {batch.batch_code}
+                      <TableCell className="pl-6">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
+                            <ClipboardList className="h-5 w-5 text-muted-foreground" />
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground font-mono">{analysis?.codigo ?? ""}</p>
+                            <p className="font-medium text-foreground">{analysis?.nome ?? "—"}</p>
+                          </div>
+                        </div>
                       </TableCell>
-                      <TableCell>{analysis?.nome ?? "—"}</TableCell>
+                      <TableCell className="font-mono text-sm font-medium">{batch.batch_code}</TableCell>
                       <TableCell>
                         <StatusBadge status={overallStatus} />
                       </TableCell>
@@ -301,6 +310,7 @@ const RupturesPage = () => {
                 })}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

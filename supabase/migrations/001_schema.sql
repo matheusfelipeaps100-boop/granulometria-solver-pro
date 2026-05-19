@@ -372,6 +372,9 @@ CREATE TABLE technical_settings (
   formula_tensao_a         DECIMAL(10,6) DEFAULT 0.0546,
   -- Tensão = Força ÷ formula_tensao_a ÷ formula_tensao_b
   formula_tensao_b         DECIMAL(10,4) DEFAULT 98.0665,
+  
+  -- Fórmula para Paver: Resultado = Tensão × formula_tensao_paver
+  formula_tensao_paver     DECIMAL(10,6) DEFAULT 1.729,
 
   -- Metas de rompimento — Bloco Estrutural (MPa)
   bloco_meta_1d  DECIMAL(6,2) DEFAULT 2.8,

@@ -15,13 +15,18 @@ import {
 } from "recharts";
 import { calcDosage, calcRelacaoFromConsumo } from "@/lib/granulometry-engine";
 import type { AnalysisFormData } from "@/lib/analysis-data";
-import { Beaker, Droplets, Weight, BarChart3, Pill } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Beaker, Droplets, Weight, BarChart3, Pill, AlertCircle } from "lucide-react";
+import { cn, calcularCustoMaterial } from "@/lib/utils";
+
+import { useMaterials } from "@/hooks/api/useMaterials";
+
 
 interface StepDosageProps {
   data: AnalysisFormData;
   onChange: (updates: Partial<AnalysisFormData>) => void;
 }
+
+// Removido export default duplicado. Usar apenas exportação nomeada abaixo.
 
 // Gera pontos fixos para a curva (1:4 a 1:12)
 function gerarCurvaConsumo(
@@ -46,17 +51,75 @@ function gerarCurvaConsumo(
   return pontos;
 }
 
-const CustomConsumoCurveTooltip = ({ active, payload, label }: any) => {
+const CustomConsumoCurveTooltip = ({ active, payload, label, dbMaterials, data, dosageResult }: any) => {
   if (!active || !payload?.length) return null;
+  // Cálculo do custo dinâmico do cimento
+  const cimentoDb = dbMaterials.find((m: any) => m.tipo === 'cimento' || m.nome.toLowerCase().includes('cimento'));
+  const cimento_valor = cimentoDb?.custo_valor ?? cimentoDb?.custo_tonelada ?? data.custo_cimento_ton ?? 0;
+  const cimento_unidade = cimentoDb?.custo_unidade || (cimentoDb?.custo_tonelada != null ? 'tonelada' : 'tonelada');
+  const cimento_densidade = cimentoDb?.densidade || 3.15;
+  const custoCimento = calcularCustoMaterial({
+    custo_valor: cimento_valor,
+    custo_unidade: cimento_unidade,
+    quantidade: dosageResult.consumo_cimento_batelada,
+    densidade: cimento_densidade,
+  });
+
+  // Cálculo do custo dinâmico do aditivo
+  const aditivoDb = dbMaterials.find((m: any) => m.tipo === 'aditivo' || m.nome.toLowerCase().includes('aditivo'));
+  const aditivo_valor = aditivoDb?.custo_valor ?? 0;
+  const aditivo_unidade = aditivoDb?.custo_unidade || 'litro';
+  let custoAditivo = 0;
+  if (aditivo_valor && data.aditivos_ml) {
+    if (aditivo_unidade === 'litro') {
+      custoAditivo = aditivo_valor * (data.aditivos_ml / 1000);
+    } else if (aditivo_unidade === 'kg') {
+      custoAditivo = aditivo_valor * (data.aditivos_ml / 1000);
+    } else {
+      custoAditivo = aditivo_valor * (data.aditivos_ml / 1000);
+    }
+  }
+
   return (
     <div className="rounded border bg-card p-2 shadow-lg text-xs">
       <p className="font-bold">{label}</p>
       <p className="text-primary">{payload[0]?.value?.toFixed(1)} kg/m³</p>
+      <p className="text-xs mt-1">Cimento: R$ {custoCimento.toFixed(2)}<br/>Aditivo: R$ {custoAditivo.toFixed(2)}</p>
     </div>
   );
 };
 
 export function StepDosage({ data, onChange }: StepDosageProps) {
+    const { materials: dbMaterials } = useMaterials();
+
+  // Auto-sincroniza custos de cimento e aditivo do banco de dados
+  useEffect(() => {
+    const cimentoDb = dbMaterials.find((m) => m.tipo === 'cimento' || m.nome.toLowerCase().includes('cimento'));
+    const aditivoDb = dbMaterials.find((m) => m.tipo === 'aditivo' || m.nome.toLowerCase().includes('aditivo'));
+
+    const updates: Partial<AnalysisFormData> = {};
+
+    // Se cimento foi encontrado e custo não estava preenchido, auto-preenche
+    if (cimentoDb && (data.custo_cimento_ton === 0 || data.custo_cimento_ton === undefined || data.custo_cimento_ton === null)) {
+      const cimentoValor = cimentoDb.custo_valor ?? cimentoDb.custo_tonelada ?? 0;
+      if (cimentoValor > 0) {
+        updates.custo_cimento_ton = cimentoValor;
+      }
+    }
+
+    // Se aditivo foi encontrado e custo não estava preenchido, auto-preenche
+    if (aditivoDb && (data.custo_aditivo_lt === 0 || data.custo_aditivo_lt === undefined || data.custo_aditivo_lt === null)) {
+      const aditivoValor = aditivoDb.custo_valor ?? 0;
+      if (aditivoValor > 0) {
+        updates.custo_aditivo_lt = aditivoValor;
+      }
+    }
+
+    if (Object.keys(updates).length > 0) {
+      onChange(updates);
+    }
+  }, [dbMaterials, data.custo_cimento_ton, data.custo_aditivo_lt, onChange]);
+
   const totalKgMateriais = useMemo(
     () => data.materiais_selecionados.reduce((s, m) => s + (m.proporcao_kg ?? 0), 0),
     [data.materiais_selecionados]
@@ -72,17 +135,21 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
     [data.materiais_selecionados, totalKgMateriais]
   );
 
+  // Batelada informativa: calcula volume automaticamente para uma batelada padrão de cimento (ex: 50kg)
+  const BATELADA_PADRAO_CIMENTO_KG = 50;
+  // Se consumo_alvo_m3 > 0, calcula o volume correspondente a 50kg de cimento
+  const volume_batelada_auto = data.consumo_alvo_m3 > 0 ? BATELADA_PADRAO_CIMENTO_KG / data.consumo_alvo_m3 : 0;
   const dosageResult = useMemo(() => {
     return calcDosage({
       relacao_cimento: data.relacao_cimento,
       relacao_ac: data.relacao_ac,
       consumo_alvo_m3: data.consumo_alvo_m3,
-      volume_m3: data.volume_m3,
+      volume_m3: volume_batelada_auto,
       densidade_cimento: data.densidade_cimento,
       proporcoes_materiais: proporcoes,
       aditivos_ml: data.aditivos_ml,
     });
-  }, [data, proporcoes]);
+  }, [data.relacao_cimento, data.relacao_ac, data.consumo_alvo_m3, data.densidade_cimento, proporcoes, data.aditivos_ml, volume_batelada_auto]);
 
   const curvaConsumo = useMemo(
     () =>
@@ -94,8 +161,36 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
     [data.relacao_ac, data.densidade_cimento, proporcoes]
   );
 
+  // Cálculo do custo dinâmico do cimento
+  const cimentoDb = dbMaterials.find((m) => m.tipo === 'cimento' || m.nome.toLowerCase().includes('cimento'));
+  const cimento_valor = cimentoDb?.custo_valor ?? cimentoDb?.custo_tonelada ?? data.custo_cimento_ton ?? 0;
+  const cimento_unidade = cimentoDb?.custo_unidade || (cimentoDb?.custo_tonelada != null ? 'tonelada' : 'tonelada');
+  const cimento_densidade = cimentoDb?.densidade || 3.15;
+  // Cálculo do custo do cimento APENAS pelo consumo_alvo_m3 (kg/m³), ignorando volume_m3
+  const custoCimento = calcularCustoMaterial({
+    custo_valor: cimento_valor,
+    custo_unidade: cimento_unidade,
+    quantidade: data.consumo_alvo_m3, // sempre por m³
+    densidade: cimento_densidade,
+  });
+
+  // Cálculo do custo dinâmico do aditivo
+  const aditivoDb = dbMaterials.find((m) => m.tipo === 'aditivo' || m.nome.toLowerCase().includes('aditivo'));
+  const aditivo_valor = aditivoDb?.custo_valor ?? 0;
+  const aditivo_unidade = aditivoDb?.custo_unidade || 'litro';
+  let custoAditivo = 0;
+  if (aditivo_valor && data.aditivos_ml) {
+    if (aditivo_unidade === 'litro') {
+      custoAditivo = aditivo_valor * (data.aditivos_ml / 1000);
+    } else if (aditivo_unidade === 'kg') {
+      custoAditivo = aditivo_valor * (data.aditivos_ml / 1000); // aproximação: 1L ~ 1kg
+    } else {
+      custoAditivo = aditivo_valor * (data.aditivos_ml / 1000);
+    }
+  }
+
   // Relação calculada: Total Agregados (kg) ÷ Consumo Alvo (kg/m³)
-  // Volume é independente — apenas determina as massas de batelada (informativo).
+  // Quando não há materiais com kg definido, usa o valor manual do store
   const relacaoCalculada = useMemo(() => {
     if (data.consumo_alvo_m3 > 0 && totalKgMateriais > 0) {
       return Math.round((totalKgMateriais / data.consumo_alvo_m3) * 10) / 10;
@@ -272,11 +367,8 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
                       step="0.01"
                       min="0"
                       className="h-10 font-black bg-background border-2 border-border/50 focus-visible:ring-primary shadow-none"
-                      value={data.volume_m3 || ""}
-                      onChange={(e) => {
-                        // Volume é independente: não afeta o traço
-                        onChange({ volume_m3: parseFloat(e.target.value) || 0 });
-                      }}
+                      value={volume_batelada_auto > 0 ? volume_batelada_auto.toFixed(3) : ""}
+                      disabled
                     />
                     <span className="absolute right-3 top-2.5 text-[10px] font-bold text-muted-foreground uppercase">m³</span>
                   </div>
@@ -291,18 +383,12 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
                       step="1"
                       min="0"
                       className={cn(
-                        "h-10 font-black focus-visible:ring-primary shadow-none",
-                        dosageResult.massa_total_batelada > 550 
-                          ? "bg-red-500/10 border-red-500/50 text-red-600" 
-                          : "bg-muted/40 border-primary/20"
+                        "h-10 font-black focus-visible:ring-primary shadow-none bg-muted/40 border-primary/20"
                       )}
                       value={dosageResult.massa_total_batelada.toFixed(dosageResult.massa_total_batelada % 1 === 0 ? 0 : 1)}
-                      onChange={(e) => handleMassaBateladaChange(parseFloat(e.target.value) || 0)}
+                      disabled
                     />
                     <span className="absolute right-3 top-2.5 text-[10px] font-bold text-muted-foreground uppercase">kg</span>
-                    {dosageResult.massa_total_batelada > 550 && (
-                      <span className="absolute -bottom-4 right-0 text-[8px] font-black text-red-500 uppercase">Capacidade Excedida (Max 550kg)</span>
-                    )}
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -316,7 +402,7 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
                       min="0"
                       className="h-10 font-black bg-primary/10 text-primary border-primary/20 focus-visible:ring-primary shadow-none"
                       value={dosageResult.consumo_cimento_batelada.toFixed(dosageResult.consumo_cimento_batelada % 1 === 0 ? 0 : 1)}
-                      onChange={(e) => handleCimentoBateladaChange(parseFloat(e.target.value) || 0)}
+                      disabled
                     />
                     <span className="absolute right-3 top-2.5 text-[10px] font-bold text-primary uppercase">kg</span>
                   </div>
@@ -332,9 +418,30 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
                       min="0"
                       className="h-10 font-black bg-blue-500/10 text-blue-600 border-blue-500/20 focus-visible:ring-blue-500 shadow-none dark:text-blue-400"
                       value={Math.round(dosageResult.agua_batelada * 10) / 10 || ""}
-                      onChange={(e) => handleAguaBateladaChange(parseFloat(e.target.value) || 0)}
+                      onChange={(e) => {
+                        const agua = parseFloat(e.target.value) || 0;
+                        // Atualiza a relação A/C automaticamente
+                        const novoAc = dosageResult.consumo_cimento_batelada > 0 ? agua / dosageResult.consumo_cimento_batelada : data.relacao_ac;
+                        onChange({ relacao_ac: Math.max(0.01, novoAc) });
+                      }}
                     />
                     <span className="absolute right-3 top-2.5 text-[10px] font-bold text-blue-500 uppercase">kg</span>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                    Aditivo / Batelada (mL)
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      type="number"
+                      step="1"
+                      min="0"
+                      className="h-10 font-black bg-background border border-border/50 focus-visible:ring-primary shadow-none"
+                      value={data.aditivos_ml || ""}
+                      onChange={(e) => onChange({ aditivos_ml: parseFloat(e.target.value) || 0 })}
+                    />
+                    <span className="absolute right-3 top-2.5 text-[10px] font-bold text-muted-foreground uppercase">mL</span>
                   </div>
                 </div>
               </div>
@@ -342,9 +449,17 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
               {/* Custos Operacionais */}
               <div className="grid grid-cols-2 gap-4 pt-4 border-t border-border/50">
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                    Custo do Cimento (R$ / ton)
-                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                      Custo do Cimento (R$ / ton)
+                    </Label>
+                    {cimentoDb && data.custo_cimento_ton === (cimentoDb.custo_valor ?? cimentoDb.custo_tonelada ?? 0) && (
+                      <span className="text-[8px] font-bold text-primary uppercase bg-primary/10 px-1.5 py-0.5 rounded flex items-center gap-1">
+                        <AlertCircle className="h-2.5 w-2.5" />
+                        Automático
+                      </span>
+                    )}
+                  </div>
                   <div className="relative">
                     <Input
                       type="number"
@@ -353,14 +468,23 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
                       className="h-10 font-bold bg-background border border-border/50 focus-visible:ring-primary shadow-none pl-8"
                       value={data.custo_cimento_ton || ""}
                       onChange={(e) => onChange({ custo_cimento_ton: parseFloat(e.target.value) || 0 })}
+                      placeholder={cimentoDb ? `${(cimentoDb.custo_valor ?? cimentoDb.custo_tonelada ?? 0).toFixed(2)}` : "0.00"}
                     />
                     <span className="absolute left-3 top-2.5 text-sm font-bold text-muted-foreground">R$</span>
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                    Custo do Aditivo (R$ / Litro)
-                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                      Custo do Aditivo (R$ / Litro)
+                    </Label>
+                    {aditivoDb && data.custo_aditivo_lt === (aditivoDb.custo_valor ?? 0) && (
+                      <span className="text-[8px] font-bold text-primary uppercase bg-primary/10 px-1.5 py-0.5 rounded flex items-center gap-1">
+                        <AlertCircle className="h-2.5 w-2.5" />
+                        Automático
+                      </span>
+                    )}
+                  </div>
                   <div className="relative">
                     <Input
                       type="number"
@@ -369,6 +493,7 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
                       className="h-10 font-bold bg-background border border-border/50 focus-visible:ring-primary shadow-none pl-8"
                       value={data.custo_aditivo_lt || ""}
                       onChange={(e) => onChange({ custo_aditivo_lt: parseFloat(e.target.value) || 0 })}
+                      placeholder={aditivoDb ? `${(aditivoDb.custo_valor ?? 0).toFixed(2)}` : "0.00"}
                     />
                     <span className="absolute left-3 top-2.5 text-sm font-bold text-muted-foreground">R$</span>
                   </div>
@@ -409,7 +534,7 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
                     tick={{ fill: "hsl(var(--muted-foreground))", fontWeight: 700 }}
                     width={40}
                   />
-                  <Tooltip content={<CustomConsumoCurveTooltip />} />
+                  <Tooltip content={<CustomConsumoCurveTooltip dbMaterials={dbMaterials} data={data} dosageResult={dosageResult} />} />
                   <Line
                     type="monotone"
                     dataKey="cimento"
@@ -446,43 +571,31 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
         </div>
       </div>
 
-      {/* FOOTER SUMMARY: 5 COLUNAS */}
-      <Card className="bg-foreground text-card border-none shadow-xl overflow-hidden">
-        <div className="grid grid-cols-5 divide-x divide-white/10">
-          <div className="p-4 flex flex-col items-center">
-            <span className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">Cimento</span>
-            <div className="flex items-baseline gap-1">
-              <span className="text-xl font-black">{dosageResult.consumo_cimento_m3.toFixed(0)}</span>
-              <span className="text-[10px] opacity-70">kg/m³</span>
-            </div>
-          </div>
-          <div className="p-4 flex flex-col items-center">
-            <span className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">Massa Total</span>
-            <div className="flex items-baseline gap-1">
-              <span className="text-xl font-black">{dosageResult.massa_total_batelada.toFixed(1)}</span>
-              <span className="text-[10px] opacity-70">kg</span>
-            </div>
-          </div>
-          <div className="p-4 flex flex-col items-center">
-            <span className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">Água</span>
-            <div className="flex items-baseline gap-1">
-              <span className="text-xl font-black">{dosageResult.agua_m3.toFixed(0)}</span>
-              <span className="text-[10px] opacity-70">kg/m³</span>
-            </div>
-          </div>
-          <div className="p-4 flex flex-col items-center">
-            <span className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">Agregado</span>
-            <div className="flex items-baseline gap-1">
-              <span className="text-xl font-black">{(dosageResult.consumo_cimento_m3 * data.relacao_cimento).toFixed(0)}</span>
-              <span className="text-[10px] opacity-70">kg/m³</span>
-            </div>
-          </div>
-          <div className="p-4 flex flex-col items-center bg-primary text-primary-foreground">
-            <span className="text-[10px] font-black uppercase tracking-widest mb-1">Traço</span>
-            <span className="text-xl font-black">1 : {data.relacao_cimento.toFixed(1)}</span>
-          </div>
+      {/* FOOTER SUMMARY: CUSTOS */}
+      <div className="space-y-3">
+        <div className="flex items-start gap-2 p-3 rounded-lg bg-primary/5 border border-primary/20">
+          <AlertCircle className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+          <p className="text-xs text-muted-foreground">
+            <strong className="text-foreground">Custos automáticos:</strong> Os valores são sincronizados do cadastro de materiais. Altere o "<strong>Consumo de Cimento Alvo (kg/m³)</strong>" para recalcular os custos automaticamente.
+          </p>
         </div>
-      </Card>
+        <Card className="bg-foreground text-card border-none shadow-xl overflow-hidden">
+          <div className="grid grid-cols-3 divide-x divide-white/10">
+            <div className="p-4 flex flex-col items-center">
+              <span className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">Cimento</span>
+              <span className="text-xl font-black">R$ {custoCimento.toFixed(2)}</span>
+            </div>
+            <div className="p-4 flex flex-col items-center">
+              <span className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">Aditivo</span>
+              <span className="text-xl font-black">R$ {custoAditivo.toFixed(2)}</span>
+            </div>
+            <div className="p-4 flex flex-col items-center bg-primary text-primary-foreground">
+              <span className="text-[10px] font-black uppercase tracking-widest mb-1">Total</span>
+              <span className="text-2xl font-black">R$ {(custoCimento + custoAditivo).toFixed(2)}</span>
+            </div>
+          </div>
+        </Card>
+      </div>
     </div>
   );
 }

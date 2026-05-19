@@ -10,10 +10,11 @@ import { TIPOS_ANALISE } from "@/lib/analysis-data";
 import type { StoredAnalysis, ProductionBatch } from "@/store/useAppStore";
 import type { DBProductionBatch } from "@/hooks/api/useProduction";
 import { useMemo, useState } from "react";
-import { calcDosage } from "@/lib/granulometry-engine";
+import { useProduction } from "@/hooks/api/useProduction";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ViewRuptureResultModal } from "../rupture/ViewRuptureResultModal";
-import type { RuptureSchedule } from "@/store/useAppStore";
 
 interface ViewProductionModalProps {
   open: boolean;
@@ -25,35 +26,56 @@ interface ViewProductionModalProps {
 export function ViewProductionModal({ open, onOpenChange, analysis, batch }: ViewProductionModalProps) {
   const [selectedRupture, setSelectedRupture] = useState<any | null>(null);
   const [showRuptureResult, setShowRuptureResult] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const { deleteBatch, isDeleting } = useProduction();
 
   if (!analysis) return null;
   const tipoLabel = TIPOS_ANALISE.find((t) => t.value === analysis.tipo_analise)?.label ?? "—";
 
-  const dosageResult = useMemo(() => {
+  // Receita calculada diretamente dos dados da análise, sem calcDosage
+  const recipe = useMemo(() => {
     if (!batch) return null;
-    const volM3 = batch.volume_produzido / 1000;
+    const fd = analysis.formData;
+    const volProdL = batch.volume_produzido; // Litros
+    const volOrigL = (fd.volume_m3 || 0.55) * 1000; // Litros
+    const scale = volOrigL > 0 ? volProdL / volOrigL : 1;
 
-    return calcDosage({
-      relacao_cimento: analysis.formData.relacao_cimento,
-      relacao_ac: analysis.formData.relacao_ac,
-      consumo_alvo_m3: analysis.formData.consumo_alvo_m3,
-      volume_m3: volM3,
-      densidade_cimento: analysis.formData.densidade_cimento,
-      proporcoes_materiais: analysis.formData.materiais_selecionados.map((m) => ({
-        nome: m.nome,
-        proporcao_pct: m.proporcao_pct,
-        densidade: m.densidade,
-      })),
-      aditivos_ml: analysis.formData.aditivos_ml * (volM3 / analysis.formData.volume_m3),
-    });
+    const cimento_kg = (fd.consumo_alvo_m3 || 0) * (volProdL / 1000);
+    const agua_l = cimento_kg * (fd.relacao_ac || 0);
+    const materiais = fd.materiais_selecionados.map((m: any) => ({
+      nome: m.nome,
+      kg: Math.round((m.proporcao_kg ?? 0) * scale * 10) / 10,
+    }));
+    const aditivos_ml = Math.round((fd.aditivos_ml || 0) * scale * 10) / 10;
+
+    return {
+      consumo_cimento_batelada: Math.round(cimento_kg * 100) / 100,
+      agua_batelada: Math.round(agua_l * 100) / 100,
+      materiais_batelada: materiais,
+      aditivos_batelada_ml: aditivos_ml,
+    };
   }, [analysis, batch]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Detalhes — {analysis.codigo}</DialogTitle>
+          <DialogTitle>Detalhes  {analysis.codigo}</DialogTitle>
         </DialogHeader>
+
+        {/* Botão de exclusão de lote */}
+        {batch && (
+          <div className="flex justify-end mb-2">
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setConfirmDelete(true)}
+              disabled={isDeleting}
+            >
+              Excluir Lote
+            </Button>
+          </div>
+        )}
 
         <div className="space-y-4">
           <div className="rounded-md border p-4 space-y-2 text-sm">
@@ -97,7 +119,7 @@ export function ViewProductionModal({ open, onOpenChange, analysis, batch }: Vie
                 </div>
               </div>
 
-              {dosageResult && (
+              {recipe && (
                 <div className="pt-2">
                   <h4 className="font-semibold text-foreground mb-2 text-xs uppercase tracking-wider">Receita Utilizada</h4>
                   <div className="rounded-md border bg-muted/20 overflow-hidden">
@@ -111,9 +133,9 @@ export function ViewProductionModal({ open, onOpenChange, analysis, batch }: Vie
                       <tbody className="divide-y">
                         <tr>
                           <td className="py-1 px-3">Cimento</td>
-                          <td className="py-1 px-3 text-right font-black">{dosageResult.consumo_cimento_batelada.toFixed(2)} kg</td>
+                          <td className="py-1 px-3 text-right font-black">{recipe.consumo_cimento_batelada.toFixed(2)} kg</td>
                         </tr>
-                        {dosageResult.materiais_batelada.map((m) => (
+                        {recipe.materiais_batelada.map((m) => (
                           <tr key={m.nome}>
                             <td className="py-1 px-3 text-muted-foreground">{m.nome}</td>
                             <td className="py-1 px-3 text-right font-bold">{m.kg.toFixed(2)} kg</td>
@@ -121,7 +143,7 @@ export function ViewProductionModal({ open, onOpenChange, analysis, batch }: Vie
                         ))}
                         <tr className="text-blue-600 dark:text-blue-400">
                           <td className="py-1 px-3">Água</td>
-                          <td className="py-1 px-3 text-right font-black">{dosageResult.agua_batelada.toFixed(2)} L</td>
+                          <td className="py-1 px-3 text-right font-black">{recipe.agua_batelada.toFixed(2)} L</td>
                         </tr>
                       </tbody>
                     </table>
@@ -165,6 +187,39 @@ export function ViewProductionModal({ open, onOpenChange, analysis, batch }: Vie
           )}
         </div>
       </DialogContent>
+
+      {/* Modal de confirmação de exclusão */}
+      {confirmDelete && (
+        <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+          <DialogContent className="max-w-xs">
+            <DialogHeader>
+              <DialogTitle>Excluir Lote</DialogTitle>
+            </DialogHeader>
+            <div className="py-2">Tem certeza que deseja excluir este lote? Esta ação não pode ser desfeita.</div>
+            <div className="flex justify-end gap-2 mt-4">
+              <Button variant="outline" size="sm" onClick={() => setConfirmDelete(false)} disabled={isDeleting}>Cancelar</Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                loading={isDeleting}
+                onClick={async () => {
+                  if (!batch) return;
+                  try {
+                    await deleteBatch(batch.id);
+                    toast.success("Lote excluído com sucesso!");
+                    setConfirmDelete(false);
+                    onOpenChange(false);
+                  } catch (err: any) {
+                    toast.error("Erro ao excluir lote", { description: err?.message });
+                  }
+                }}
+              >
+                Excluir
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       <ViewRuptureResultModal
         open={showRuptureResult}

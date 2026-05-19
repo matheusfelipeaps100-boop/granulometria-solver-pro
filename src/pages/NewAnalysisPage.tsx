@@ -106,6 +106,13 @@ const NewAnalysisPage = () => {
     if (!editCode || isLoadingAnalysis || isError || !analysisData) return;
     if (loadedCode === editCode) return; // já carregado para este código
 
+    // Se o código de edição coincidir com o rascunho atual, e já tivermos progresso salvo localmente,
+    // usamos o estado local e ignoramos os dados do banco para não sobrescrever rascunhos.
+    if (formData.codigo === editCode && currentStep > 1) {
+      setLoadedCode(editCode);
+      return;
+    }
+
     try {
       const dosage = Array.isArray(analysisData.analysis_dosage)
         ? analysisData.analysis_dosage[0]
@@ -123,7 +130,7 @@ const NewAnalysisPage = () => {
         return {
           material_id: am.material_id,
           nome: am.materials?.nome || "",
-          proporcao_kg: am.proporcao_kg ?? am.proporcao_pct * 550,
+            proporcao_kg: am.massa_kg ?? am.proporcao_kg ?? am.proporcao_pct * 550,
           proporcao_pct: am.proporcao_pct ?? 0,
           densidade: am.materials?.densidade || 2.65,
           custo_tonelada: am.materials?.custo_tonelada ?? undefined,
@@ -153,7 +160,7 @@ const NewAnalysisPage = () => {
         materiais_selecionados: materiais,
         dna_selecionado: "",
         limites_curva: [],
-      });
+      }, analysisData.wizard_step || 1);
 
       // Marcar como carregado — dispara re-render para sair da tela de loading.
       setLoadedCode(editCode);
@@ -187,17 +194,19 @@ const NewAnalysisPage = () => {
   const handleSaveDraft = useCallback(async () => {
     try {
       if (!formData.id) {
-        await createAnalysis({ formData, status: "rascunho" });
+        await createAnalysis({ formData, status: "rascunho", currentStep });
+      } else {
+        await createAnalysis({ formData, status: "rascunho", currentStep });
       }
       toast.success("Rascunho salvo com sucesso", {
         description: `${formData.codigo} — Etapa ${currentStep} de 5`,
       });
-      clearDraft();
+      // clearDraft(); // Removido para não perder o rascunho em andamento
       navigate("/analyses");
     } catch (error: any) {
       toast.error("Erro ao salvar rascunho: " + error.message);
     }
-  }, [formData, createAnalysis, navigate, currentStep, clearDraft]);
+  }, [formData, createAnalysis, navigate, currentStep]);
 
   const canProceed = useCallback(() => {
     if (currentStep === 1) {
@@ -255,7 +264,7 @@ const NewAnalysisPage = () => {
             }}
           >
             <X className="h-3.5 w-3.5" />
-            CANCELAR
+            <span className="hidden sm:inline">CANCELAR</span>
           </Button>
 
           {/* Título central + progresso */}
@@ -276,7 +285,7 @@ const NewAnalysisPage = () => {
             onClick={handleSaveDraft}
           >
             <Save className="h-3.5 w-3.5" />
-            RASCUNHO
+            <span className="hidden sm:inline">RASCUNHO</span>
           </Button>
         </div>
 
@@ -295,9 +304,7 @@ const NewAnalysisPage = () => {
         <WizardStepper
           steps={STEPS}
           currentStep={currentStep}
-          onStepClick={(step) => {
-            if (isEditMode || approved || step <= currentStep) setCurrentStep(step);
-          }}
+          onStepClick={(step) => setCurrentStep(step)}
         />
 
         {/* Step content */}

@@ -9,10 +9,10 @@ import { calcCombinedCurve, calcCurvaStatus, calcDosage } from "@/lib/granulomet
 import {
   TIPOS_ANALISE,
   ANALISTAS,
-  DNAS_PADRAO,
   PENEIRAS_PADRAO,
   type AnalysisFormData,
 } from "@/lib/analysis-data";
+import { useStandardCurves } from "@/hooks/api/useStandardCurves";
 import {
   LineChart,
   Line,
@@ -36,6 +36,7 @@ import { cn } from "@/lib/utils";
 interface StepReviewProps {
   data: AnalysisFormData;
   onApprove: () => void;
+  readOnly?: boolean;
 }
 
 function ProportionBar({ label, kg, totalKg }: { label: string; kg: number; totalKg: number }) {
@@ -59,12 +60,25 @@ function ProportionBar({ label, kg, totalKg }: { label: string; kg: number; tota
   );
 }
 
-export function StepReview({ data, onApprove }: StepReviewProps) {
+export function StepReview({ data, onApprove, readOnly = false }: StepReviewProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [observacoesFinal, setObservacoesFinal] = useState(data.observacoes || "");
+  const { curves: dbCurves } = useStandardCurves();
 
   const tipoLabel = TIPOS_ANALISE.find((t) => t.value === data.tipo_analise)?.label ?? "—";
-  const dna = DNAS_PADRAO.find((d) => d.id === data.dna_selecionado);
+  const dna = useMemo(() => {
+    const curve = dbCurves.find((c) => c.id === data.dna_selecionado) ?? dbCurves[0];
+    if (!curve) return undefined;
+    return {
+      id: curve.id,
+      nome: curve.nome,
+      limites: (curve.standard_curve_items ?? []).map((item) => ({
+        sieve_id: item.sieve_id,
+        limite_min: item.limite_min,
+        limite_max: item.limite_max,
+      })),
+    };
+  }, [dbCurves, data.dna_selecionado]);
 
   const curveResults = useMemo(() => {
     if (data.materiais_selecionados.length === 0) return [];
@@ -298,29 +312,35 @@ export function StepReview({ data, onApprove }: StepReviewProps) {
       </Card>
 
       {/* Botão de aprovação */}
-      <div className="flex justify-center pt-2">
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button size="lg" className="gap-2 px-8 font-bold text-base">
-              <CheckCircle2 className="h-5 w-5" />
-              APROVAR ANÁLISE
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Confirmar Aprovação</DialogTitle>
-              <DialogDescription>
-                Tem certeza que deseja aprovar a análise <strong>{data.codigo}</strong> — {data.nome}?
-                Essa ação irá gerar notificações e disparar webhooks configurados.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-              <Button onClick={handleApprove}>Confirmar Aprovação</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
+      {!readOnly && (
+        <div className="flex justify-center pt-2">
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button size="lg" className="gap-2 px-8 font-bold text-base">
+                <CheckCircle2 className="h-5 w-5" />
+                APROVAR ANÁLISE
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Confirmar Aprovação</DialogTitle>
+                <DialogDescription>
+                  Tem certeza que deseja aprovar a análise <strong>{data.codigo}</strong> — {data.nome}?
+                  Essa ação irá gerar notificações e disparar webhooks configurados.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+                <Button onClick={handleApprove}>Confirmar Aprovação</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+      )}
     </div>
   );
 }
+
+
+
+

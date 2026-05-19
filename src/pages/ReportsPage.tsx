@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
-import { Search, FileText, ChevronRight, RefreshCw } from "lucide-react";
+import { Search, FileText, ChevronRight, RefreshCw, ClipboardList } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useProduction } from "@/hooks/api/useProduction";
 import { useNavigate } from "react-router-dom";
@@ -19,6 +19,8 @@ const ReportsPage = () => {
     return {
       id: b.id,
       tipo: "Controle Tecnológico",
+      codigo: analysis?.codigo ?? "",
+      nome: analysis?.nome ?? "—",
       lote: b.batch_code,
       produto: tipoLabel,
       data: new Date(b.produced_at).toLocaleDateString("pt-BR"),
@@ -49,32 +51,43 @@ const ReportsPage = () => {
           </div>
         </CardHeader>
         <CardContent>
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="pl-6">ANÁLISE / TRAÇO</TableHead>
+                <TableHead>LOTE</TableHead>
                 <TableHead>Tipo</TableHead>
-                <TableHead>Lote de Produção</TableHead>
-                <TableHead>Produto</TableHead>
                 <TableHead>Data Produção</TableHead>
                 <TableHead>Status Lote</TableHead>
-                <TableHead className="text-right">Ação</TableHead>
+                <TableHead className="text-right pr-6">Ação</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {reportItems.length > 0 ? (
                 reportItems.map((r) => (
                   <TableRow key={r.id} className="hover:bg-muted/50 cursor-pointer" onClick={() => navigate(`/reports/batch/${r.id}`)}>
+                    <TableCell className="pl-6">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
+                          <ClipboardList className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground font-mono">{r.codigo}</p>
+                          <p className="font-medium text-foreground">{r.nome}</p>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-mono text-sm font-bold">{r.lote}</TableCell>
                     <TableCell className="font-medium flex items-center gap-2">
                        <FileText className="h-3 w-3 text-muted-foreground" />
                        {r.tipo}
                     </TableCell>
-                    <TableCell className="font-mono text-sm font-bold">{r.lote}</TableCell>
-                    <TableCell>{r.produto}</TableCell>
                     <TableCell>{r.data}</TableCell>
                     <TableCell>
                       <StatusBadge status={r.status} />
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right pr-6">
                       <Button variant="ghost" size="sm" className="gap-2">
                          Ver Certificado
                          <ChevronRight className="h-4 w-4" />
@@ -91,6 +104,7 @@ const ReportsPage = () => {
               )}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
     </div>

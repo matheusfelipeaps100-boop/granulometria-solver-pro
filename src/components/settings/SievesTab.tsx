@@ -34,7 +34,7 @@ export function SievesTab() {
           </AlertDescription>
         </Alert>
 
-        <div className="rounded-md border mt-6 overflow-hidden max-w-4xl">
+        <div className="rounded-md border mt-6 overflow-hidden overflow-x-auto max-w-4xl">
           <Table>
             <TableHeader className="bg-muted/30">
               <TableRow>

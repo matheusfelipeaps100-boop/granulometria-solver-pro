@@ -2,27 +2,95 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Trash2, AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import { hasActionPermission } from "@/lib/permissions";
 import { useAppStore } from "@/store/useAppStore";
+import { useStandardCurves } from "@/hooks/api/useStandardCurves";
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { toast } from "sonner";
 
 const mockTraces = [
-  { nome: "DNA Bloco Estrutural 14x19x39 4MPa", tipo: "bloco_estrutural", resistencia: "4,0 MPa", mf: "3,483", ativo: true },
-  { nome: "DNA Bloco Vedação 14x19x39 3MPa", tipo: "bloco_vedacao", resistencia: "3,0 MPa", mf: "3,712", ativo: true },
-  { nome: "DNA Paver H8 35MPa", tipo: "paver", resistencia: "35,0 MPa", mf: "3,198", ativo: true },
-  { nome: "DNA Bloco Estrutural Ótimo", tipo: "bloco_estrutural", resistencia: "4,0 MPa", mf: "3,227", ativo: true },
+  { id: "mock-1", nome: "DNA Bloco Estrutural 14x19x39 4MPa", tipo: "bloco_estrutural", resistencia: "4,0 MPa", mf: "3,483", ativo: true },
+  { id: "mock-2", nome: "DNA Bloco Vedação 14x19x39 3MPa", tipo: "bloco_vedacao", resistencia: "3,0 MPa", mf: "3,712", ativo: true },
+  { id: "mock-3", nome: "DNA Paver H8 35MPa", tipo: "paver", resistencia: "35,0 MPa", mf: "3,198", ativo: true },
+  { id: "mock-4", nome: "DNA Bloco Estrutural Ótimo", tipo: "bloco_estrutural", resistencia: "4,0 MPa", mf: "3,227", ativo: true },
 ];
 
 const StandardTracesPage = () => {
   const { profile } = useAuth();
   const currentUserRole = profile?.role ?? "LABORATORIO";
   const customDNAs = useAppStore((state) => state.customDNAs) || [];
-  
-  const canCreate = hasActionPermission(currentUserRole, "material:create");
+  const { curves } = useStandardCurves();
+  const queryClient = useQueryClient();
 
-  const allTraces = [...customDNAs, ...mockTraces];
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedTrace, setSelectedTrace] = useState<any>(null);
+
+  const canCreate = hasActionPermission(currentUserRole, "material:create");
+  const canDelete = hasActionPermission(currentUserRole, "material:delete");
+
+  // Mutation para deletar traço
+  const deleteMutation = useMutation({
+    mutationFn: async (traceId: string) => {
+      // Se for um mock, não faz nada no Supabase
+      if (traceId.startsWith("mock-")) {
+        return;
+      }
+
+      const { error } = await supabase
+        .from("standard_curves")
+        .delete()
+        .eq("id", traceId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      // Invalidar cache
+      queryClient.invalidateQueries({ queryKey: ["standard-curves"] });
+      
+      // Se for custom DNA, remover do store
+      if (selectedTrace && 'id' in selectedTrace) {
+        const customIndex = customDNAs.findIndex((c) => c.id === selectedTrace.id);
+        if (customIndex > -1) {
+          useAppStore.setState({
+            customDNAs: customDNAs.filter((_, i) => i !== customIndex),
+          });
+        }
+      }
+
+      toast.success(`Traço "${selectedTrace?.nome}" deletado com sucesso!`);
+      setDeleteDialogOpen(false);
+      setSelectedTrace(null);
+    },
+    onError: (error) => {
+      toast.error("Erro ao deletar traço");
+      console.error(error);
+    },
+  });
+
+  // Combinar dados da API com mocks
+  const dbTraces = curves.map((c) => ({
+    id: c.id,
+    nome: c.nome,
+    tipo: c.tipo_produto || "bloco_estrutural",
+    resistencia: c.resistencia_alvo ? `${c.resistencia_alvo} MPa` : "—",
+    mf: c.modulo_finura ? String(c.modulo_finura) : "—",
+    ativo: true,
+  }));
+
+  const allTraces = [...dbTraces, ...customDNAs, ...mockTraces];
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -47,6 +115,7 @@ const StandardTracesPage = () => {
           </div>
         </CardHeader>
         <CardContent>
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -55,6 +124,7 @@ const StandardTracesPage = () => {
                 <TableHead>Resistência Alvo</TableHead>
                 <TableHead>MF</TableHead>
                 <TableHead>Status</TableHead>
+                {canDelete && <TableHead className="text-right">Ações</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -72,12 +142,78 @@ const StandardTracesPage = () => {
                   <TableCell>
                     <StatusBadge status={t.ativo ? "aprovado" : "arquivado"} />
                   </TableCell>
+                  {canDelete && (
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() => {
+                          setSelectedTrace(t);
+                          setDeleteDialogOpen(true);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
+
+      {/* Modal de confirmação de deleção */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-destructive/10">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+              </div>
+              <div>
+                <DialogTitle>Deletar Traço?</DialogTitle>
+                <DialogDescription>
+                  Esta ação não pode ser desfeita
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-3 py-4">
+            <p className="text-sm text-foreground">
+              Você tem certeza que deseja deletar o traço <strong>"{selectedTrace?.nome}"</strong>?
+            </p>
+            {selectedTrace?.id?.startsWith("mock-") && (
+              <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
+                ℹ️ Este é um traço de demonstração. Será removido apenas da visualização.
+              </p>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (selectedTrace?.id) {
+                  deleteMutation.mutate(selectedTrace.id);
+                }
+              }}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? "Deletando..." : "Deletar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

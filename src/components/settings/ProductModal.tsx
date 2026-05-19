@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useAppStore } from "@/store/useAppStore";
+import { TIPOS_ANALISE } from "@/lib/analysis-data";
 import { useProducts } from "@/hooks/api/useProducts";
 import { toast } from "sonner";
 import { RefreshCw } from "lucide-react";
@@ -37,7 +37,7 @@ const emptyForm = {
 };
 
 export function ProductModal({ open, onOpenChange, editId }: ProductModalProps) {
-  const { analysisTypes } = useAppStore();
+  const analysisTypes = TIPOS_ANALISE;
   const { products, createProduct, updateProduct, isCreating, isUpdating } = useProducts();
   const [form, setForm] = useState(emptyForm);
 
@@ -121,8 +121,7 @@ export function ProductModal({ open, onOpenChange, editId }: ProductModalProps) 
               </SelectTrigger>
               <SelectContent>
                 {analysisTypes
-                  .filter((t) => t.ativo)
-                  .map((t) => (
+                  .map((t: any) => (
                     <SelectItem key={t.value} value={t.value}>
                       {t.label}
                     </SelectItem>

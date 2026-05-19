@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useState } from "react";
+﻿import { useMemo, useCallback, useState } from "react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/table";
 import { Slider } from "@/components/ui/slider";
 import { GranulometryChart } from "./GranulometryChart";
-import { cn } from "@/lib/utils";
+import { cn, calcularCustoMaterial } from "@/lib/utils";
 import {
   calcCombinedCurve,
   calcCurvaStatus,
@@ -37,25 +37,29 @@ import {
 } from "@/lib/granulometry-engine";
 import {
   PENEIRAS_PADRAO,
-  DNAS_PADRAO,
   type AnalysisFormData,
   type AnalysisMaterial,
 } from "@/lib/analysis-data";
 import { useMaterials } from "@/hooks/api/useMaterials";
+import { useStandardCurves } from "@/hooks/api/useStandardCurves";
 import { Database, Dna, AlertTriangle, CheckCircle2, AlertCircle, Trash2, Plus } from "lucide-react";
 
 interface StepGranulometryProps {
   data: AnalysisFormData;
   onChange: (updates: Partial<AnalysisFormData>) => void;
+  readOnly?: boolean;
 }
 
-export function StepGranulometry({ data, onChange }: StepGranulometryProps) {
+export function StepGranulometry({ data, onChange, readOnly }: StepGranulometryProps) {
   const [fonteAtiva, setFonteAtiva] = useState<"bica" | "manual">("bica");
   const [camadaAtiva, setCamadaAtiva] = useState<"base" | "face">("base");
   const [unidadeAtiva, setUnidadeAtiva] = useState<"pct" | "kg">("pct");
   const [isBancoOpen, setIsBancoOpen] = useState(false);
   const [isDnaOpen, setIsDnaOpen] = useState(false);
   const [bancoDraft, setBancoDraft] = useState<string[]>([]); // Staging array para modal de materiais
+
+  // Toggle para exibir/ocultar colunas % RETIDA
+  const [showPctRetida, setShowPctRetida] = useState(false);
 
   // Estado local temporário para os inputs da tabela.
   // Chave: "mi-sieveId". Permite apagar, digitar decimais e vírgula
@@ -65,6 +69,24 @@ export function StepGranulometry({ data, onChange }: StepGranulometryProps) {
   const getLocalKey = (mi: number, sieveId: number) => `${mi}-${sieveId}`;
 
   const { materials: dbMaterials } = useMaterials();
+  const { curves: dbCurves } = useStandardCurves();
+
+  // Converter curvas padrão do banco para o formato usado nos componentes
+  const dnasDisponiveis = useMemo(() => {
+    return dbCurves.map(c => ({
+      id: c.id,
+      nome: c.nome,
+      tipo: c.tipo_produto,
+      resistencia: c.resistencia_alvo ? `${c.resistencia_alvo} MPa` : "",
+      mf: c.modulo_finura ? String(c.modulo_finura) : "",
+      limites: (c.standard_curve_items ?? []).map(item => ({
+        sieve_id: item.sieve_id,
+        limite_min: item.limite_min,
+        limite_max: item.limite_max,
+      })),
+    }));
+  }, [dbCurves]);
+
   const materiaisDisponiveis = useMemo<AnalysisMaterial[]>(() => {
     return dbMaterials.filter(m => m.ativo).map(mat => ({
       material_id: mat.id,
@@ -89,7 +111,7 @@ export function StepGranulometry({ data, onChange }: StepGranulometryProps) {
     [materials]
   );
 
-  // proporcao_pct derivado de proporcao_kg — usado na curva granulométrica
+  // proporcao_pct derivado de proporcao_kg – usado na curva granulométrica
   const materialsWithPct = useMemo(() => {
     const total = totalKgMistura || 1;
     return materials.map(m => ({
@@ -98,7 +120,7 @@ export function StepGranulometry({ data, onChange }: StepGranulometryProps) {
     }));
   }, [materials, totalKgMistura]);
 
-  const dna = DNAS_PADRAO.find((d) => d.id === data.dna_selecionado) || DNAS_PADRAO[0];
+  const dna = dnasDisponiveis.find((d) => d.id === data.dna_selecionado) || dnasDisponiveis[0];
   const limits = dna?.limites;
 
   // Inicializa limites se for a primeira vez
@@ -109,7 +131,7 @@ export function StepGranulometry({ data, onChange }: StepGranulometryProps) {
     });
   }
 
-  // Curva combinada — usa proporcao_pct derivado
+  // Curva combinada – usa proporcao_pct derivado
   const curveResults = useMemo(
     () => calcCombinedCurve(materialsWithPct, limits),
     [materialsWithPct, limits]
@@ -129,7 +151,7 @@ export function StepGranulometry({ data, onChange }: StepGranulometryProps) {
     [materials]
   );
 
-  // MF combinado — ponderado pelo proporcao_kg
+  // MF combinado – ponderado pelo proporcao_kg
   const mfCombinado = useMemo(() => {
     if (totalKgMistura === 0) return 0;
     return materials.reduce((sum, m, i) => {
@@ -137,7 +159,7 @@ export function StepGranulometry({ data, onChange }: StepGranulometryProps) {
     }, 0);
   }, [materials, mfPerMaterial, totalKgMistura]);
 
-  // Custo base ponderado dos agregados — busca pre\u00e7o atualizado de materiaisDisponiveis (DB)
+  // Custo base ponderado dos agregados — busca preço atualizado de materiaisDisponiveis (DB)
   const custoBaseAgregadosTon = useMemo(() => {
     if (totalKgMistura === 0) return 0;
     return materials.reduce((sum, m) => {
@@ -219,7 +241,7 @@ export function StepGranulometry({ data, onChange }: StepGranulometryProps) {
   }, []);
 
   const handleSelectDna = useCallback((dnaId: string) => {
-    const selectedDna = DNAS_PADRAO.find(d => d.id === dnaId);
+    const selectedDna = dnasDisponiveis.find(d => d.id === dnaId);
     onChange({ 
       dna_selecionado: dnaId,
       limites_curva: selectedDna?.limites || []
@@ -403,129 +425,187 @@ export function StepGranulometry({ data, onChange }: StepGranulometryProps) {
         {/* Coluna Esquerda: ocupa 2/3 - Tabela e Proporção */}
         <div className="xl:col-span-2 flex flex-col gap-4">
           <Card className="h-full">
-            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+            <CardHeader className="pb-2 flex flex-row items-center justify-between gap-2">
               <CardTitle className="text-sm font-black uppercase tracking-wider">
-                TABELA GRANULOMÉTRICA — BLOCOS
+                TABELA GRANULOMÉTRICA – BLOCOS
               </CardTitle>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="h-7 text-xs gap-1"
-                onClick={() => {
-                  setBancoDraft(materials.map(m => m.material_id));
-                  setIsBancoOpen(true);
-                }}
-              >
-                <Database className="h-3 w-3" />
-                BANCO DE AGREGADOS
-              </Button>
+              <div className="flex flex-row gap-2 items-center">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs gap-1"
+                  onClick={() => setShowPctRetida(v => !v)}
+                  aria-pressed={showPctRetida}
+                  aria-label={showPctRetida ? "Ocultar % Retida" : "Mostrar % Retida"}
+                >
+                  {showPctRetida ? "Ocultar % Retida" : "Mostrar % Retida"}
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-7 text-xs gap-1"
+                  onClick={() => {
+                    setBancoDraft(materials.map(m => m.material_id));
+                    setIsBancoOpen(true);
+                  }}
+                >
+                  <Database className="h-3 w-3" />
+                  BANCO DE AGREGADOS
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="overflow-x-auto p-0">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-transparent border-b-none hover:bg-transparent">
-                    <TableHead className="w-[80px] text-xs font-black uppercase align-bottom pb-4">Peneira</TableHead>
+                  {/* Primeira linha: Nome dos materiais com colSpan e informações */}
+                  <TableRow className="bg-transparent border-b-2 border-primary/60 hover:bg-transparent">
+                    <TableHead className="w-[90px] text-xs font-black uppercase py-2 align-bottom">Peneira</TableHead>
                     {materials.map((m, mi) => (
-                      <TableHead key={m.material_id} className="text-center min-w-[110px] pb-4 px-1 align-bottom">
-                        <div className="flex flex-col items-center justify-end space-y-1.5 h-full">
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveMaterial(mi)}
-                            className="h-5 w-5 rounded-full border border-destructive/40 text-destructive hover:bg-destructive hover:text-white flex items-center justify-center transition-colors mb-2"
-                            title="Remover Material"
-                          >
-                            <span className="text-[10px] leading-none font-bold">✕</span>
-                          </button>
-
-                          {/* Parse name to split brand/source if needed, or just break words */}
-                          <span className="text-[10px] font-black uppercase text-foreground leading-tight tracking-tight">
-                            {m.nome.split(" ").slice(0, 2).join(" ")}
-                          </span>
-                          <span className="text-[9px] font-bold text-muted-foreground uppercase leading-tight tracking-tight">
-                            {m.nome.split(" ").slice(2).join(" ")}
-                          </span>
-
-                          <div className="flex items-center gap-1.5 mt-2">
-                            <span className="text-[9px] font-bold text-muted-foreground uppercase">
-                              MF: {mfPerMaterial[mi]?.mf.toFixed(2)}
+                      <TableHead
+                        key={m.material_id}
+                        colSpan={showPctRetida ? 2 : 1}
+                        className="text-center py-2 px-1 align-bottom"
+                      >
+                        <div className="flex flex-col items-center justify-center h-full gap-0.5">
+                          <div className="flex items-center gap-1 mb-1">
+                            {!readOnly && (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveMaterial(mi)}
+                                className="h-4 w-4 rounded-full border border-destructive/40 text-destructive hover:bg-destructive hover:text-white flex items-center justify-center transition-colors"
+                                title="Remover Material"
+                              >
+                                <span className="text-[8px] leading-none font-bold">✕</span>
+                              </button>
+                            )}
+                            <span className="text-[11px] font-black uppercase text-foreground leading-tight tracking-tight">
+                              {m.nome}
                             </span>
-                            <span className="text-[9px] font-bold border-l pl-1.5 text-muted-foreground border-muted-foreground/30">
-                              {totalKgMistura > 0 ? ((m.proporcao_kg ?? 0) / totalKgMistura * 100).toFixed(1) : "0.0"}%
-                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 text-[9px]">
+                            <span className="font-bold text-muted-foreground">MF: {mfPerMaterial[mi]?.mf.toFixed(2)}</span>
+                            <span className="text-muted-foreground">{totalKgMistura > 0 ? ((m.proporcao_kg ?? 0) / totalKgMistura * 100).toFixed(0) : "0"}%</span>
                           </div>
                         </div>
                       </TableHead>
                     ))}
-                    <TableHead className="text-center min-w-[100px] text-[10px] font-black uppercase text-muted-foreground align-bottom pb-4 tracking-tighter">
-                      % RETIDA<br />INDIVIDUAL
+                    <TableHead className="text-center py-2 px-1 align-bottom" colSpan={2}>
+                      <div className="flex flex-col items-center gap-0.5">
+                        <span className="text-[10px] font-black uppercase text-foreground leading-tight">% RETIDA MISTURA</span>
+                        <span className="text-[8px] text-muted-foreground uppercase leading-tight block">(acumulada)</span>
+                      </div>
+                    </TableHead>
+                  </TableRow>
+
+                  {/* Segunda linha: Subheaders MASSA e % RETIDA */}
+                  <TableRow className="bg-muted/20 border-b hover:bg-muted/20">
+                    <TableHead className="text-xs font-bold uppercase text-muted-foreground py-1.5" />
+                    {materials.map((m) => [
+                      <TableHead
+                        key={m.material_id + '-mass'}
+                        className="text-center text-[9px] font-bold uppercase text-muted-foreground py-1.5 border-r border-muted/40"
+                      >
+                        MASSA
+                      </TableHead>,
+                      showPctRetida && (
+                        <TableHead
+                          key={m.material_id + '-pct'}
+                          className="text-center text-[9px] font-bold uppercase text-muted-foreground py-1.5"
+                        >
+                          % RETIDA
+                        </TableHead>
+                      )
+                    ])}
+                    <TableHead className="text-center text-[9px] font-bold uppercase text-muted-foreground py-1.5 border-l border-primary/30" colSpan={2}>
+                      %
                     </TableHead>
                   </TableRow>
                 </TableHeader>
+
                 <TableBody>
                   {PENEIRAS_PADRAO.map((peneira) => {
                     const combined = curveResults.find((r) => r.sieve_id === peneira.sieve_id);
                     const isOutside = combined?.fora_da_faixa;
                     return (
-                      <TableRow
-                        key={peneira.sieve_id}
-                        className={cn(isOutside && "bg-destructive/5")}
-                      >
-                        <TableCell className="font-mono text-xs font-semibold py-1.5">
-                          <span className={cn(isOutside && "text-destructive")}>
+                      <TableRow key={peneira.sieve_id} className={cn("hover:bg-muted/50 transition-colors", isOutside && "bg-destructive/5")}>
+                        <TableCell className="font-mono text-xs font-bold py-2 pl-2">
+                          <span className={cn(isOutside && "text-destructive font-black")}>
                             {peneira.label}
                           </span>
                         </TableCell>
                         {materials.map((m, mi) => {
                           const grad = m.gradations.find((g) => g.sieve_id === peneira.sieve_id);
-                          return (
-                            <TableCell key={m.material_id} className="p-1">
+                          const totalMass = m.gradations.reduce((sum, g) => sum + g.massa_retida, 0);
+                          const pctIndividual = grad && totalMass > 0 ? (grad.massa_retida / totalMass) * 100 : 0;
+
+                          return [
+                            <TableCell key={m.material_id + '-input'} className="p-1 text-center">
                               <Input
                                 type="number"
                                 step="0.1"
                                 min="0"
-                                className="h-8 text-[11px] font-bold text-center w-full rounded-full border-muted-foreground/20 focus-visible:ring-primary/20"
+                                className="h-7 text-[10px] font-bold text-center w-full rounded-md border-muted-foreground/20 focus-visible:ring-primary/20"
+                                placeholder="0"
                                 value={
-                                  localValues[getLocalKey(mi, peneira.sieve_id)] 
-                                  ?? (grad?.massa_retida?.toString() ?? "0")
+                                  localValues[getLocalKey(mi, peneira.sieve_id)] ??
+                                  (grad?.massa_retida?.toString() ?? "")
                                 }
                                 onFocus={() => {
-                                  // Inicializa o estado local com o valor atual do store
                                   const key = getLocalKey(mi, peneira.sieve_id);
-                                  setLocalValues(prev => ({ ...prev, [key]: grad?.massa_retida?.toString() ?? "0" }));
+                                  setLocalValues(prev => ({
+                                    ...prev,
+                                    [key]: grad?.massa_retida?.toString() ?? ""
+                                  }));
                                 }}
                                 onChange={(e) => {
-                                  // Atualiza apenas o estado local — não grava no store
                                   const key = getLocalKey(mi, peneira.sieve_id);
                                   setLocalValues(prev => ({ ...prev, [key]: e.target.value }));
                                 }}
                                 onBlur={(e) => {
-                                  // Grava no store e remove do estado local
                                   const key = getLocalKey(mi, peneira.sieve_id);
                                   const parsed = parseFloat(e.target.value);
                                   handleMassChange(mi, peneira.sieve_id, isNaN(parsed) ? 0 : parsed);
-                                  setLocalValues(prev => { const next = { ...prev }; delete next[key]; return next; });
+                                  setLocalValues(prev => {
+                                    const next = { ...prev };
+                                    delete next[key];
+                                    return next;
+                                  });
                                 }}
                               />
-                            </TableCell>
-                          );
+                            </TableCell>,
+                            showPctRetida && (
+                              <TableCell key={m.material_id + '-pct'} className="p-1 text-center">
+                                <span className="inline-flex items-center justify-center h-7 text-[10px] font-bold text-foreground rounded-md bg-muted/40 min-w-[45px]">
+                                  {pctIndividual.toFixed(1)}%
+                                </span>
+                              </TableCell>
+                            )
+                          ];
                         })}
-                        <TableCell className="text-center">
-                          <span className="inline-block bg-muted/30 px-3 py-1 rounded-full text-[11px] font-black text-foreground">
-                            {combined ? (combined.pct_acumulado * 100).toFixed(1) : "—"}
+                        <TableCell className="p-1 text-center border-l border-primary/30" colSpan={2}>
+                          <span className="inline-flex items-center justify-center h-7 text-[11px] font-black text-primary rounded-md bg-primary/10 min-w-[60px]">
+                            {combined ? (combined.pct_acumulado * 100).toFixed(1) : "–"}%
                           </span>
                         </TableCell>
                       </TableRow>
                     );
                   })}
+
+
                   {/* MF footer */}
-                  <TableRow className="bg-muted/50 border-t-2">
-                    <TableCell className="text-xs font-black">MF</TableCell>
-                    {mfPerMaterial.map((mf) => (
-                      <TableCell key={mf.id} className="text-center text-xs font-bold text-foreground">
+                  <TableRow className="bg-muted/40 border-t-2 hover:bg-muted/40">
+                    <TableCell className="text-xs font-black py-2 pl-2">MF</TableCell>
+                    {mfPerMaterial.map((mf, idx) => [
+                      <TableCell key={materials[idx].material_id + '-mf-mass'} className="text-center text-xs font-bold text-foreground py-2 border-r border-muted/40">
                         {mf.mf.toFixed(3)}
-                      </TableCell>
-                    ))}
-                    <TableCell className="text-center text-sm font-black text-primary">
+                      </TableCell>,
+                      showPctRetida && (
+                        <TableCell key={materials[idx].material_id + '-mf-pct'} className="text-center text-xs font-bold text-foreground py-2">
+                          100.0%
+                        </TableCell>
+                      )
+                    ])}
+                    <TableCell className="text-center text-xs font-black text-primary py-2 border-l border-primary/30" colSpan={2}>
                       {mfCombinado.toFixed(2)}
                     </TableCell>
                   </TableRow>
@@ -606,12 +686,31 @@ export function StepGranulometry({ data, onChange }: StepGranulometryProps) {
                           {m.nome.split(" ").slice(2).join(" ")}
                         </p>
                         <p className="text-sm font-black text-destructive tracking-tight">
-                          {unidadeAtiva === "pct"
-                            ? `${totalKgMistura > 0 ? ((m.proporcao_kg ?? 0) / totalKgMistura * 100).toFixed(1) : "0.0"}%`
-                            : `${(m.proporcao_kg ?? 0).toFixed(0)} kg`}
-                        </p>
+                            {readOnly
+                              ? `${(m.proporcao_kg ?? 0).toFixed(0)} kg`
+                              : unidadeAtiva === "pct"
+                                ? `${totalKgMistura > 0 ? ((m.proporcao_kg ?? 0) / totalKgMistura * 100).toFixed(1) : "0.0"}%`
+                                : `${(m.proporcao_kg ?? 0).toFixed(0)} kg`
+                            }
+                          </p>
+                          {readOnly && (
+                            <p className="text-[10px] font-bold text-muted-foreground">
+                              {totalKgMistura > 0 ? ((m.proporcao_kg ?? 0) / totalKgMistura * 100).toFixed(1) : "0.0"}%
+                            </p>
+                          )}
+                        {/* Custo dinâmico do material */}
                         <p className="text-[9px] font-bold text-success/80 mt-1 uppercase">
-                          {m.custo_tonelada ? `R$ ${m.custo_tonelada.toFixed(2)}/ton` : "Sem custo def."}
+                          {(() => {
+                            // Busca info do material no banco
+                            const dbMat = dbMaterials.find((mat) => mat.id === m.material_id);
+                            const custo_valor = dbMat?.custo_valor ?? dbMat?.custo_tonelada ?? 0;
+                            const custo_unidade = dbMat?.custo_unidade || (dbMat?.custo_tonelada != null ? 'tonelada' : 'tonelada');
+                            const densidade = m.densidade || dbMat?.densidade || 2.65;
+                            const quantidade = m.proporcao_kg ?? 0;
+                            const custo = calcularCustoMaterial({ custo_valor, custo_unidade, quantidade, densidade });
+                            if (!custo_valor) return 'Sem custo def.';
+                            return `R$ ${custo.toFixed(2)} / ${quantidade.toFixed(0)}kg`;
+                          })()}
                         </p>
                       </div>
                     </div>
@@ -700,15 +799,29 @@ export function StepGranulometry({ data, onChange }: StepGranulometryProps) {
                   </div>
                 )}
 
-                {/* Indicador de Custo Parcial Agregados */}
+                {/* Indicador de Custo Total dos Agregados */}
                 <div className="flex justify-between items-center bg-muted/20 border p-3 rounded-lg mt-2 relative overflow-hidden">
                   <div className="absolute left-0 top-0 bottom-0 w-1 bg-success"></div>
                   <div>
-                    <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Custo Agregados Base</p>
-                    <p className="text-sm font-bold text-success">R$ {custoBaseAgregadosTon.toFixed(2)}</p>
+                    <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Custo Total dos Agregados</p>
+                    <p className="text-sm font-bold text-success">
+                      {(() => {
+                        // Soma custo real de todos os agregados
+                        let total = 0;
+                        materials.forEach((m) => {
+                          const dbMat = dbMaterials.find((mat) => mat.id === m.material_id);
+                          const custo_valor = dbMat?.custo_valor ?? dbMat?.custo_tonelada ?? 0;
+                          const custo_unidade = dbMat?.custo_unidade || (dbMat?.custo_tonelada != null ? 'tonelada' : 'tonelada');
+                          const densidade = m.densidade || dbMat?.densidade || 2.65;
+                          const quantidade = m.proporcao_kg ?? 0;
+                          total += calcularCustoMaterial({ custo_valor, custo_unidade, quantidade, densidade });
+                        });
+                        return `R$ ${total.toFixed(2)}`;
+                      })()}
+                    </p>
                   </div>
                   <Badge variant="outline" className="text-[9px] font-black border-success/30 text-success bg-success/5 uppercase font-mono">
-                    POR TON
+                    TOTAL
                   </Badge>
                 </div>
 
@@ -820,7 +933,13 @@ export function StepGranulometry({ data, onChange }: StepGranulometryProps) {
           </DialogHeader>
           
           <div className="flex flex-col gap-2 mt-4">
-            {DNAS_PADRAO.map((item) => (
+            {dnasDisponiveis.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Dna className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                <p className="text-sm font-medium">Nenhuma curva padrão (DNA) cadastrada</p>
+                <p className="text-xs mt-1">Vá em Configurações → Tipos de Análise para criar uma curva padrão</p>
+              </div>
+            ) : dnasDisponiveis.map((item) => (
               <div 
                 key={item.id}
                 className={cn(
@@ -854,3 +973,15 @@ export function StepGranulometry({ data, onChange }: StepGranulometryProps) {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+

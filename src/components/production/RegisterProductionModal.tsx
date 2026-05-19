@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -12,12 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ClipboardList, CheckCircle2, Calendar } from "lucide-react";
+import { ClipboardList } from "lucide-react";
 import { toast } from "sonner";
-import { ANALISTAS } from "@/lib/analysis-data";
-import { useMemo } from "react";
-import { calcDosage } from "@/lib/granulometry-engine";
-import { cn } from "@/lib/utils";
 import { useProduction } from "@/hooks/api/useProduction";
 import { useProfiles } from "@/hooks/api/useProfiles";
 import { useTechnicalSettings } from "@/hooks/api/useTechnicalSettings";
@@ -43,25 +39,32 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
   const [dataProducao, setDataProducao] = useState(new Date().toISOString().slice(0, 16));
   const [observacoes, setObservacoes] = useState("");
 
-  const dosageResult = useMemo(() => {
+  // Receita calculada diretamente dos dados da análise, sem calcDosage
+  const recipe = useMemo(() => {
     if (!analysis) return null;
-    const volM3 = Number(volume) / 1000;
-    if (volM3 <= 0) return null;
+    const volProdL = Number(volume);
+    if (volProdL <= 0) return null;
+    const fd = analysis.formData;
+    const volOrigL = (fd.volume_m3 || 0.55) * 1000; // Litros
+    const scale = volOrigL > 0 ? volProdL / volOrigL : 1;
 
-    return calcDosage({
-      relacao_cimento: analysis.formData.relacao_cimento,
-      relacao_ac: analysis.formData.relacao_ac,
-      consumo_alvo_m3: analysis.formData.consumo_alvo_m3,
-      volume_m3: volM3,
-      densidade_cimento: settings?.densidade_cimento_padrao || analysis.formData.densidade_cimento,
-      proporcoes_materiais: analysis.formData.materiais_selecionados.map((m: any) => ({
-        nome: m.nome,
-        proporcao_pct: m.proporcao_pct,
-        densidade: m.densidade,
-      })),
-      aditivos_ml: analysis.formData.aditivos_ml * (volM3 / (analysis.formData.volume_m3 || (Number(settings?.volume_batelada_padrao) / 1000) || 0.55)),
-    });
-  }, [analysis, volume, settings]);
+    const cimento_kg = (fd.consumo_alvo_m3 || 0) * (volProdL / 1000);
+    const agua_l = cimento_kg * (fd.relacao_ac || 0);
+    const materiais = fd.materiais_selecionados.map((m: any) => ({
+      nome: m.nome,
+      kg: Math.round((m.proporcao_kg ?? 0) * scale * 10) / 10,
+    }));
+    const aditivos_ml = Math.round((fd.aditivos_ml || 0) * scale * 10) / 10;
+    const totalKg = Math.round((cimento_kg + materiais.reduce((s: number, m: any) => s + m.kg, 0) + agua_l + aditivos_ml / 1000) * 10) / 10;
+
+    return {
+      consumo_cimento_batelada: Math.round(cimento_kg * 100) / 100,
+      agua_batelada: Math.round(agua_l * 100) / 100,
+      materiais_batelada: materiais,
+      aditivos_batelada_ml: aditivos_ml,
+      massa_total_batelada: totalKg,
+    };
+  }, [analysis, volume]);
 
   if (!analysis) return null;
 
@@ -178,7 +181,7 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
             </div>
           </div>
 
-          {dosageResult && (
+          {recipe && (
             <div className="space-y-2">
               <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                 Receita de Pesagem (Misturador)
@@ -195,10 +198,10 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
                     <tr>
                       <td className="py-1.5 px-3 font-bold">Cimento</td>
                       <td className="py-1.5 px-3 text-right font-black text-primary">
-                        {dosageResult.consumo_cimento_batelada.toFixed(2)} kg
+                        {recipe.consumo_cimento_batelada.toFixed(2)} kg
                       </td>
                     </tr>
-                    {dosageResult.materiais_batelada.map((m) => (
+                    {recipe.materiais_batelada.map((m) => (
                       <tr key={m.nome}>
                         <td className="py-1.5 px-3 text-muted-foreground">{m.nome}</td>
                         <td className="py-1.5 px-3 text-right font-bold">{m.kg.toFixed(2)} kg</td>
@@ -207,19 +210,19 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
                     <tr className="bg-blue-50/30 dark:bg-blue-950/20">
                       <td className="py-1.5 px-3 font-bold text-blue-600 dark:text-blue-400">Água</td>
                       <td className="py-1.5 px-3 text-right font-black text-blue-600 dark:text-blue-400">
-                        {dosageResult.agua_batelada.toFixed(2)} L
+                        {recipe.agua_batelada.toFixed(2)} L
                       </td>
                     </tr>
                     <tr className="bg-muted/30 font-black">
                       <td className="py-2 px-3 uppercase">Total Batelada</td>
                       <td className="py-2 px-3 text-right text-sm">
-                        {dosageResult.massa_total_batelada.toFixed(1)} kg
+                        {recipe.massa_total_batelada.toFixed(1)} kg
                       </td>
                     </tr>
                   </tbody>
                 </table>
               </div>
-              {dosageResult.massa_total_batelada > (settings?.volume_batelada_padrao || 550) && (
+              {recipe.massa_total_batelada > (settings?.volume_batelada_padrao || 550) && (
                 <p className="text-[10px] text-destructive font-bold animate-pulse">
                   ⚠️ ATENÇÃO: Massa total excede a capacidade de {settings?.volume_batelada_padrao || 550}kg do misturador!
                 </p>

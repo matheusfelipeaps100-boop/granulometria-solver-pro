@@ -18,6 +18,7 @@ import RuptureDetailPage from "./pages/RuptureDetailPage";
 import ReportsPage from "./pages/ReportsPage";
 import SettingsPage from "./pages/SettingsPage";
 import QualityReportPage from "./pages/QualityReportPage";
+import CostReportPage from "./pages/CostReportPage";
 import UnauthorizedPage from "./pages/UnauthorizedPage";
 import LoginPage from "./pages/LoginPage";
 import NotFound from "./pages/NotFound";
@@ -86,6 +87,11 @@ const App = () => (
             <Route path="/reports/batch/:batchId" element={
               <ProtectedRoute allowedRoles={["ADMIN", "VENDAS", "LABORATORIO"]}>
                 <QualityReportPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/reports/costs" element={
+              <ProtectedRoute allowedRoles={["ADMIN", "VENDAS", "LABORATORIO"]}>
+                <CostReportPage />
               </ProtectedRoute>
             } />
             <Route path="/settings" element={

@@ -43,6 +43,7 @@ const SettingsPage = () => {
     densidade_cimento: "3.15",
     formula_tensao_a: "0.0546",
     formula_tensao_b: "98.0665",
+    formula_tensao_paver: "1.729",
   });
 
   useEffect(() => {
@@ -52,6 +53,7 @@ const SettingsPage = () => {
         densidade_cimento: String(settings.densidade_cimento_padrao),
         formula_tensao_a: String(settings.formula_tensao_a),
         formula_tensao_b: String(settings.formula_tensao_b),
+        formula_tensao_paver: String(settings.formula_tensao_paver),
       });
     }
   }, [settings]);
@@ -70,8 +72,9 @@ const SettingsPage = () => {
     const dens = parseFloat(localParams.densidade_cimento);
     const fa = parseFloat(localParams.formula_tensao_a);
     const fb = parseFloat(localParams.formula_tensao_b);
+    const fp = parseFloat(localParams.formula_tensao_paver);
 
-    if (isNaN(vol) || isNaN(dens) || isNaN(fa) || isNaN(fb)) {
+    if (isNaN(vol) || isNaN(dens) || isNaN(fa) || isNaN(fb) || isNaN(fp)) {
       toast.error("Por favor, preencha valores numéricos válidos.");
       return;
     }
@@ -82,10 +85,18 @@ const SettingsPage = () => {
         densidade_cimento_padrao: dens,
         formula_tensao_a: fa,
         formula_tensao_b: fb,
+        formula_tensao_paver: fp,
       });
       toast.success("Parâmetros de cálculo salvos com sucesso.");
     } catch (error) {
-      toast.error("Erro ao salvar parâmetros.");
+      console.error("[handleSaveParams] Erro ao salvar parâmetros:", {
+        erro: error,
+        mensagem: (error as any)?.message,
+        codigo: (error as any)?.code,
+        detalhes: (error as any)?.details,
+      });
+      const mensagemErro = (error as any)?.message || "desconhecido";
+      toast.error(`Erro ao salvar parâmetros: ${mensagemErro}`);
     }
   };
 
@@ -98,9 +109,10 @@ const SettingsPage = () => {
       </div>
 
       <Tabs defaultValue="products">
-        <TabsList>
+        <div className="overflow-x-auto -mx-1 px-1 pb-1">
+        <TabsList className="inline-flex w-auto min-w-full sm:w-full">
           <TabsTrigger value="products">Produtos</TabsTrigger>
-          <TabsTrigger value="productTypes">Tipos de Análise</TabsTrigger>
+          <TabsTrigger value="productTypes">Tipos</TabsTrigger>
           <TabsTrigger value="identity">Identidade</TabsTrigger>
           <TabsTrigger value="params">Parâmetros</TabsTrigger>
           <TabsTrigger value="goals">Metas</TabsTrigger>
@@ -109,6 +121,7 @@ const SettingsPage = () => {
           <TabsTrigger value="sieves">Peneiras</TabsTrigger>
           <TabsTrigger value="users">Usuários</TabsTrigger>
         </TabsList>
+        </div>
 
         <TabsContent value="products">
           <ProductsTab />
@@ -202,6 +215,15 @@ const SettingsPage = () => {
                     step="0.0001"
                     value={localParams.formula_tensao_b}
                     onChange={e => setLocalParams(prev => ({ ...prev, formula_tensao_b: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Fórmula Tensão — Piso/Paver</Label>
+                  <Input 
+                    type="number" 
+                    step="0.001"
+                    value={localParams.formula_tensao_paver}
+                    onChange={e => setLocalParams(prev => ({ ...prev, formula_tensao_paver: e.target.value }))}
                   />
                 </div>
               </div>

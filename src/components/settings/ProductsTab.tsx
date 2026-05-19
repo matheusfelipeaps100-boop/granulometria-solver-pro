@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Plus, Pencil, Trash2, Search, Package, RefreshCw } from "lucide-react";
-import { useAppStore } from "@/store/useAppStore";
+import { TIPOS_ANALISE } from "@/lib/analysis-data";
 import { useProducts } from "@/hooks/api/useProducts";
 import { ProductModal } from "./ProductModal";
 import {
@@ -28,7 +28,7 @@ import {
 import { toast } from "sonner";
 
 export function ProductsTab() {
-  const { analysisTypes } = useAppStore();
+  const analysisTypes = TIPOS_ANALISE;
   const { products, isLoading, deleteProduct } = useProducts();
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
@@ -64,7 +64,7 @@ export function ProductsTab() {
   };
 
   const tipoLabel = (tipo: string) =>
-    analysisTypes.find((t) => t.value === tipo)?.label ?? tipo;
+    analysisTypes.find((t: any) => t.value === tipo)?.label ?? tipo;
 
   if (isLoading) {
     return (
@@ -110,7 +110,7 @@ export function ProductsTab() {
               <p className="text-sm">Clique em "Novo Produto" para começar</p>
             </div>
           ) : (
-            <div className="rounded-md border">
+            <div className="rounded-md border overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>

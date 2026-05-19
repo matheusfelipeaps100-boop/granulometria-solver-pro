@@ -93,7 +93,7 @@ export function ProductTypesTab() {
               <p className="text-sm">Clique em "Nova Curva" para começar</p>
             </div>
           ) : (
-            <div className="rounded-md border">
+            <div className="rounded-md border overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>

@@ -16,8 +16,6 @@ generator client {
 
 datasource db {
   provider          = "postgresql"
-  url               = env("DATABASE_URL")
-  directUrl         = env("DIRECT_URL")
   // DATABASE_URL      = pooled connection (Supabase connection pooler porta 6543)
   // DIRECT_URL        = direct connection (Supabase porta 5432, para migrations)
 }
@@ -515,6 +513,7 @@ model RuptureSample {
   test_id        String        @db.Uuid
   numero         Int           // 1 | 2 | 3
   forca_kn       Decimal?      @db.Decimal(10, 3)
+  peso_kg        Decimal?      @db.Decimal(10, 3) // peso da amostra em kg
   tensao_mpa     Decimal?      @db.Decimal(8, 4) // calculado
   status         SampleStatus?
   registrado_por String?       @db.Uuid

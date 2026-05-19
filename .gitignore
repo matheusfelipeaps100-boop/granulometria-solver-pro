@@ -3,6 +3,10 @@
 .env.local
 .env.*.local
 
+# Claude Code — contém tokens de acesso (nunca commitar)
+.claude/settings.json
+.claude/settings.local.json
+
 # Logs
 logs
 *.log

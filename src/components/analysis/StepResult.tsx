@@ -1,3 +1,4 @@
+import { calcCombinedCurve, calcDosage } from "@/lib/granulometry-engine";
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,17 +12,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { FileText, Factory, Bookmark, CheckCircle2, Loader2, Printer } from "lucide-react";
-import { calcCombinedCurve, calcDosage } from "@/lib/granulometry-engine";
 import { generateAnalysisPDF } from "@/lib/pdf-generator";
 import { ReleaseProductionModal } from "./ReleaseProductionModal";
 import { SaveStandardTraceModal } from "./SaveStandardTraceModal";
 import {
   TIPOS_ANALISE,
   ANALISTAS,
-  DNAS_PADRAO,
   PENEIRAS_PADRAO,
   type AnalysisFormData,
 } from "@/lib/analysis-data";
+import { useStandardCurves } from "@/hooks/api/useStandardCurves";
 import {
   LineChart,
   Line,
@@ -35,7 +35,7 @@ import {
 } from "recharts";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { cn } from "@/lib/utils";
+import { cn, calcularCustoMaterial } from "@/lib/utils";
 import { useAnalysisDraftStore } from "@/store/useAnalysisDraftStore";
 import { useMaterials } from "@/hooks/api/useMaterials";
 
@@ -52,15 +52,33 @@ export function StepResult({ data }: StepResultProps) {
 
   // Busca preços atuais do banco — evita depender do snapshot do store
   const { materials: dbMaterials } = useMaterials();
+  const { curves: dbCurves } = useStandardCurves();
+  // Busca preço, unidade e densidade dos materiais
   const precosAtuais = useMemo(() => {
-    const map = new Map<string, number>();
+    const map = new Map();
     dbMaterials.forEach((m) => {
-      if (m.custo_tonelada != null) map.set(m.id, m.custo_tonelada);
+      map.set(m.id, {
+        custo_valor: m.custo_valor ?? m.custo_tonelada ?? 0,
+        custo_unidade: m.custo_unidade || (m.custo_tonelada != null ? 'tonelada' : 'tonelada'),
+        densidade: m.densidade ?? 2.65,
+      });
     });
     return map;
   }, [dbMaterials]);
 
-  const dna = DNAS_PADRAO.find((d) => d.id === data.dna_selecionado);
+  const dna = useMemo(() => {
+    const curve = dbCurves.find((c) => c.id === data.dna_selecionado) ?? dbCurves[0];
+    if (!curve) return undefined;
+    return {
+      id: curve.id,
+      nome: curve.nome,
+      limites: (curve.standard_curve_items ?? []).map((item) => ({
+        sieve_id: item.sieve_id,
+        limite_min: item.limite_min,
+        limite_max: item.limite_max,
+      })),
+    };
+  }, [dbCurves, data.dna_selecionado]);
   const tipoLabel = TIPOS_ANALISE.find((t) => t.value === data.tipo_analise)?.label ?? "—";
   const analistaLabel = (data.analista || ANALISTAS.find((a) => a.id === data.analista)?.nome) ?? "—";
 
@@ -68,10 +86,27 @@ export function StepResult({ data }: StepResultProps) {
   const dataFormatada = now.toLocaleDateString("pt-BR");
   const horaFormatada = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
+  // Normaliza proporcao_pct baseado em proporcao_kg (similar ao StepGranulometry)
+  const materiaisComProporcao = useMemo(() => {
+    const totalKg = data.materiais_selecionados.reduce((s, m) => s + (m.proporcao_kg ?? 0), 0);
+    const total = totalKg || 1;
+    return data.materiais_selecionados.map(m => ({
+      ...m,
+      proporcao_pct: (m.proporcao_kg ?? 0) / total,
+    }));
+  }, [data.materiais_selecionados]);
+
+  // Calcula a curva combinada com materiais normalizados
   const curveResults = useMemo(() => {
-    if (data.materiais_selecionados.length === 0) return [];
-    return calcCombinedCurve(data.materiais_selecionados, dna?.limites);
-  }, [data.materiais_selecionados, dna]);
+    if (materiaisComProporcao.length === 0) return [];
+    // Valida se há pelo menos um material com dados
+    const temDados = materiaisComProporcao.some(m => 
+      (m.proporcao_kg ?? 0) > 0 && 
+      m.gradations?.some(g => g.massa_retida > 0)
+    );
+    if (!temDados) return [];
+    return calcCombinedCurve(materiaisComProporcao, dna?.limites);
+  }, [materiaisComProporcao, dna]);
 
   const totalKgMateriais = useMemo(
     () => data.materiais_selecionados.reduce((s, m) => s + (m.proporcao_kg ?? 0), 0),
@@ -112,11 +147,35 @@ export function StepResult({ data }: StepResultProps) {
   const financeiro = useMemo(() => {
     if (!dosageResult) return null;
 
+
+    // Função para converter o custo para R$/kg
+    function getCustoPorKg(materialId) {
+      const info = precosAtuais.get(materialId);
+      if (!info) return 0;
+      const { custo_valor, custo_unidade, densidade } = info;
+      if (!custo_valor || !custo_unidade) return 0;
+      switch (custo_unidade) {
+        case 'tonelada':
+          return custo_valor / 1000;
+        case 'kg':
+          return custo_valor;
+        case 'm3':
+          // densidade em kg/m³
+          return densidade > 0 ? custo_valor / densidade : 0;
+        case 'saco':
+          // Considera 50kg por saco (ajuste conforme necessário)
+          return custo_valor / 50;
+        case 'unidade':
+          // Considera 1 unidade = 1kg (ajuste conforme necessário)
+          return custo_valor / 1;
+        default:
+          return custo_valor / 1000;
+      }
+    }
+
     const agregadosBatelada = data.materiais_selecionados.reduce((sum, m, i) => {
       const kg = dosageResult.materiais_batelada[i]?.kg || 0;
-      // Prioriza preço atual do banco; fallback para valor salvo no store
-      const custoTon = precosAtuais.get(m.material_id) ?? m.custo_tonelada ?? 0;
-      const priceKg = custoTon / 1000;
+      const priceKg = getCustoPorKg(m.material_id);
       return sum + (kg * priceKg);
     }, 0);
 
@@ -147,7 +206,7 @@ export function StepResult({ data }: StepResultProps) {
   const handleExportPDF = () => {
     setGeneratingPdf(true);
     try {
-      generateAnalysisPDF(data);
+      generateAnalysisPDF(data, { limitesDna: dna?.limites });
       toast.success("PDF gerado com sucesso!", {
         description: `Arquivo ${data.codigo}_relatorio.pdf baixado`,
       });
@@ -183,58 +242,139 @@ export function StepResult({ data }: StepResultProps) {
         </div>
       </div>
 
-      {/* Custos da Mistura */}
+      {/* Resumo de Custos do Traço */}
       {financeiro && (
         <Card className="border-none shadow-sm overflow-hidden">
-          {/* BLOCO 1: Por m³ (valor real de projeto) */}
-          <div className="bg-success text-success-foreground">
+          <div className="bg-success/10 p-0">
             <div className="px-4 pt-3 pb-1 flex items-center gap-2">
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-70">Custo por m³ de concreto produzido</span>
-              <span className="text-[9px] font-bold opacity-50 uppercase">— valor real do projeto</span>
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-70">Resumo de Custos do Traço</span>
+              <span className="text-[9px] font-bold opacity-50 uppercase">— valor real do traço final</span>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-white/10">
-              <div className="p-4 flex flex-col justify-center">
-                <span className="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1">Agregados / m³</span>
-                <span className="text-xl font-black">R$ {financeiro.agregadosM3.toFixed(2)}</span>
-              </div>
-              <div className="p-4 flex flex-col justify-center">
-                <span className="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1">Cimento / m³</span>
-                <span className="text-xl font-black">R$ {financeiro.cimentoM3.toFixed(2)}</span>
-              </div>
-              <div className="p-4 flex flex-col justify-center">
-                <span className="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1">Aditivo / m³</span>
-                <span className="text-xl font-black">R$ {financeiro.aditivoM3.toFixed(2)}</span>
-              </div>
-              <div className="p-4 flex flex-col justify-center bg-black/10">
-                <span className="text-[10px] font-black uppercase tracking-widest mb-1">Total / m³</span>
-                <span className="text-3xl font-black">R$ {financeiro.totalM3.toFixed(2)}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* BLOCO 2: Por batelada (referência operacional) */}
-          <div className="bg-muted/30 border-t border-border/50">
-            <div className="px-4 pt-2 pb-1 flex items-center gap-2">
-              <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground">Por batelada</span>
-              <span className="text-[9px] text-muted-foreground opacity-60 uppercase">— referência para cada betonada de {data.volume_m3.toFixed(3)} m³</span>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-border/40">
-              <div className="p-3 flex flex-col justify-center">
-                <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-0.5">Agregados</span>
-                <span className="text-sm font-black text-foreground">R$ {financeiro.agregadosBatelada.toFixed(2)}</span>
-              </div>
-              <div className="p-3 flex flex-col justify-center">
-                <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-0.5">Cimento</span>
-                <span className="text-sm font-black text-foreground">R$ {financeiro.cimentoBatelada.toFixed(2)}</span>
-              </div>
-              <div className="p-3 flex flex-col justify-center">
-                <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-0.5">Aditivo</span>
-                <span className="text-sm font-black text-foreground">R$ {financeiro.aditivoBatelada.toFixed(2)}</span>
-              </div>
-              <div className="p-3 flex flex-col justify-center bg-muted/20">
-                <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-0.5">Total Batelada</span>
-                <span className="text-base font-black text-foreground">R$ {financeiro.totalBatelada.toFixed(2)}</span>
-              </div>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-xs font-black uppercase">Material</TableHead>
+                    <TableHead className="text-right text-xs font-black uppercase">Qtd. (kg)</TableHead>
+                    <TableHead className="text-right text-xs font-black uppercase">Custo</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {/* Cimento - agora por Consumo de Cimento Alvo (kg/m³) */}
+                  <TableRow className="font-medium">
+                    <TableCell className="font-bold">Cimento</TableCell>
+                    <TableCell className="text-right font-bold">
+                      {data.consumo_alvo_m3.toFixed(1)} kg/m³
+                    </TableCell>
+                    <TableCell className="text-right font-bold">
+                      {(() => {
+                        const cimentoDb = dbMaterials.find((m) => m.tipo === 'cimento' || m.nome.toLowerCase().includes('cimento'));
+                        const cimento_valor = cimentoDb?.custo_valor ?? cimentoDb?.custo_tonelada ?? data.custo_cimento_ton ?? 0;
+                        const cimento_unidade = cimentoDb?.custo_unidade || (cimentoDb?.custo_tonelada != null ? 'tonelada' : 'tonelada');
+                        const cimento_densidade = cimentoDb?.densidade || 3.15;
+                        const custoCimento = calcularCustoMaterial({
+                          custo_valor: cimento_valor,
+                          custo_unidade: cimento_unidade,
+                          quantidade: data.consumo_alvo_m3,
+                          densidade: cimento_densidade,
+                        });
+                        return `R$ ${custoCimento.toFixed(2)}`;
+                      })()}
+                    </TableCell>
+                  </TableRow>
+                  {/* Agregados */}
+                  {dosageResult.materiais_batelada.map((m, i) => {
+                    const material = data.materiais_selecionados[i];
+                    const dbMat = dbMaterials.find((mat) => mat.id === material.material_id);
+                    const custo_valor = dbMat?.custo_valor ?? dbMat?.custo_tonelada ?? 0;
+                    const custo_unidade = dbMat?.custo_unidade || (dbMat?.custo_tonelada != null ? 'tonelada' : 'tonelada');
+                    const densidade = material.densidade || dbMat?.densidade || 2.65;
+                    const quantidade = m.kg ?? 0;
+                    const custo = calcularCustoMaterial({ custo_valor, custo_unidade, quantidade, densidade });
+                    return (
+                      <TableRow key={m.nome}>
+                        <TableCell>{m.nome}</TableCell>
+                        <TableCell className="text-right font-bold">{m.kg.toFixed(2)} kg</TableCell>
+                        <TableCell className="text-right font-bold">R$ {custo.toFixed(2)}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {/* Aditivo */}
+                  {data.aditivos_ml > 0 && (
+                    <TableRow>
+                      <TableCell className="text-warning">Aditivo</TableCell>
+                      <TableCell className="text-right font-bold text-warning">{data.aditivos_ml} mL</TableCell>
+                      <TableCell className="text-right font-bold text-warning">
+                        {(() => {
+                          const aditivoDb = dbMaterials.find((m) => m.tipo === 'aditivo' || m.nome.toLowerCase().includes('aditivo'));
+                          const aditivo_valor = aditivoDb?.custo_valor ?? 0;
+                          const aditivo_unidade = aditivoDb?.custo_unidade || 'litro';
+                          let custoAditivo = 0;
+                          if (aditivo_valor && data.aditivos_ml) {
+                            if (aditivo_unidade === 'litro') {
+                              custoAditivo = aditivo_valor * (data.aditivos_ml / 1000);
+                            } else if (aditivo_unidade === 'kg') {
+                              custoAditivo = aditivo_valor * (data.aditivos_ml / 1000);
+                            } else {
+                              custoAditivo = aditivo_valor * (data.aditivos_ml / 1000);
+                            }
+                          }
+                          return `R$ ${custoAditivo.toFixed(2)}`;
+                        })()}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {/* Total */}
+                  <TableRow className="bg-success/20 border-t-2 font-black">
+                    <TableCell className="font-black uppercase text-sm">TOTAL</TableCell>
+                    <TableCell className="text-right text-base font-black" colSpan={2}>
+                      {(() => {
+                        // Soma todos os custos
+                        let total = 0;
+                        // Cimento
+                        const cimentoDb = dbMaterials.find((m) => m.tipo === 'cimento' || m.nome.toLowerCase().includes('cimento'));
+                        const cimento_valor = cimentoDb?.custo_valor ?? cimentoDb?.custo_tonelada ?? data.custo_cimento_ton ?? 0;
+                        const cimento_unidade = cimentoDb?.custo_unidade || (cimentoDb?.custo_tonelada != null ? 'tonelada' : 'tonelada');
+                        const cimento_densidade = cimentoDb?.densidade || 3.15;
+                        total += calcularCustoMaterial({
+                          custo_valor: cimento_valor,
+                          custo_unidade: cimento_unidade,
+                          quantidade: data.consumo_alvo_m3,
+                          densidade: cimento_densidade,
+                        });
+                        // Agregados
+                        dosageResult.materiais_batelada.forEach((m, i) => {
+                          const material = data.materiais_selecionados[i];
+                          const dbMat = dbMaterials.find((mat) => mat.id === material.material_id);
+                          const custo_valor = dbMat?.custo_valor ?? dbMat?.custo_tonelada ?? 0;
+                          const custo_unidade = dbMat?.custo_unidade || (dbMat?.custo_tonelada != null ? 'tonelada' : 'tonelada');
+                          const densidade = material.densidade || dbMat?.densidade || 2.65;
+                          const quantidade = m.kg ?? 0;
+                          total += calcularCustoMaterial({ custo_valor, custo_unidade, quantidade, densidade });
+                        });
+                        // Aditivo
+                        if (data.aditivos_ml > 0) {
+                          const aditivoDb = dbMaterials.find((m) => m.tipo === 'aditivo' || m.nome.toLowerCase().includes('aditivo'));
+                          const aditivo_valor = aditivoDb?.custo_valor ?? 0;
+                          const aditivo_unidade = aditivoDb?.custo_unidade || 'litro';
+                          let custoAditivo = 0;
+                          if (aditivo_valor && data.aditivos_ml) {
+                            if (aditivo_unidade === 'litro') {
+                              custoAditivo = aditivo_valor * (data.aditivos_ml / 1000);
+                            } else if (aditivo_unidade === 'kg') {
+                              custoAditivo = aditivo_valor * (data.aditivos_ml / 1000);
+                            } else {
+                              custoAditivo = aditivo_valor * (data.aditivos_ml / 1000);
+                            }
+                          }
+                          total += custoAditivo;
+                        }
+                        return `R$ ${total.toFixed(2)}`;
+                      })()}
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
             </div>
           </div>
         </Card>
@@ -260,7 +400,7 @@ export function StepResult({ data }: StepResultProps) {
             </div>
           </div>
         </CardHeader>
-        <CardContent className="p-0">
+        <CardContent className="p-0 overflow-x-auto">
           {dosageResult ? (
             <Table>
               <TableHeader>
@@ -387,6 +527,7 @@ export function StepResult({ data }: StepResultProps) {
           </div>
         </CardHeader>
         <CardContent>
+          {/* Exibe o gráfico sempre que a soma das massas retidas for maior que zero */}
           <ResponsiveContainer width="100%" height={280}>
             <ComposedChart data={chartData} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />

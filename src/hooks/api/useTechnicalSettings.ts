@@ -9,6 +9,7 @@ export interface TechnicalSettings {
   densidade_cimento_padrao: number;
   formula_tensao_a: number;
   formula_tensao_b: number;
+  formula_tensao_paver: number;
   bloco_meta_1d: number;
   bloco_meta_3d: number;
   bloco_meta_7d: number;
@@ -44,11 +45,11 @@ export function useTechnicalSettings() {
     mutationFn: async (updates: Partial<TechnicalSettings>) => {
       const { data, error } = await supabase
         .from("technical_settings")
-        .upsert({ 
-          ...updates, 
+        .upsert({
+          ...updates,
           organization_id: orgId,
-          updated_at: new Date().toISOString() 
-        })
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'organization_id' })
         .select()
         .single();
       

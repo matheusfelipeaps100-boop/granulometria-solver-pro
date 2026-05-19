@@ -1,3 +1,10 @@
+/**
+ * Normaliza proporcao_pct para garantir soma 1.0
+ */
+export function normalizeProporcaoPct(proporcao: number | undefined, total: number): number {
+  if (typeof proporcao !== 'number' || total === 0) return 0;
+  return proporcao / total;
+}
 // =============================================================================
 // GRANULOMETRIA SOLVER PRO — Motor de Cálculo (TypeScript)
 // Baseado no PRD v3.0 — Seção 6
@@ -210,6 +217,23 @@ export function calcTensao(
 }
 
 /**
+ * CÁLCULO 6.1 — Tensão de rompimento para Paver
+ * Fórmula: Resultado = Tensão × multiplicador_paver
+ * Onde Tensão = Força ÷ área_paver ÷ 98.0665
+ * E multiplicador_paver é configurável (default 1.729)
+ */
+export function calcTensaoPaver(
+  forca_kn: number,
+  multiplicador: number = 1.729,
+  divisor_a: number = AREAS_PADRAO.paver,
+  divisor_b = 98.0665
+): number {
+  if (forca_kn <= 0) return 0;
+  const tensaoBase = forca_kn / divisor_a / divisor_b;
+  return Math.round((tensaoBase * multiplicador) * 10000) / 10000;
+}
+
+/**
  * CÁLCULO 7 — Estatísticas de rompimento
  */
 export function calcRuptureStats(
@@ -219,6 +243,43 @@ export function calcRuptureStats(
   divisor_b = 98.0665
 ): RuptureStats {
   const tensoes = forcas.map((f) => calcTensao(f, divisor_a, divisor_b));
+  const media = tensoes.reduce((a, b) => a + b, 0) / tensoes.length;
+  const variance =
+    tensoes.reduce((v, t) => v + Math.pow(t - media, 2), 0) / tensoes.length;
+  
+  const desvio_padrao = Math.sqrt(variance);
+  const cv = media > 0 ? (desvio_padrao / media) * 100 : 0;
+
+  return {
+    tensoes,
+    media: Math.round(media * 100) / 100,
+    minimo: Math.min(...tensoes),
+    maximo: Math.max(...tensoes),
+    desvio_padrao: Math.round(desvio_padrao * 100) / 100,
+    coeficiente_variacao: Math.round(cv * 100) / 100,
+    meta_mpa,
+    conforme: meta_mpa > 0 ? media >= meta_mpa : null,
+    status:
+      meta_mpa > 0
+        ? media >= meta_mpa
+          ? "conforme"
+          : "nao_conforme"
+        : "registro",
+  };
+}
+
+/**
+ * CÁLCULO 7.1 — Estatísticas de rompimento para Paver
+ * Usa calcTensaoPaver com multiplicador configurável
+ */
+export function calcRuptureStatsPaver(
+  forcas: number[],
+  meta_mpa: number,
+  multiplicador: number = 1.729,
+  divisor_a: number = AREAS_PADRAO.paver,
+  divisor_b = 98.0665
+): RuptureStats {
+  const tensoes = forcas.map((f) => calcTensaoPaver(f, multiplicador, divisor_a, divisor_b));
   const media = tensoes.reduce((a, b) => a + b, 0) / tensoes.length;
   const variance =
     tensoes.reduce((v, t) => v + Math.pow(t - media, 2), 0) / tensoes.length;

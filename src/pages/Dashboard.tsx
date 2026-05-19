@@ -13,6 +13,7 @@ import {
   ChevronRight,
   AlertTriangle,
   RefreshCw,
+  DollarSign,
 } from "lucide-react";
 import {
   Table,
@@ -38,6 +39,7 @@ import { Link } from "react-router-dom";
 import { useAnalyses } from "@/hooks/api/useAnalyses";
 import { useProduction } from "@/hooks/api/useProduction";
 import { useRuptures } from "@/hooks/api/useRuptures";
+import { useCostMetrics } from "@/hooks/api/useCostMetrics";
 import { useAuth } from "@/hooks/useAuth";
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -89,6 +91,7 @@ const Dashboard = () => {
   const { analyses, isLoading: loadingAnalyses } = useAnalyses();
   const { batches, isLoadingBatches: loadingBatches } = useProduction();
   const { schedules, isLoadingSchedules } = useRuptures();
+  const costMetrics = useCostMetrics();
 
   const greeting = useMemo(() => getGreeting(), []);
   const dateStr = useMemo(() => getFormattedDate(), []);
@@ -150,6 +153,16 @@ const Dashboard = () => {
         progress: complianceRate,
         color: "text-primary",
         iconBg: "bg-primary/10",
+      },
+      {
+        title: "Custo Médio / m³",
+        value: costMetrics.mediaCustoM3 > 0 ? `R$${costMetrics.mediaCustoM3.toFixed(0)}` : "—",
+        change: costMetrics.variacaoMensal !== 0 ? `${costMetrics.variacaoMensal > 0 ? "+" : ""}${costMetrics.variacaoMensal.toFixed(0)}% vs mês ant.` : "Sem dados",
+        up: costMetrics.variacaoMensal <= 0,
+        icon: DollarSign,
+        progress: Math.min(100, costMetrics.mediaCustoM3 > 0 ? 75 : 0),
+        color: "text-primary",
+        iconBg: "bg-primary/10",
       }
     ];
   }, [analyses, batches, schedules, today]);
@@ -200,7 +213,7 @@ const Dashboard = () => {
     }));
   }, [analyses]);
 
-  const KPI_ACCENT_COLORS = [BRAND_RED, BRAND_RED_MED, BRAND_RED_LIGHT, BRAND_RED];
+  const KPI_ACCENT_COLORS = [BRAND_RED, BRAND_RED_MED, BRAND_RED_LIGHT, BRAND_RED, BRAND_RED_MED];
 
   if (loadingAnalyses || loadingBatches || isLoadingSchedules) {
     return (
@@ -250,7 +263,7 @@ const Dashboard = () => {
       </div>
 
       {/* ── KPI Cards ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {realKpis.map((kpi, index) => (
           <Card key={kpi.title} className="kpi-card animate-slide-up shadow-sm border-border hover:shadow-md transition-shadow overflow-hidden">
             {/* Barra de acento lateral */}
@@ -331,8 +344,8 @@ const Dashboard = () => {
             <CardTitle className="text-sm font-bold text-foreground">Status de Rompimentos (Todos)</CardTitle>
           </CardHeader>
           <CardContent className="pt-2">
-            <div className="flex items-center gap-4">
-              <ResponsiveContainer width="60%" height={220}>
+            <div className="flex flex-col sm:flex-row items-center gap-4">
+              <ResponsiveContainer width="100%" height={220}>
                 <PieChart>
                   <Pie
                     data={realPieData}
@@ -362,6 +375,87 @@ const Dashboard = () => {
         </Card>
       </div>
 
+      {/* ── Evolução de Custos (últimos 6 meses) ── */}
+      <Card className="shadow-sm">
+        <CardHeader className="pb-1 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+          <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2">
+            <DollarSign className="h-4 w-4 text-primary" />
+            Evolução de Custos (Últimos 6 Meses)
+          </CardTitle>
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 rounded-sm" style={{ background: BRAND_RED }} />
+                R$ Total
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 rounded-sm" style={{ background: BRAND_RED_LIGHT }} />
+                Nº Lotes
+              </span>
+            </div>
+            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-muted-foreground hover:text-primary gap-1" asChild>
+              <Link to="/reports/costs">
+                Relatório completo <ChevronRight className="h-3.5 w-3.5" />
+              </Link>
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+            <div className="rounded-lg border bg-muted/20 p-3 text-center">
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Mês Atual</p>
+              <p className="text-xl font-black text-foreground mt-1">
+                {costMetrics.custoMesAtual > 0 ? `R$ ${costMetrics.custoMesAtual.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "—"}
+              </p>
+            </div>
+            <div className="rounded-lg border bg-muted/20 p-3 text-center">
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Acumulado Ano</p>
+              <p className="text-xl font-black text-foreground mt-1">
+                {costMetrics.custoAnoAtual > 0 ? `R$ ${costMetrics.custoAnoAtual.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "—"}
+              </p>
+            </div>
+            <div className="rounded-lg border bg-muted/20 p-3 text-center">
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Média R$/m³</p>
+              <p className="text-xl font-black text-foreground mt-1">
+                {costMetrics.mediaCustoM3 > 0 ? `R$ ${costMetrics.mediaCustoM3.toFixed(2)}` : "—"}
+              </p>
+            </div>
+          </div>
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={costMetrics.mensais} barGap={4} barCategoryGap="25%">
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(0,10%,93%)" vertical={false} />
+              <XAxis dataKey="label" fontSize={11} tickLine={false} axisLine={false} tick={{ fill: "hsl(0,0%,50%)" }} />
+              <YAxis fontSize={11} tickLine={false} axisLine={false} tick={{ fill: "hsl(0,0%,50%)" }} width={50}
+                tickFormatter={(v) => v > 0 ? `R$${v}` : "0"} />
+              <Tooltip
+                content={({ active, payload, label }) => {
+                  if (!active || !payload?.length) return null;
+                  return (
+                    <div className="rounded-lg border border-border bg-white shadow-lg px-4 py-3 text-sm min-w-[160px]">
+                      <p className="font-bold text-foreground mb-2">{label}</p>
+                      {payload.map((p: any) => (
+                        <div key={p.name} className="flex items-center justify-between gap-4">
+                          <span className="flex items-center gap-1.5 text-muted-foreground">
+                            <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: p.fill || p.color }} />
+                            {p.name === "totalBatelada" ? "R$ Total" : "Lotes"}
+                          </span>
+                          <span className="font-semibold text-foreground">
+                            {p.name === "totalBatelada" ? `R$ ${Number(p.value).toFixed(2)}` : p.value}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                }}
+                cursor={{ fill: "hsl(0,10%,96%)" }}
+              />
+              <Bar dataKey="totalBatelada" fill={BRAND_RED} radius={[4, 4, 0, 0]} maxBarSize={36} />
+              <Bar dataKey="batchCount" fill={BRAND_RED_LIGHT} radius={[4, 4, 0, 0]} maxBarSize={36} />
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
       {/* ── Tabelas ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
@@ -379,7 +473,7 @@ const Dashboard = () => {
             </Button>
           </CardHeader>
           <CardContent className="pt-0">
-            <div className="rounded-md border border-border overflow-hidden">
+            <div className="rounded-md border border-border overflow-hidden overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/40 hover:bg-muted/40">
@@ -431,7 +525,7 @@ const Dashboard = () => {
             </Button>
           </CardHeader>
           <CardContent className="pt-0">
-            <div className="rounded-md border border-border overflow-hidden">
+            <div className="rounded-md border border-border overflow-hidden overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/40 hover:bg-muted/40">
