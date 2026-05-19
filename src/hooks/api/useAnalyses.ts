@@ -17,6 +17,7 @@ export interface StoredAnalysis {
   wizard_step: number;
   observacoes: string | null;
   data_analise: string;
+  liberado_em: string | null;
   created_at: string;
   formData: any; // Mapeado dinamicamente pelas tabelas analysis_dosage e analysis_materials
 }
@@ -130,7 +131,7 @@ export function useAnalyses() {
   });
 
   const createMutation = useMutation({
-    mutationFn: async ({ formData, status = 'em_analise', currentStep = 1 }: { formData: AnalysisFormData, status?: AnalysisStatus, currentStep?: number }) => {
+    mutationFn: async ({ formData, status = 'em_analise', currentStep = 1, liberado_em }: { formData: AnalysisFormData, status?: AnalysisStatus, currentStep?: number, liberado_em?: string }) => {
       if (!orgId) throw new Error("Usuário não tem organização vinculada");
       if (!profile?.id) throw new Error("Usuário não autenticado");
 
@@ -150,7 +151,8 @@ export function useAnalyses() {
           observacoes: formData.observacoes || null,
           data_analise: formData.data,
           analista_id: profile.id, // quem criou a análise
-          created_by: profile.id
+          created_by: profile.id,
+          ...(liberado_em ? { liberado_em } : {}),
         }], { onConflict: 'organization_id,codigo' })
         .select()
         .single();
@@ -263,14 +265,18 @@ export function useAnalyses() {
   });
 
   const updateStatusMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: AnalysisStatus }) => {
+    mutationFn: async ({ id, status, liberado_em }: { id: string; status: AnalysisStatus; liberado_em?: string }) => {
+      const updateData: Record<string, any> = { status };
+      if (status === 'liberado_producao' && liberado_em) {
+        updateData.liberado_em = liberado_em;
+      }
       const { data, error } = await supabase
         .from("analyses")
-        .update({ status })
+        .update(updateData)
         .eq("id", id)
         .select()
         .single();
-      
+
       if (error) throw error;
       return data;
     },

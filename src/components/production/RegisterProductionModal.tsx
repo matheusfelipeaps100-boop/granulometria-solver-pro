@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -11,11 +11,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ClipboardList } from "lucide-react";
 import { toast } from "sonner";
 import { useProduction } from "@/hooks/api/useProduction";
-import { useProfiles } from "@/hooks/api/useProfiles";
 import { useTechnicalSettings } from "@/hooks/api/useTechnicalSettings";
 import type { StoredAnalysis } from "@/hooks/api/useAnalyses";
 
@@ -25,13 +23,18 @@ interface RegisterProductionModalProps {
   analysis: StoredAnalysis | null;
 }
 
+function generateBatchCode() {
+  return `L-${new Date().getFullYear()}-${Math.floor(Math.random() * 10000).toString().padStart(4, "0")}`;
+}
+
 export function RegisterProductionModal({ open, onOpenChange, analysis }: RegisterProductionModalProps) {
   const { createBatch, isCreating } = useProduction();
   const { settings } = useTechnicalSettings();
-  const { profiles } = useProfiles();
+
+  const [batchCode, setBatchCode] = useState(generateBatchCode);
   const [operador, setOperador] = useState("");
   const [maquina, setMaquina] = useState("");
-  const [volume, setVolume] = useState(() => {
+  const [volume] = useState(() => {
     if (analysis?.formData.volume_m3) return (analysis.formData.volume_m3 * 1000).toString();
     if (settings?.volume_batelada_padrao) return settings.volume_batelada_padrao.toString();
     return "550";
@@ -39,13 +42,22 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
   const [dataProducao, setDataProducao] = useState(new Date().toISOString().slice(0, 16));
   const [observacoes, setObservacoes] = useState("");
 
-  // Receita calculada diretamente dos dados da análise, sem calcDosage
+  // Sincroniza data/hora com o momento de liberação da análise quando o modal abre
+  useEffect(() => {
+    if (analysis?.liberado_em) {
+      setDataProducao(new Date(analysis.liberado_em).toISOString().slice(0, 16));
+    } else {
+      setDataProducao(new Date().toISOString().slice(0, 16));
+    }
+  }, [analysis?.id]);
+
+  // Receita calculada diretamente dos dados da análise
   const recipe = useMemo(() => {
     if (!analysis) return null;
     const volProdL = Number(volume);
     if (volProdL <= 0) return null;
     const fd = analysis.formData;
-    const volOrigL = (fd.volume_m3 || 0.55) * 1000; // Litros
+    const volOrigL = (fd.volume_m3 || 0.55) * 1000;
     const scale = volOrigL > 0 ? volProdL / volOrigL : 1;
 
     const cimento_kg = (fd.consumo_alvo_m3 || 0) * (volProdL / 1000);
@@ -69,27 +81,24 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
   if (!analysis) return null;
 
   const handleRegister = async () => {
+    if (!batchCode.trim()) {
+      toast.error("Informe o código do lote");
+      return;
+    }
     if (!operador.trim()) {
-      toast.error("Selecione o operador");
+      toast.error("Informe o operador");
       return;
     }
     if (!maquina.trim()) {
       toast.error("Informe a máquina");
       return;
     }
-    if (!volume.trim() || Number(volume) <= 0) {
-      toast.error("Informe o volume produzido");
-      return;
-    }
 
     try {
-      const batchCode = `L-${new Date().getFullYear()}-${Math.floor(Math.random() * 10000).toString().padStart(4, "0")}`;
-      const selectedOperator = profiles.find((p) => p.id === operador);
-      
       await createBatch({
         analysis_id: analysis.id,
-        batch_code: batchCode,
-        operador_nome: selectedOperator?.nome ?? operador,
+        batch_code: batchCode.trim(),
+        operador_nome: operador.trim(),
         maquina,
         volume_produzido: Number(volume),
         notas: observacoes,
@@ -109,9 +118,9 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
   };
 
   const resetForm = () => {
+    setBatchCode(generateBatchCode());
     setOperador("");
     setMaquina("");
-    setVolume("");
     setObservacoes("");
   };
 
@@ -136,17 +145,23 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="batch-code">Código do Lote *</Label>
+            <Input
+              id="batch-code"
+              value={batchCode}
+              onChange={(e) => setBatchCode(e.target.value)}
+              placeholder="Ex: L-2026-0001"
+            />
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="operador">Operador *</Label>
-            <Select value={operador} onValueChange={setOperador}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione o operador" />
-              </SelectTrigger>
-              <SelectContent>
-                {profiles.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Input
+              id="operador"
+              value={operador}
+              onChange={(e) => setOperador(e.target.value)}
+              placeholder="Nome do operador"
+            />
           </div>
 
           <div className="space-y-2">
@@ -161,13 +176,13 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="volume">Volume Produzido (L) *</Label>
+              <Label htmlFor="volume">Volume Produzido (L)</Label>
               <Input
                 id="volume"
                 type="number"
                 value={volume}
-                onChange={(e) => setVolume(e.target.value)}
-                placeholder="Ex: 550"
+                readOnly
+                className="bg-muted/50 cursor-not-allowed"
               />
             </div>
             <div className="space-y-2">
