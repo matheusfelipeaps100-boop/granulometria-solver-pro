@@ -127,56 +127,93 @@ const ProductionPage = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredBatches.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Nenhum lote encontrado.</TableCell>
-                  </TableRow>
-                ) : (
-                  filteredBatches.map((batch) => {
-                    const analysis = analyses.find((a) => a.id === batch.analysis_id);
-                    const tipoLabel = TIPOS_ANALISE.find((t) => t.value === analysis?.tipo)?.label ?? "—";
+                {/* Análises liberadas aguardando registro de lote */}
+                {releasedAnalyses
+                  .filter((a) => !batches.some((b) => b.analysis_id === a.id))
+                  .map((analysis) => {
+                    const tipoLabel = TIPOS_ANALISE.find((t) => t.value === analysis.tipo)?.label ?? "—";
                     return (
-                      <TableRow key={batch.id}>
+                      <TableRow key={`pending-${analysis.id}`} className="bg-primary/5 border-l-4 border-l-primary">
                         <TableCell className="pl-6">
                           <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
-                              <ClipboardList className="h-5 w-5 text-muted-foreground" />
+                            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                              <ClipboardList className="h-5 w-5 text-primary" />
                             </div>
                             <div>
-                              <p className="text-xs text-muted-foreground font-mono">{analysis?.codigo ?? "—"}</p>
-                              <p className="font-medium text-foreground">{analysis?.nome ?? "—"}</p>
+                              <p className="text-xs text-muted-foreground font-mono">{analysis.codigo}</p>
+                              <p className="font-medium text-foreground">{analysis.nome}</p>
                             </div>
                           </div>
                         </TableCell>
                         <TableCell className="text-muted-foreground text-sm">{tipoLabel}</TableCell>
                         <TableCell>
-                          <StatusBadge status={batch.status} />
+                          <StatusBadge status="liberado_producao" />
                         </TableCell>
                         <TableCell>
-                          <span className="font-mono text-sm">{batch.batch_code}</span>
+                          <span className="text-xs text-muted-foreground italic">Aguardando registro</span>
                         </TableCell>
-                        <TableCell>
-                          <div className="flex gap-1">
-                            {batch.rupture_schedules?.map((s) => (
-                              <Badge key={s.id} variant="outline" className="text-xs">
-                                {s.idade_dias}d
-                              </Badge>
-                            ))}
-                          </div>
-                        </TableCell>
+                        <TableCell>—</TableCell>
                         <TableCell className="text-right pr-6">
-                          <div className="flex items-center justify-end gap-1">
-                            <Button variant="ghost" size="icon" title="Visualizar" onClick={() => setViewAnalysis(analysis)}>
-                              <Eye className="h-4 w-4" />
+                          {canRegister && (
+                            <Button size="sm" className="gap-1 text-xs" onClick={() => setRegisterAnalysis(analysis)}>
+                              <Calendar className="h-3 w-3" />
+                              Registrar Lote
                             </Button>
-                            <Button variant="ghost" size="icon" title="Exportar PDF" onClick={() => handleExportPDF(analysis)}>
-                              <FileEdit className="h-4 w-4" />
-                            </Button>
-                          </div>
+                          )}
                         </TableCell>
                       </TableRow>
                     );
-                  })
+                  })}
+                {/* Lotes já registrados */}
+                {filteredBatches.map((batch) => {
+                  const analysis = analyses.find((a) => a.id === batch.analysis_id);
+                  const tipoLabel = TIPOS_ANALISE.find((t) => t.value === analysis?.tipo)?.label ?? "—";
+                  return (
+                    <TableRow key={batch.id}>
+                      <TableCell className="pl-6">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
+                            <ClipboardList className="h-5 w-5 text-muted-foreground" />
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground font-mono">{analysis?.codigo ?? "—"}</p>
+                            <p className="font-medium text-foreground">{analysis?.nome ?? "—"}</p>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">{tipoLabel}</TableCell>
+                      <TableCell>
+                        <StatusBadge status={batch.status} />
+                      </TableCell>
+                      <TableCell>
+                        <span className="font-mono text-sm">{batch.batch_code}</span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          {batch.rupture_schedules?.map((s) => (
+                            <Badge key={s.id} variant="outline" className="text-xs">
+                              {s.idade_dias}d
+                            </Badge>
+                          ))}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right pr-6">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button variant="ghost" size="icon" title="Visualizar" onClick={() => setViewAnalysis(analysis)}>
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" title="Exportar PDF" onClick={() => handleExportPDF(analysis)}>
+                            <FileEdit className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+                {releasedAnalyses.length === 0 && filteredBatches.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Nenhum lote encontrado.</TableCell>
+                  </TableRow>
                 )}
               </TableBody>
             </Table>
