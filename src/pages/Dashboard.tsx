@@ -97,8 +97,15 @@ const Dashboard = () => {
   const dateStr = useMemo(() => getFormattedDate(), []);
 
   // ── Processamento de Dados REAIS ─────────────────────────────
-  
+
   const today = new Date().toISOString().split("T")[0];
+
+  const complianceRate = useMemo(() => {
+    const completedCount = schedules.filter(s => s.status === 'concluido').length;
+    const overdueCount = schedules.filter(s => (s.status === 'pendente' || s.status === 'atrasado') && s.data_prevista < today).length;
+    const totalConclusive = completedCount + overdueCount;
+    return totalConclusive > 0 ? (completedCount / totalConclusive) * 100 : 100;
+  }, [schedules, today]);
 
   // 1. KPIs
   const realKpis = useMemo(() => {
@@ -107,11 +114,6 @@ const Dashboard = () => {
     const productionTraces = batches.filter(b => b.status === 'aguardando_rompimentos' || b.status === 'aprovado' || b.status === 'em_andamento').length;
     const pendingRuptures = schedules.filter(s => s.status === 'pendente' || s.status === 'atrasado');
     const overdueCount = pendingRuptures.filter(s => s.data_prevista < today).length;
-
-    // Cálculo básico de conformidade (simulado por enquanto até termos os testes salvos)
-    const completedCount = schedules.filter(s => s.status === 'concluido').length;
-    const totalConclusive = completedCount + overdueCount;
-    const complianceRate = totalConclusive > 0 ? (completedCount / totalConclusive) * 100 : 100;
 
     return [
       {
@@ -167,12 +169,11 @@ const Dashboard = () => {
     ];
   }, [analyses, batches, schedules, today]);
 
-  // 2. Gráfico de Barras (Últimas 5 análises com meta)
+  // 2. Gráfico de Barras (Últimas 5 análises com meta — apenas previsto, sem simulação)
   const realBarData = useMemo(() => {
     return analyses.slice(0, 5).reverse().map(a => ({
       name: a.codigo,
       previsto: a.resistencia_prevista || 0,
-      real: (a.status === 'aprovado' || a.status === 'liberado_producao') ? (a.resistencia_prevista || 0) * 0.98 : 0 // Simulando real próximo à meta se aprovado
     }));
   }, [analyses]);
 
@@ -238,7 +239,7 @@ const Dashboard = () => {
   // ── Componente central do donut ────────────────────────────────
   const DonutCenter = ({ cx, cy }: { cx?: number; cy?: number }) => (
     <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle">
-      <tspan x={cx} dy="-0.4em" fontSize="26" fontWeight="800" fill={BRAND_RED}>92%</tspan>
+      <tspan x={cx} dy="-0.4em" fontSize="26" fontWeight="800" fill={BRAND_RED}>{Math.round(complianceRate)}%</tspan>
       <tspan x={cx} dy="1.4em" fontSize="11" fill="hsl(0,0%,50%)">conformidade</tspan>
     </text>
   );
@@ -312,15 +313,11 @@ const Dashboard = () => {
         {/* Barras */}
         <Card className="shadow-sm">
           <CardHeader className="pb-1 flex flex-row items-center justify-between">
-            <CardTitle className="text-sm font-bold text-foreground">Resistência Prevista vs Real</CardTitle>
+            <CardTitle className="text-sm font-bold text-foreground">Resistência Prevista (MPa)</CardTitle>
             <div className="flex items-center gap-4 text-xs text-muted-foreground">
               <span className="flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-sm" style={{ background: BRAND_RED_LIGHT }} />
-                Previsto
-              </span>
-              <span className="flex items-center gap-1.5">
                 <span className="h-2.5 w-2.5 rounded-sm" style={{ background: BRAND_RED }} />
-                Real
+                Previsto
               </span>
             </div>
           </CardHeader>
@@ -331,8 +328,7 @@ const Dashboard = () => {
                 <XAxis dataKey="name" fontSize={11} tickLine={false} axisLine={false} tick={{ fill: "hsl(0,0%,50%)" }} />
                 <YAxis fontSize={11} tickLine={false} axisLine={false} tick={{ fill: "hsl(0,0%,50%)" }} width={32} />
                 <Tooltip content={<CustomBarTooltip />} cursor={{ fill: "hsl(0,10%,96%)" }} />
-                <Bar dataKey="previsto" fill={BRAND_RED_LIGHT} radius={[4, 4, 0, 0]} maxBarSize={28} />
-                <Bar dataKey="real" fill={BRAND_RED} radius={[4, 4, 0, 0]} maxBarSize={28} />
+                <Bar dataKey="previsto" fill={BRAND_RED} radius={[4, 4, 0, 0]} maxBarSize={28} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>

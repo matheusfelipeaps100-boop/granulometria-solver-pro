@@ -21,12 +21,6 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
-const mockTraces = [
-  { id: "mock-1", nome: "DNA Bloco Estrutural 14x19x39 4MPa", tipo: "bloco_estrutural", resistencia: "4,0 MPa", mf: "3,483", ativo: true },
-  { id: "mock-2", nome: "DNA Bloco Vedação 14x19x39 3MPa", tipo: "bloco_vedacao", resistencia: "3,0 MPa", mf: "3,712", ativo: true },
-  { id: "mock-3", nome: "DNA Paver H8 35MPa", tipo: "paver", resistencia: "35,0 MPa", mf: "3,198", ativo: true },
-  { id: "mock-4", nome: "DNA Bloco Estrutural Ótimo", tipo: "bloco_estrutural", resistencia: "4,0 MPa", mf: "3,227", ativo: true },
-];
 
 const StandardTracesPage = () => {
   const { profile } = useAuth();
@@ -44,11 +38,6 @@ const StandardTracesPage = () => {
   // Mutation para deletar traço
   const deleteMutation = useMutation({
     mutationFn: async (traceId: string) => {
-      // Se for um mock, não faz nada no Supabase
-      if (traceId.startsWith("mock-")) {
-        return;
-      }
-
       const { error } = await supabase
         .from("standard_curves")
         .delete()
@@ -90,7 +79,7 @@ const StandardTracesPage = () => {
     ativo: true,
   }));
 
-  const allTraces = [...dbTraces, ...customDNAs, ...mockTraces];
+  const allTraces = [...dbTraces, ...customDNAs];
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -186,11 +175,6 @@ const StandardTracesPage = () => {
             <p className="text-sm text-foreground">
               Você tem certeza que deseja deletar o traço <strong>"{selectedTrace?.nome}"</strong>?
             </p>
-            {selectedTrace?.id?.startsWith("mock-") && (
-              <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
-                ℹ️ Este é um traço de demonstração. Será removido apenas da visualização.
-              </p>
-            )}
           </div>
 
           <DialogFooter>
