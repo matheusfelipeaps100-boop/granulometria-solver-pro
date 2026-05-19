@@ -30,16 +30,16 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-type NavItem = { title: string; url: string; icon: React.ElementType; allowedRoles: UserRole[] };
+type NavItem = { title: string; url: string; icon: React.ElementType; allowedRoles: UserRole[]; exact?: boolean };
 
 const mainItems: NavItem[] = [
-  { title: "Métricas", url: "/", icon: LayoutDashboard, allowedRoles: ["ADMIN", "PRODUCAO", "VENDAS", "LABORATORIO"] },
+  { title: "Métricas", url: "/", icon: LayoutDashboard, allowedRoles: ["ADMIN", "PRODUCAO", "VENDAS", "LABORATORIO"], exact: true },
   { title: "Análises", url: "/analyses", icon: FlaskConical, allowedRoles: ["ADMIN", "VENDAS", "LABORATORIO"] },
   { title: "Produção", url: "/production", icon: Factory, allowedRoles: ["ADMIN", "PRODUCAO", "VENDAS"] },
   { title: "Rompimentos", url: "/ruptures", icon: Hammer, allowedRoles: ["ADMIN", "VENDAS", "LABORATORIO"] },
   { title: "Traços Padrão", url: "/standard-traces", icon: Boxes, allowedRoles: ["ADMIN", "LABORATORIO"] },
   { title: "Materiais", url: "/materials", icon: Package, allowedRoles: ["ADMIN", "LABORATORIO"] },
-  { title: "Relatórios", url: "/reports", icon: FileText, allowedRoles: ["ADMIN", "VENDAS", "LABORATORIO"] },
+  { title: "Relatórios", url: "/reports", icon: FileText, allowedRoles: ["ADMIN", "VENDAS", "LABORATORIO"], exact: true },
   { title: "Custos", url: "/reports/costs", icon: DollarSign, allowedRoles: ["ADMIN", "VENDAS", "LABORATORIO"] },
 ];
 
@@ -68,8 +68,8 @@ export function AppSidebar() {
     navigate("/login");
   };
   
-  const isActive = (path: string) =>
-    path === "/" ? location.pathname === "/" : location.pathname.startsWith(path);
+  const isActive = (path: string, exact?: boolean) =>
+    exact ? location.pathname === path : location.pathname.startsWith(path);
 
   const visibleMain = mainItems.filter(item => item.allowedRoles.includes(currentUserRole));
   const visibleAdmin = adminItems.filter(item => item.allowedRoles.includes(currentUserRole));
@@ -102,7 +102,7 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu className="gap-1">
               {visibleMain.map((item) => {
-                const active = isActive(item.url);
+                const active = isActive(item.url, item.exact);
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton
