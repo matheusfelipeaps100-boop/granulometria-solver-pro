@@ -72,6 +72,20 @@ export const MATERIAIS_DISPONIVEIS: AnalysisMaterial[] = [];
 // TODO: Load from Supabase using useStandardCurves() hook
 export const DNAS_PADRAO: any[] = [];
 
+// Limites normativos padrão para Bloco Estrutural (espelho do seed 006_seed_standard_curves.sql)
+// Usados como fallback quando o banco não retorna standard_curve_items
+export const LIMITES_BLOCO_PADRAO: Array<{ sieve_id: number; limite_min: number; limite_max: number }> = [
+  { sieve_id: 2,  limite_min: 0.00, limite_max: 0.15 },
+  { sieve_id: 3,  limite_min: 0.00, limite_max: 0.25 },
+  { sieve_id: 4,  limite_min: 0.00, limite_max: 0.33 },
+  { sieve_id: 5,  limite_min: 0.19, limite_max: 0.51 },
+  { sieve_id: 6,  limite_min: 0.37, limite_max: 0.66 },
+  { sieve_id: 7,  limite_min: 0.54, limite_max: 0.78 },
+  { sieve_id: 8,  limite_min: 0.72, limite_max: 0.90 },
+  { sieve_id: 9,  limite_min: 0.85, limite_max: 0.97 },
+  { sieve_id: 10, limite_min: 1.00, limite_max: 1.00 },
+];
+
 // TODO: Load from Supabase using useProfiles() hook
 export const ANALISTAS = [];
 

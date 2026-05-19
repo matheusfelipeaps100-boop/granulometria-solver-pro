@@ -1,4 +1,4 @@
-﻿import { useMemo, useCallback, useState } from "react";
+﻿import { useMemo, useCallback, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -37,6 +37,7 @@ import {
 } from "@/lib/granulometry-engine";
 import {
   PENEIRAS_PADRAO,
+  LIMITES_BLOCO_PADRAO,
   type AnalysisFormData,
   type AnalysisMaterial,
 } from "@/lib/analysis-data";
@@ -121,15 +122,19 @@ export function StepGranulometry({ data, onChange, readOnly }: StepGranulometryP
   }, [materials, totalKgMistura]);
 
   const dna = dnasDisponiveis.find((d) => d.id === data.dna_selecionado) || dnasDisponiveis[0];
-  const limits = dna?.limites;
+  // Cascata: DB → form → normativo hardcoded (garante que limites nunca ficam vazios)
+  const limits = dna?.limites?.length
+    ? dna.limites
+    : data.limites_curva?.length
+      ? data.limites_curva
+      : LIMITES_BLOCO_PADRAO;
 
-  // Inicializa limites se for a primeira vez
-  if (data.limites_curva?.length === 0 && dna) {
-    onChange({
-      materiais_selecionados: [],
-      limites_curva: dna?.limites || []
-    });
-  }
+  // Persiste limites no form quando o DNA é auto-selecionado com dados do banco
+  useEffect(() => {
+    if (dna?.limites?.length && !data.limites_curva?.length) {
+      onChange({ limites_curva: dna.limites });
+    }
+  }, [dna?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Curva combinada – usa proporcao_pct derivado
   const curveResults = useMemo(
@@ -828,7 +833,7 @@ export function StepGranulometry({ data, onChange, readOnly }: StepGranulometryP
                 {/* Gráfico */}
                 <div className="mt-2 border rounded-xl overflow-hidden bg-white/50 relative h-[320px]">
                   <div className="absolute inset-0 pt-4 pb-2">
-                    <GranulometryChart curveResults={curveResults} hasLimits={!!limits} compact />
+                    <GranulometryChart curveResults={curveResults} hasLimits={!!(limits?.length)} compact />
                   </div>
                 </div>
               </div>
