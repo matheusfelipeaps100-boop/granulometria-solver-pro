@@ -8,21 +8,15 @@ const corsHeaders = {
 };
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    // 1. Validar se o JWT foi enviado
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      throw new Error('Missing Authorization header');
-    }
+    if (!authHeader) throw new Error('Missing Authorization header');
 
-    // 2. Extrair o body
     const { email, password, nome, role, ativo } = await req.json();
-
     if (!email || !password || !nome || !role) {
       throw new Error('Missing required fields: email, password, nome, role');
     }
@@ -30,63 +24,63 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-    
-    // 3. Client do usuário requisitante: Usado apenas para verificar autenticação
+
     const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: {
-        headers: { Authorization: authHeader }
-      }
+      global: { headers: { Authorization: authHeader } }
     });
 
     const { data: { user }, error: userError } = await userClient.auth.getUser();
-    if (userError || !user) {
-      throw new Error('Unauthorized');
-    }
+    if (userError || !user) throw new Error('Unauthorized');
 
-    // 4. Client Admin: Usado para operações privilegiadas (ler perfis sem RLS barrar, criar conta)
     const adminClient = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
+      auth: { autoRefreshToken: false, persistSession: false }
     });
 
-    // 5. Verificar se quem chamou é de fato admin na tabela profiles
-    const { data: profile, error: profileError } = await adminClient
+    // Busca perfil do chamador para verificar permissão e pegar organization_id
+    const { data: callerProfile, error: profileError } = await adminClient
       .from('profiles')
-      .select('role')
+      .select('role, organization_id')
       .eq('id', user.id)
       .single();
 
-    if (profileError || profile?.role !== 'admin') {
+    if (profileError || callerProfile?.role?.toLowerCase() !== 'admin') {
       throw new Error('Forbidden: Only administrators can create new users.');
     }
 
-    // 6. Criar o usuário pelo Supabase Admin API
-    // Isso NÃO desloga o usuário da sessão web e injeta metadados com segurança.
+    const orgId = callerProfile.organization_id;
+
+    // Cria o usuário no Supabase Auth
     const { data: createdUser, error: createUserError } = await adminClient.auth.admin.createUser({
       email,
       password,
-      email_confirm: true, // Auto-confirma e-mail para esse app interno
-      user_metadata: {
-        nome,
-        role,
-        ativo: ativo ?? true
-      }
+      email_confirm: true,
+      user_metadata: { nome, role: role.toLowerCase(), ativo: ativo ?? true }
     });
 
-    if (createUserError) {
-      throw createUserError;
-    }
+    if (createUserError) throw createUserError;
 
-    return new Response(JSON.stringify({ 
+    // Upsert do perfil com todos os dados corretos (sobrescreve o que o trigger criou)
+    const { error: upsertError } = await adminClient
+      .from('profiles')
+      .upsert({
+        id: createdUser.user.id,
+        nome,
+        email,
+        role: role.toLowerCase(),
+        organization_id: orgId,
+        ativo: ativo ?? true,
+      }, { onConflict: 'id' });
+
+    if (upsertError) throw upsertError;
+
+    return new Response(JSON.stringify({
       user: createdUser.user,
       message: 'Usuário cadastrado com sucesso.'
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
-    
+
   } catch (error: any) {
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

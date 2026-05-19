@@ -71,7 +71,7 @@ export function UsersTab() {
     setForm({
       nome: user.nome,
       email: user.email || "",
-      role: user.role,
+      role: (user.role?.toUpperCase() as UserRole) ?? "LABORATORIO",
       ativo: user.ativo,
     });
     setIsModalOpen(true);
@@ -91,7 +91,7 @@ export function UsersTab() {
         await updateProfile({
           id: editingId,
           nome: form.nome.trim(),
-          role: form.role,
+          role: form.role.toLowerCase() as UserRole,
           ativo: form.ativo,
         });
         toast.success("Usuário atualizado com sucesso.");
@@ -175,11 +175,11 @@ export function UsersTab() {
                     </div>
                   </TableCell>
                   <TableCell className="py-3 text-sm text-muted-foreground font-mono">
-                    {user.email}
+                    {user.email ?? "—"}
                   </TableCell>
                   <TableCell className="py-3">
-                    <Badge variant="outline" className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 ${ROLE_COLORS[user.role]}`}>
-                      {ROLE_LABELS[user.role]}
+                    <Badge variant="outline" className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 ${ROLE_COLORS[(user.role?.toUpperCase()) as UserRole] ?? ""}`}>
+                      {ROLE_LABELS[(user.role?.toUpperCase()) as UserRole] ?? user.role}
                     </Badge>
                   </TableCell>
                   <TableCell className="py-3 text-center">
