@@ -42,6 +42,7 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
   const [dataProducao, setDataProducao] = useState(new Date().toISOString().slice(0, 16));
   const [observacoes, setObservacoes] = useState("");
   const [aguaKg, setAguaKg] = useState<string>("");
+  const [aditivoMl, setAditivoMl] = useState<string>("");
 
   // Sincroniza data/hora com o momento de liberação da análise quando o modal abre
   useEffect(() => {
@@ -82,15 +83,17 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
   useEffect(() => {
     if (recipe) {
       setAguaKg(recipe.agua_batelada.toFixed(2));
+      setAditivoMl(recipe.aditivos_batelada_ml.toFixed(1));
     }
   }, [recipe]);
 
   const totalBatelada = useMemo(() => {
     if (!recipe) return 0;
     const agua = Number(aguaKg) || 0;
+    const aditivo = Number(aditivoMl) || 0;
     const materiaisTotal = recipe.materiais_batelada.reduce((s: number, m: any) => s + m.kg, 0);
-    return Math.round((recipe.consumo_cimento_batelada + materiaisTotal + agua + recipe.aditivos_batelada_ml / 1000) * 10) / 10;
-  }, [recipe, aguaKg]);
+    return Math.round((recipe.consumo_cimento_batelada + materiaisTotal + agua + aditivo / 1000) * 10) / 10;
+  }, [recipe, aguaKg, aditivoMl]);
 
   if (!analysis) return null;
 
@@ -236,6 +239,23 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
                         <td className="py-1.5 px-3 text-right font-bold">{m.kg.toFixed(2)} kg</td>
                       </tr>
                     ))}
+                    {recipe.aditivos_batelada_ml > 0 && (
+                      <tr>
+                        <td className="py-1.5 px-3 text-muted-foreground">Aditivo</td>
+                        <td className="py-1 px-3 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Input
+                              type="number"
+                              value={aditivoMl}
+                              onChange={(e) => setAditivoMl(e.target.value)}
+                              className="w-16 h-6 text-xs text-right font-bold border-muted-foreground/30 pr-0"
+                              step="0.1"
+                            />
+                            <span className="inline-block w-5 text-left text-xs font-bold text-muted-foreground">mL</span>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
                     <tr className="bg-blue-50/30 dark:bg-blue-950/20">
                       <td className="py-1.5 px-3 font-bold text-blue-600 dark:text-blue-400">Água</td>
                       <td className="py-1 px-3 text-right">
@@ -244,10 +264,10 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
                             type="number"
                             value={aguaKg}
                             onChange={(e) => setAguaKg(e.target.value)}
-                            className="w-20 h-6 text-xs text-right font-black text-blue-600 dark:text-blue-400 border-blue-300"
+                            className="w-16 h-6 text-xs text-right font-black text-blue-600 dark:text-blue-400 border-blue-300 pr-0"
                             step="0.01"
                           />
-                          <span className="text-xs font-black text-blue-600 dark:text-blue-400">L</span>
+                          <span className="inline-block w-5 text-left text-xs font-black text-blue-600 dark:text-blue-400">L</span>
                         </div>
                       </td>
                     </tr>
