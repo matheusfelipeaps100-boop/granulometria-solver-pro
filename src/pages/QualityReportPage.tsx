@@ -322,7 +322,7 @@ const QualityReportPage = () => {
               </div>
               {combinedCurve.length > 0 ? (
                 <div className="relative h-[250px] w-full bg-muted/5 rounded-lg border p-2">
-                  <GranulometryChart curveResults={combinedCurve} hasLimits={combinedCurve[0]?.limite_max !== undefined} compact={true} />
+                  <GranulometryChart curveResults={combinedCurve} hasLimits={limitesDNA.length > 0} compact={true} />
                 </div>
               ) : (
                 <div className="h-[250px] flex items-center justify-center bg-muted/10 rounded-lg border text-muted-foreground text-sm italic">
