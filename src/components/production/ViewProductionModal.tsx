@@ -40,7 +40,7 @@ export function ViewProductionModal({ open, onOpenChange, analysis, batch }: Vie
     const volOrigL = (fd.volume_m3 || 0.55) * 1000; // Litros
     const scale = volOrigL > 0 ? volProdL / volOrigL : 1;
 
-    const cimento_kg = (fd.consumo_alvo_m3 || 0) * (volProdL / 1000);
+    const cimento_kg = (fd.consumo_alvo_m3 || 0) * scale;
     const agua_l = cimento_kg * (fd.relacao_ac || 0);
     const materiais = fd.materiais_selecionados.map((m: any) => ({
       nome: m.nome,
@@ -147,6 +147,12 @@ export function ViewProductionModal({ open, onOpenChange, analysis, batch }: Vie
                             <td className="py-1 px-3 text-right font-bold">{m.kg.toFixed(2)} kg</td>
                           </tr>
                         ))}
+                        {recipe.aditivos_batelada_ml > 0 && (
+                          <tr>
+                            <td className="py-1 px-3 text-muted-foreground">Aditivo</td>
+                            <td className="py-1 px-3 text-right font-bold">{recipe.aditivos_batelada_ml.toFixed(1)} mL</td>
+                          </tr>
+                        )}
                         <tr className="text-blue-600 dark:text-blue-400">
                           <td className="py-1 px-3">Água</td>
                           <td className="py-1 px-3 text-right font-black">{recipe.agua_batelada.toFixed(2)} L</td>

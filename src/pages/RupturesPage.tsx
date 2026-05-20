@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
 import { useRuptures } from "@/hooks/api/useRuptures";
-import { useProfiles } from "@/hooks/api/useProfiles";
 import { hasActionPermission } from "@/lib/permissions";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -29,7 +28,6 @@ const statusColor: Record<ScheduleStatus, string> = {
 const RupturesPage = () => {
   const { schedules, isLoadingSchedules, releaseEarly, isReleasing } = useRuptures();
   const { profile } = useAuth();
-  const { profiles } = useProfiles();
   const navigate = useNavigate();
 
   const canCompleteRupture = profile ? hasActionPermission(profile.role, "rupture:complete") : false;
@@ -122,10 +120,9 @@ const RupturesPage = () => {
     }
     
     try {
-      const selectedAnalyst = profiles.find(a => a.id === releaseAnalyst);
       await releaseEarly({
         batchId: batchToRelease,
-        motivo: `${selectedAnalyst?.nome}: ${releaseReason}`
+        motivo: `${releaseAnalyst}: ${releaseReason}`
       });
       
       toast.success("Lote liberado antecipadamente com sucesso!");
@@ -351,16 +348,11 @@ const RupturesPage = () => {
 
             <div className="space-y-2">
               <Label>Aprovação por (Responsável) *</Label>
-              <Select value={releaseAnalyst} onValueChange={setReleaseAnalyst}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o analista responsável" />
-                </SelectTrigger>
-                <SelectContent>
-                  {profiles.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Input
+                value={releaseAnalyst}
+                onChange={(e) => setReleaseAnalyst(e.target.value)}
+                placeholder="Nome do responsável pela aprovação"
+              />
             </div>
 
             <div className="space-y-2">
