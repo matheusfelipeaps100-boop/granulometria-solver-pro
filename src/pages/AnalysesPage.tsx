@@ -31,7 +31,6 @@ import { Plus, Search, Eye, Pencil, Trash2, FileEdit, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
 import { TIPOS_ANALISE } from "@/lib/analysis-data";
-import { useAppStore } from "@/store/useAppStore";
 import { useAnalysisDraftStore } from "@/store/useAnalysisDraftStore";
 import { useAnalyses } from "@/hooks/api/useAnalyses";
 import { useAuth } from "@/hooks/useAuth";
@@ -92,8 +91,8 @@ const AnalysesPage = () => {
       codigo: a.codigo,
       nome: a.nome,
       tipo: a.tipo,
-      // Se não tiver analista por enquanto, exibe vazio ou placeholder:
-      analista: "Você", 
+      produto: a.produto ?? null,
+      analista: "Você",
       data: new Date(a.data_analise).toLocaleDateString("pt-BR"),
       status: a.status,
     }));
@@ -217,7 +216,12 @@ const AnalysesPage = () => {
                 <TableRow key={a.id} className="cursor-pointer hover:bg-muted/50">
                   <TableCell className="font-medium">{a.codigo}</TableCell>
                   <TableCell>{a.nome}</TableCell>
-                  <TableCell className="capitalize">{a.tipo.replace(/_/g, " ")}</TableCell>
+                  <TableCell>
+                    <div className="text-sm font-medium">{a.produto ?? TIPOS_ANALISE.find((t) => t.value === a.tipo)?.label ?? a.tipo}</div>
+                    {a.produto && (
+                      <div className="text-xs text-muted-foreground">{TIPOS_ANALISE.find((t) => t.value === a.tipo)?.label ?? a.tipo}</div>
+                    )}
+                  </TableCell>
                   <TableCell>{a.analista}</TableCell>
                   <TableCell>{a.data}</TableCell>
                   <TableCell>
