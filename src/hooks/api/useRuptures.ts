@@ -14,6 +14,7 @@ export interface DBRuptureSchedule {
   responsavel_nome: string | null;
   created_at: string;
   batch?: {
+    id: string;
     batch_code: string;
     produced_at: string;
     status: string;
@@ -62,6 +63,7 @@ export function useRuptures() {
         .select(`
           *,
           batch:production_batches (
+            id,
             batch_code,
             produced_at,
             status,
