@@ -81,13 +81,15 @@ export function useCostMetrics(): CostMetrics & { isLoading: boolean } {
 
       const entry = monthMap.get(ym)!;
       const nBatches = batchesByAnalysis.get(a.id) || 0;
-      // Custo por batelada × número de lotes produzidos (custo real de produção)
+
+      // Recalcula com preços atuais para garantir consistência com a tabela de detalhamento
+      const custos = calcularCustoTracoCompleto({ formData: a.formData, dbMaterials: dbMaterials || [] });
       const custoProd = nBatches > 0
-        ? (a.formData.custo_total_batelada || 0) * nBatches
-        : (a.formData.custo_total_batelada || 0); // conta 1× mesmo sem produção para tracking
+        ? custos.totalBatelada * nBatches
+        : custos.totalBatelada;
 
       entry.totalBatelada += custoProd;
-      entry.totalM3 += a.formData.custo_total_m3 || 0;
+      entry.totalM3 += custos.totalM3;
       entry.batchCount += nBatches;
       entry.analysisCount += 1;
     }
@@ -128,8 +130,11 @@ export function useCostMetrics(): CostMetrics & { isLoading: boolean } {
       ? ((custoMesAtual - custoMesAnterior) / custoMesAnterior) * 100
       : 0;
 
-    // Média custo m³
-    const allCustoM3 = analysesWithCost.map((a) => a.formData.custo_total_m3).filter(Boolean);
+    // Média custo m³ recalculada com preços atuais
+    const allCustoM3 = analysesWithCost.map((a) => {
+      const c = calcularCustoTracoCompleto({ formData: a.formData, dbMaterials: dbMaterials || [] });
+      return c.totalM3;
+    }).filter((v) => v > 0);
     const mediaCustoM3 = allCustoM3.length > 0
       ? allCustoM3.reduce((s, v) => s + v, 0) / allCustoM3.length
       : 0;

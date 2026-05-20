@@ -69,7 +69,8 @@ export function calcularCustoTracoCompleto({
   const cimento_valor = cimentoDb?.custo_valor ?? cimentoDb?.custo_tonelada ?? formData?.custo_cimento_ton ?? 0;
   const cimento_unidade = cimentoDb?.custo_unidade || (cimentoDb?.custo_tonelada != null ? 'tonelada' : 'tonelada');
   const cimento_densidade = cimentoDb?.densidade || 3.15;
-  const consumo_cimento_kg = (formData?.consumo_alvo_m3 || 0) * volM3;
+  // consumo_alvo_m3 já é a quantidade em kg para a batelada de referência
+  const consumo_cimento_kg = formData?.consumo_alvo_m3 || 0;
   cimentoBatelada = calcularCustoMaterial({
     custo_valor: cimento_valor,
     custo_unidade: cimento_unidade,

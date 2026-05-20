@@ -78,8 +78,8 @@ const CostReportPage = () => {
     for (const a of filteredAnalyses) {
       const fd = a.formData;
       if (!fd) continue;
-      const volM3 = fd.volume_m3 || 0.55;
-      const cimentoBat = (fd.consumo_alvo_m3 || 0) * volM3;
+      // consumo_alvo_m3 já é a quantidade em kg para a batelada de referência
+      const cimentoBat = fd.consumo_alvo_m3 || 0;
 
       cimento += cimentoBat * ((fd.custo_cimento_ton || 0) / 1000);
       aditivo += (fd.aditivos_ml || 0) * ((fd.custo_aditivo_lt || 0) / 1000);
