@@ -93,7 +93,7 @@ const AnalysesPage = () => {
       tipo: a.tipo,
       produto: a.produto ?? null,
       analista: "Você",
-      data: new Date(a.data_analise).toLocaleDateString("pt-BR"),
+      data: a.data_analise ? new Date(a.data_analise + "T12:00:00").toLocaleDateString("pt-BR") : "—",
       status: a.status,
     }));
   }, [analyses]);

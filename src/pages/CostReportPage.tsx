@@ -117,7 +117,7 @@ const CostReportPage = () => {
         codigo: a.codigo,
         nome: a.nome,
         status: a.status,
-        data: new Date(a.data_analise || a.created_at).toLocaleDateString("pt-BR"),
+        data: new Date((a.data_analise ? a.data_analise + "T12:00:00" : a.created_at)).toLocaleDateString("pt-BR"),
         lote: loteCodes,
         custoM3: custos.totalM3,
         custoBatelada: custos.totalBatelada,

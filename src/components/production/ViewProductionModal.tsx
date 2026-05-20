@@ -91,7 +91,7 @@ export function ViewProductionModal({ open, onOpenChange, analysis, batch }: Vie
                 )}
               </div>
               <div><span className="text-muted-foreground">Resistência:</span> {analysis.resistencia_prevista} MPa</div>
-              <div><span className="text-muted-foreground">Data:</span> {analysis.data_analise ? new Date(analysis.data_analise).toLocaleDateString("pt-BR") : "—"}</div>
+              <div><span className="text-muted-foreground">Data:</span> {analysis.data_analise ? new Date(analysis.data_analise + "T12:00:00").toLocaleDateString("pt-BR") : "—"}</div>
               <div>
                 <span className="text-muted-foreground">Status:</span>{" "}
                 <StatusBadge status={analysis.status} />

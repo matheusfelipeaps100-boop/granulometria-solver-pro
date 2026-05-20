@@ -52,7 +52,7 @@ export default function AnalysisDetailPage() {
             <div className="flex justify-between"><span className="text-muted-foreground">Código</span><span className="font-medium">{analysis.codigo}</span></div>
             <div className="flex justify-between"><span className="text-muted-foreground">Nome</span><span className="font-medium">{analysis.nome}</span></div>
             <div className="flex justify-between"><span className="text-muted-foreground">Tipo</span><span className="font-medium capitalize">{String(analysis.tipo).replace(/_/g, " ")}</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">Data</span><span className="font-medium">{new Date(analysis.data_analise).toLocaleDateString("pt-BR")}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Data</span><span className="font-medium">{new Date(analysis.data_analise + "T12:00:00").toLocaleDateString("pt-BR")}</span></div>
           </CardContent>
         </Card>
 
