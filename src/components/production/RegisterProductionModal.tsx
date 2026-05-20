@@ -41,6 +41,7 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
   });
   const [dataProducao, setDataProducao] = useState(new Date().toISOString().slice(0, 16));
   const [observacoes, setObservacoes] = useState("");
+  const [aguaKg, setAguaKg] = useState<string>("");
 
   // Sincroniza data/hora com o momento de liberação da análise quando o modal abre
   useEffect(() => {
@@ -60,7 +61,7 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
     const volOrigL = (fd.volume_m3 || 0.55) * 1000;
     const scale = volOrigL > 0 ? volProdL / volOrigL : 1;
 
-    const cimento_kg = (fd.consumo_alvo_m3 || 0) * (volProdL / 1000);
+    const cimento_kg = (fd.consumo_alvo_m3 || 0) * scale;
     const agua_l = cimento_kg * (fd.relacao_ac || 0);
     const materiais = fd.materiais_selecionados.map((m: any) => ({
       nome: m.nome,
@@ -77,6 +78,19 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
       massa_total_batelada: totalKg,
     };
   }, [analysis, volume]);
+
+  useEffect(() => {
+    if (recipe) {
+      setAguaKg(recipe.agua_batelada.toFixed(2));
+    }
+  }, [recipe]);
+
+  const totalBatelada = useMemo(() => {
+    if (!recipe) return 0;
+    const agua = Number(aguaKg) || 0;
+    const materiaisTotal = recipe.materiais_batelada.reduce((s: number, m: any) => s + m.kg, 0);
+    return Math.round((recipe.consumo_cimento_batelada + materiaisTotal + agua + recipe.aditivos_batelada_ml / 1000) * 10) / 10;
+  }, [recipe, aguaKg]);
 
   if (!analysis) return null;
 
@@ -224,20 +238,29 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
                     ))}
                     <tr className="bg-blue-50/30 dark:bg-blue-950/20">
                       <td className="py-1.5 px-3 font-bold text-blue-600 dark:text-blue-400">Água</td>
-                      <td className="py-1.5 px-3 text-right font-black text-blue-600 dark:text-blue-400">
-                        {recipe.agua_batelada.toFixed(2)} L
+                      <td className="py-1 px-3 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Input
+                            type="number"
+                            value={aguaKg}
+                            onChange={(e) => setAguaKg(e.target.value)}
+                            className="w-20 h-6 text-xs text-right font-black text-blue-600 dark:text-blue-400 border-blue-300"
+                            step="0.01"
+                          />
+                          <span className="text-xs font-black text-blue-600 dark:text-blue-400">L</span>
+                        </div>
                       </td>
                     </tr>
                     <tr className="bg-muted/30 font-black">
                       <td className="py-2 px-3 uppercase">Total Batelada</td>
                       <td className="py-2 px-3 text-right text-sm">
-                        {recipe.massa_total_batelada.toFixed(1)} kg
+                        {totalBatelada.toFixed(1)} kg
                       </td>
                     </tr>
                   </tbody>
                 </table>
               </div>
-              {recipe.massa_total_batelada > (settings?.volume_batelada_padrao || 550) && (
+              {totalBatelada > (settings?.volume_batelada_padrao || 550) && (
                 <p className="text-[10px] text-destructive font-bold animate-pulse">
                   ⚠️ ATENÇÃO: Massa total excede a capacidade de {settings?.volume_batelada_padrao || 550}kg do misturador!
                 </p>
