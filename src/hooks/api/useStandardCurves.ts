@@ -10,6 +10,7 @@ export interface StandardCurve {
   modulo_finura: number | null;
   descricao: string | null;
   ativo: boolean;
+  is_system: boolean;
   standard_curve_items?: StandardCurveItem[];
   created_at: string;
 }
@@ -35,7 +36,8 @@ export function useStandardCurves() {
       const { data, error } = await supabase
         .from("standard_curves")
         .select("*, standard_curve_items(*)")
-        .eq("organization_id", orgId)
+        .or(`organization_id.eq.${orgId},is_system.eq.true`)
+        .order("is_system", { ascending: false })
         .order("nome");
       
       if (error) throw error;

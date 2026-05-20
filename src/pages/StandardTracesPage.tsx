@@ -2,11 +2,10 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Trash2, AlertTriangle } from "lucide-react";
+import { Search, Trash2, AlertTriangle, ShieldCheck } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import { hasActionPermission } from "@/lib/permissions";
-import { useAppStore } from "@/store/useAppStore";
 import { useStandardCurves } from "@/hooks/api/useStandardCurves";
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -25,7 +24,6 @@ import { toast } from "sonner";
 const StandardTracesPage = () => {
   const { profile } = useAuth();
   const currentUserRole = profile?.role ?? "LABORATORIO";
-  const customDNAs = useAppStore((state) => state.customDNAs) || [];
   const { curves } = useStandardCurves();
   const queryClient = useQueryClient();
 
@@ -46,19 +44,7 @@ const StandardTracesPage = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      // Invalidar cache
-      queryClient.invalidateQueries({ queryKey: ["standard-curves"] });
-      
-      // Se for custom DNA, remover do store
-      if (selectedTrace && 'id' in selectedTrace) {
-        const customIndex = customDNAs.findIndex((c) => c.id === selectedTrace.id);
-        if (customIndex > -1) {
-          useAppStore.setState({
-            customDNAs: customDNAs.filter((_, i) => i !== customIndex),
-          });
-        }
-      }
-
+      queryClient.invalidateQueries({ queryKey: ["standard_curves"] });
       toast.success(`Traço "${selectedTrace?.nome}" deletado com sucesso!`);
       setDeleteDialogOpen(false);
       setSelectedTrace(null);
@@ -69,16 +55,15 @@ const StandardTracesPage = () => {
     },
   });
 
-  const dbTraces = curves.map((c) => ({
+  const allTraces = curves.map((c) => ({
     id: c.id,
     nome: c.nome,
     tipo: c.tipo_produto || "bloco_estrutural",
     resistencia: c.resistencia_alvo ? `${c.resistencia_alvo} MPa` : "—",
-    mf: c.modulo_finura ? String(c.modulo_finura) : "—",
+    mf: c.modulo_finura ? String(c.modulo_finura) : "Ref. Personalizada",
     ativo: true,
+    is_system: c.is_system,
   }));
-
-  const allTraces = [...dbTraces, ...customDNAs];
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -87,12 +72,7 @@ const StandardTracesPage = () => {
           <h1 className="text-2xl font-bold text-foreground">Traços Padrão</h1>
           <p className="text-sm text-muted-foreground">DNAs e curvas de referência</p>
         </div>
-        {canCreate && (
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Novo Traço Padrão
-          </Button>
-        )}
+        <div />
       </div>
 
       <Card className="shadow-sm">
@@ -117,14 +97,19 @@ const StandardTracesPage = () => {
             </TableHeader>
             <TableBody>
               {allTraces.map((t, index) => (
-                <TableRow key={`${t.nome}-${index}`} className="cursor-pointer hover:bg-muted/50">
+                <TableRow key={`${t.id}-${index}`} className="hover:bg-muted/50">
                   <TableCell className="font-medium">
-                    {t.nome}
-                    {'isSaved' in t && t.isSaved && (
-                      <span className="ml-2 text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">Novo</span>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {t.nome}
+                      {t.is_system && (
+                        <span className="inline-flex items-center gap-1 text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-0.5 rounded-full font-medium">
+                          <ShieldCheck className="h-3 w-3" />
+                          ABNT
+                        </span>
+                      )}
+                    </div>
                   </TableCell>
-                  <TableCell className="capitalize">{t.tipo.replace("_", " ")}</TableCell>
+                  <TableCell className="capitalize">{t.tipo.replace(/_/g, " ")}</TableCell>
                   <TableCell className="font-mono">{t.resistencia}</TableCell>
                   <TableCell className="font-mono">{t.mf}</TableCell>
                   <TableCell>
@@ -132,17 +117,19 @@ const StandardTracesPage = () => {
                   </TableCell>
                   {canDelete && (
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                        onClick={() => {
-                          setSelectedTrace(t);
-                          setDeleteDialogOpen(true);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      {!t.is_system && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          onClick={() => {
+                            setSelectedTrace(t);
+                            setDeleteDialogOpen(true);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </TableCell>
                   )}
                 </TableRow>

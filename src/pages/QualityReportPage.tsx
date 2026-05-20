@@ -21,7 +21,7 @@ import {
   AlertTriangle,
   RefreshCw,
 } from "lucide-react";
-import { TIPOS_ANALISE } from "@/lib/analysis-data";
+import { TIPOS_ANALISE, LIMITES_BLOCO_PADRAO } from "@/lib/analysis-data";
 import {
   calcRuptureStats,
   calcCombinedCurve,
@@ -173,15 +173,21 @@ const QualityReportPage = () => {
   }, [materials]);
 
   const limitesDNA = useMemo(() => {
-    const dnaId = analysis?.dna_selecionado;
-    // Buscar limites a partir das curvas carregadas do banco
-    const curve = dbCurves.find((c) => c.id === dnaId) ?? dbCurves[0];
-    if (!curve?.standard_curve_items?.length) return [];
-    return curve.standard_curve_items.map((item) => ({
-      sieve_id: item.sieve_id,
-      limite_min: item.limite_min,
-      limite_max: item.limite_max,
-    }));
+    // dna_selecionado não é salvo no DB — busca por tipo_produto compatível com a análise
+    const tipoAnalise = analysis?.tipo;
+    const curve =
+      dbCurves.find((c) => c.tipo_produto === tipoAnalise && c.standard_curve_items?.length) ??
+      dbCurves.find((c) => c.tipo_produto === "geral" && c.standard_curve_items?.length) ??
+      dbCurves.find((c) => c.standard_curve_items?.length);
+    if (curve?.standard_curve_items?.length) {
+      return curve.standard_curve_items.map((item) => ({
+        sieve_id: item.sieve_id,
+        limite_min: item.limite_min,
+        limite_max: item.limite_max,
+      }));
+    }
+    // Fallback: limites normativos padrão, igual ao StepGranulometry
+    return LIMITES_BLOCO_PADRAO;
   }, [analysis, dbCurves]);
 
   const combinedCurve = useMemo(() => {
@@ -391,9 +397,14 @@ const QualityReportPage = () => {
                     <tr className="bg-primary/5 font-black">
                       <td className="py-3 px-4 uppercase text-[9px] text-primary">Cimento Portland</td>
                       <td className="py-3 px-2 text-center text-primary text-[8px]">1 : {dosagem.relacao_cimento}</td>
-                      <td className="py-3 px-2 text-right text-primary">{(dosagem.consumo_cimento_kg ?? 0).toFixed(1)}</td>
                       <td className="py-3 px-2 text-right text-primary">
-                        {(((batch.volume_produzido ?? 0) / 1000) * (dosagem.consumo_cimento_kg ?? 0)).toFixed(1)}
+                        {(() => {
+                          const volB = dosagem.volume_batelada_litros ? dosagem.volume_batelada_litros / 1000 : 0.55;
+                          return volB > 0 ? ((dosagem.consumo_cimento_kg ?? 0) / volB).toFixed(1) : "—";
+                        })()}
+                      </td>
+                      <td className="py-3 px-2 text-right text-primary">
+                        {(dosagem.consumo_cimento_kg ?? 0).toFixed(1)}
                       </td>
                       <td className="py-3 px-4 text-right">{(dosagem.densidade_cimento ?? 3.15).toFixed(3)}</td>
                     </tr>

@@ -49,20 +49,8 @@ interface AppState {
   updateIdentity: (data: Partial<OrganizationIdentity>) => void;
   params: SystemParams;
   updateParams: (data: Partial<SystemParams>) => void;
-  customDNAs: any[];
-  saveStandardTrace: (nome: string, data: any) => void;
 }
 
-
-function generateId(): string {
-  return crypto.randomUUID();
-}
-
-function generateWebhookSecret(): string {
-  const array = new Uint8Array(32);
-  crypto.getRandomValues(array);
-  return Array.from(array, (b) => b.toString(16).padStart(2, "0")).join("");
-}
 
 export const useAppStore = create<AppState>()(persist((set, get) => ({
   // NOTE: Identity and params should be loaded from Supabase TechnicalSettings & Organization tables
@@ -83,20 +71,4 @@ export const useAppStore = create<AppState>()(persist((set, get) => ({
   },
   updateParams: (data) => set((state) => ({ params: { ...state.params, ...data } })),
 
-  customDNAs: [],
-  saveStandardTrace: (nome, data) => set((state) => ({
-    customDNAs: [
-      ...state.customDNAs,
-      {
-        id: crypto.randomUUID(),
-        nome,
-        tipo: data.tipo_analise,
-        resistencia: `${data.resistencia_prevista} MPa`,
-        mf: "Ref. Personalizada",
-        ativo: true,
-        isSaved: true,
-        dataTraco: data,
-      }
-    ]
-  })),
 }), { name: "granulometria-store" }));

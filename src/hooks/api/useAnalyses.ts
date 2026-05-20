@@ -500,11 +500,14 @@ export function useAnalysis(codigo: string | null) {
           proporcao_pct: am.proporcao_pct,
           densidade: am.materials?.densidade || 2.65,
           custo_tonelada: am.materials?.custo_tonelada ?? undefined,
-          gradations: (am.analysis_material_gradations || []).map((g: any) => ({
-            sieve_id: g.sieve_id,
-            abertura_mm: 0,
-            massa_retida: g.massa_retida ?? 0,
-          }))
+          gradations: (am.analysis_material_gradations || []).map((g: any) => {
+            const peneira = PENEIRAS_PADRAO.find(p => p.sieve_id === g.sieve_id);
+            return {
+              sieve_id: g.sieve_id,
+              abertura_mm: peneira?.abertura_mm ?? 0,
+              massa_retida: g.massa_retida ?? 0,
+            };
+          })
         }))
       };
 

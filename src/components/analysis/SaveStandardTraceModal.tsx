@@ -16,38 +16,62 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import type { AnalysisFormData } from "@/lib/analysis-data";
 import { TIPOS_ANALISE } from "@/lib/analysis-data";
-import { useAppStore } from "@/store/useAppStore";
+import { useStandardCurves } from "@/hooks/api/useStandardCurves";
 
 interface SaveStandardTraceModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   data: AnalysisFormData;
+  mfCombinado?: number;
 }
 
-export function SaveStandardTraceModal({ open, onOpenChange, data }: SaveStandardTraceModalProps) {
+export function SaveStandardTraceModal({ open, onOpenChange, data, mfCombinado }: SaveStandardTraceModalProps) {
   const navigate = useNavigate();
   const tipoLabel = TIPOS_ANALISE.find((t) => t.value === data.tipo_analise)?.label ?? "—";
   const [nomeDna, setNomeDna] = useState(`DNA ${tipoLabel} ${data.resistencia_prevista}MPa`);
   const [descricao, setDescricao] = useState("");
   const [loading, setLoading] = useState(false);
-  const saveStandardTrace = useAppStore((state) => state.saveStandardTrace);
+  const { createCurve } = useStandardCurves();
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!nomeDna.trim()) {
       toast.error("Informe o nome do traço padrão");
       return;
     }
     setLoading(true);
-    setTimeout(() => {
-      saveStandardTrace(nomeDna.trim(), data);
-      
-      setLoading(false);
+    try {
+      const items = (data.limites_curva ?? []).map((l) => ({
+        sieve_id: l.sieve_id,
+        limite_min: l.limite_min,
+        limite_max: l.limite_max,
+        pct_retido: 0,
+        pct_acumulado: 0,
+      }));
+
+      await createCurve({
+        curve: {
+          nome: nomeDna.trim(),
+          tipo_produto: data.tipo_analise,
+          resistencia_alvo: data.resistencia_prevista ?? null,
+          modulo_finura: mfCombinado ?? null,
+          descricao: descricao.trim() || null,
+          ativo: true,
+          is_system: false,
+        },
+        items,
+      });
+
       onOpenChange(false);
       toast.success("Traço padrão salvo com sucesso!", {
         description: `"${nomeDna}" disponível para futuras análises`,
       });
       navigate("/standard-traces");
-    }, 600);
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao salvar traço padrão");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -78,6 +102,7 @@ export function SaveStandardTraceModal({ open, onOpenChange, data }: SaveStandar
             <p><span className="text-muted-foreground">Origem:</span> <strong>{data.codigo}</strong></p>
             <p><span className="text-muted-foreground">Tipo:</span> {tipoLabel}</p>
             <p><span className="text-muted-foreground">Resistência:</span> {data.resistencia_prevista} MPa</p>
+            <p><span className="text-muted-foreground">MF Combinado:</span> {mfCombinado != null ? mfCombinado.toFixed(4) : "—"}</p>
             <p><span className="text-muted-foreground">Materiais:</span> {data.materiais_selecionados.map((m) => m.nome).join(", ") || "—"}</p>
           </div>
 

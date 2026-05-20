@@ -1,4 +1,4 @@
-import { calcCombinedCurve, calcDosage } from "@/lib/granulometry-engine";
+import { calcCombinedCurve, calcDosage, calcModuloFinura } from "@/lib/granulometry-engine";
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -112,6 +112,13 @@ export function StepResult({ data }: StepResultProps) {
     () => data.materiais_selecionados.reduce((s, m) => s + (m.proporcao_kg ?? 0), 0),
     [data.materiais_selecionados]
   );
+
+  const mfCombinado = useMemo(() => {
+    if (totalKgMateriais === 0) return undefined;
+    return data.materiais_selecionados.reduce((sum, m) => {
+      return sum + (calcModuloFinura(m.gradations) * (m.proporcao_kg ?? 0)) / totalKgMateriais;
+    }, 0);
+  }, [data.materiais_selecionados, totalKgMateriais]);
 
   const dosageResult = useMemo(() => {
     if (data.materiais_selecionados.length === 0) return null;
@@ -606,7 +613,7 @@ export function StepResult({ data }: StepResultProps) {
 
       {/* Modals */}
       <ReleaseProductionModal open={showReleaseModal} onOpenChange={setShowReleaseModal} data={data} />
-      <SaveStandardTraceModal open={showTraceModal} onOpenChange={setShowTraceModal} data={data} />
+      <SaveStandardTraceModal open={showTraceModal} onOpenChange={setShowTraceModal} data={data} mfCombinado={mfCombinado} />
     </div>
   );
 }

@@ -18,7 +18,7 @@ const ReportsPage = () => {
     
     return {
       id: b.id,
-      tipo: "Controle Tecnológico",
+      tipo: analysis?.produto ?? tipoLabel,
       codigo: analysis?.codigo ?? "",
       nome: analysis?.nome ?? "—",
       lote: b.batch_code,

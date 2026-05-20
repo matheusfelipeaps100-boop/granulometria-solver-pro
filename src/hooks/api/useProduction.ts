@@ -22,6 +22,7 @@ export interface DBProductionBatch {
     codigo: string;
     nome: string;
     tipo: string;
+    produto: string | null;
     status: string;
   };
   rupture_schedules?: {
@@ -46,7 +47,7 @@ export function useProduction() {
         .from("production_batches")
         .select(`
           *,
-          analyses (codigo, nome, tipo, status),
+          analyses (codigo, nome, tipo, produto, status),
           rupture_schedules (id, idade_dias, data_prevista, status)
         `)
         .eq("organization_id", orgId)
