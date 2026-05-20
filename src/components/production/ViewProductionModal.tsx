@@ -83,7 +83,13 @@ export function ViewProductionModal({ open, onOpenChange, analysis, batch }: Vie
             <div className="grid grid-cols-2 gap-2">
               <div><span className="text-muted-foreground">Código:</span> <strong>{analysis.codigo}</strong></div>
               <div><span className="text-muted-foreground">Nome:</span> {analysis.nome}</div>
-              <div><span className="text-muted-foreground">Tipo:</span> {tipoLabel}</div>
+              <div>
+                <span className="text-muted-foreground">Produto:</span>{" "}
+                <strong>{analysis.produto ?? "—"}</strong>
+                {analysis.produto && (
+                  <span className="text-xs text-muted-foreground ml-1">({tipoLabel})</span>
+                )}
+              </div>
               <div><span className="text-muted-foreground">Resistência:</span> {analysis.resistencia_prevista} MPa</div>
               <div><span className="text-muted-foreground">Data:</span> {analysis.data}</div>
               <div>

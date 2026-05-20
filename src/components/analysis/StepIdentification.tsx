@@ -191,7 +191,7 @@ export function StepIdentification({ data, onChange }: StepIdentificationProps) 
                 const prod = products.find((p) => p.id === v);
                 onChange({
                   produto_id: v,
-                  produto_nome: prod?.nome ?? "",
+                  produto_nome: prod ? `${prod.nome}${prod.dimensoes ? ` — ${prod.dimensoes}` : ""}` : "",
                   resistencia_prevista: prod?.resistencia_referencia ?? data.resistencia_prevista,
                 });
               }}

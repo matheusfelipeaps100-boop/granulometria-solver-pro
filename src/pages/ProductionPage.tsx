@@ -145,7 +145,12 @@ const ProductionPage = () => {
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell className="text-muted-foreground text-sm">{tipoLabel}</TableCell>
+                        <TableCell>
+                          <div className="text-sm font-medium">{analysis.produto ?? tipoLabel}</div>
+                          {analysis.produto && (
+                            <div className="text-xs text-muted-foreground">{tipoLabel}</div>
+                          )}
+                        </TableCell>
                         <TableCell>
                           <StatusBadge status="liberado_producao" />
                         </TableCell>
@@ -181,7 +186,12 @@ const ProductionPage = () => {
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">{tipoLabel}</TableCell>
+                      <TableCell>
+                        <div className="text-sm font-medium">{analysis?.produto ?? tipoLabel}</div>
+                        {analysis?.produto && (
+                          <div className="text-xs text-muted-foreground">{tipoLabel}</div>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <StatusBadge status={batch.status} />
                       </TableCell>
