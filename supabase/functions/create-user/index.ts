@@ -49,12 +49,12 @@ Deno.serve(async (req) => {
 
     const orgId = callerProfile.organization_id;
 
-    // Cria o usuário no Supabase Auth
+    // Cria o usuário no Supabase Auth (metadata completo para o trigger usar)
     const { data: createdUser, error: createUserError } = await adminClient.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
-      user_metadata: { nome, role: role.toLowerCase(), ativo: ativo ?? true }
+      user_metadata: { nome, role: role.toLowerCase(), ativo: ativo ?? true, organization_id: orgId }
     });
 
     if (createUserError) throw createUserError;
