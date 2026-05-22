@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Package, Unlock, AlertTriangle, ClipboardList } from "lucide-react";
+import { Search, Package, Unlock, AlertTriangle, ClipboardList, Eye } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -285,22 +285,35 @@ const RupturesPage = () => {
                         {formatDate(batch.produced_at.split("T")[0])}
                       </TableCell>
                       <TableCell className="text-right pr-6">
-                        {canReleaseEarlyPermission && (overallStatus === "pendente" || overallStatus === "em_andamento") && (
-                           <Button 
-                             variant="ghost" 
-                             size="sm" 
-                             disabled={isReleasing}
-                             onClick={() => {
-                               setBatchToRelease((batch as any).id);
-                               setReleaseModalOpen(true);
-                             }}
-                             className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 gap-2 font-bold"
-                             title="Liberar Lote Antecipadamente"
-                           >
+                        <div className="flex justify-end items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              const target = [...sorted].reverse().find(s => s.status === 'concluido') ?? sorted[0];
+                              navigate(`/ruptures/${target.id}`);
+                            }}
+                            title="Ver Detalhes"
+                          >
+                            <Eye className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                          {canReleaseEarlyPermission && canReleaseEarly && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled={isReleasing}
+                              onClick={() => {
+                                setBatchToRelease((batch as any).id);
+                                setReleaseModalOpen(true);
+                              }}
+                              className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 gap-2 font-bold"
+                              title="Liberar Lote Antecipadamente"
+                            >
                               <Unlock className="h-4 w-4" />
                               {isReleasing ? "..." : "Liberar"}
-                           </Button>
-                        )}
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
