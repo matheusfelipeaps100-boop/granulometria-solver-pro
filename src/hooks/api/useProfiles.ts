@@ -86,6 +86,31 @@ export function useProfiles() {
     },
   });
 
+  const deleteProfileMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const { data, error } = await supabase.functions.invoke('delete-user', {
+        body: { userId }
+      });
+
+      if (error) {
+        const ctx = (error as any).context as Response | undefined;
+        if (ctx) {
+          try {
+            const body = await ctx.json();
+            throw new Error(body.error ?? error.message);
+          } catch (parseErr: any) {
+            if (parseErr.message !== error.message) throw parseErr;
+          }
+        }
+        throw new Error(error.message);
+      }
+      if (data?.error) throw new Error(data.error);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["profiles", orgId] });
+    },
+  });
+
   return {
     profiles,
     isLoading,
@@ -93,5 +118,7 @@ export function useProfiles() {
     isUpdating: updateProfileMutation.isPending,
     createProfile: createProfileMutation.mutateAsync,
     isCreating: createProfileMutation.isPending,
+    deleteProfile: deleteProfileMutation.mutateAsync,
+    isDeleting: deleteProfileMutation.isPending,
   };
 }

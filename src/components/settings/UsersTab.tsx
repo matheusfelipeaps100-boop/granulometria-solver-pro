@@ -18,8 +18,9 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Users, Plus, Pencil, Info } from "lucide-react";
+import { Users, Plus, Pencil, Trash2, Info } from "lucide-react";
 import { useProfiles, DBProfile } from "@/hooks/api/useProfiles";
+import { useAuth } from "@/hooks/useAuth";
 import { UserRole } from "@/store/useAppStore";
 import { toast } from "sonner";
 
@@ -54,11 +55,13 @@ const EMPTY_FORM: FormState = {
 };
 
 export function UsersTab() {
-  const { profiles, isLoading, updateProfile, isUpdating, createProfile, isCreating } = useProfiles();
+  const { profiles, isLoading, updateProfile, isUpdating, createProfile, isCreating, deleteProfile, isDeleting } = useProfiles();
+  const { profile: currentUser } = useAuth();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  const [deletingUser, setDeletingUser] = useState<DBProfile | null>(null);
 
   const handleOpenNew = () => {
     setEditingId(null);
@@ -125,8 +128,17 @@ export function UsersTab() {
     }
   };
 
-  // Remoção de usuários bloqueada temporariamente para integridade do banco
-  const confirmDelete = () => {};
+  const handleConfirmDelete = async () => {
+    if (!deletingUser) return;
+    try {
+      await deleteProfile(deletingUser.id);
+      toast.success(`Usuário "${deletingUser.nome}" excluído com sucesso.`);
+    } catch (error: any) {
+      toast.error("Erro ao excluir usuário: " + error.message);
+    } finally {
+      setDeletingUser(null);
+    }
+  };
 
   const initials = (nome: string) =>
     nome.split(" ").slice(0, 2).map(n => n[0]).join("").toUpperCase();
@@ -190,6 +202,11 @@ export function UsersTab() {
                       <Button variant="ghost" size="icon" onClick={() => handleOpenEdit(user)}>
                         <Pencil className="h-4 w-4 text-muted-foreground hover:text-primary" />
                       </Button>
+                      {user.id !== currentUser?.id && (
+                        <Button variant="ghost" size="icon" onClick={() => setDeletingUser(user)}>
+                          <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -315,6 +332,28 @@ export function UsersTab() {
         </DialogContent>
       </Dialog>
 
+
+      {/* Dialog de confirmação de exclusão */}
+      <AlertDialog open={!!deletingUser} onOpenChange={(open) => { if (!open) setDeletingUser(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir usuário?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir <strong>{deletingUser?.nome}</strong>? Esta ação não pode ser desfeita. O usuário perderá acesso imediatamente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? "Excluindo..." : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
     </Card>
   );
