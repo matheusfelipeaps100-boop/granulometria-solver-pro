@@ -82,7 +82,8 @@ Deno.serve(async (req) => {
     });
 
   } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error('[create-user] error:', error?.message, error?.code, error?.details, error?.hint);
+    return new Response(JSON.stringify({ error: error.message, code: error.code, details: error.details }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 400,
     });

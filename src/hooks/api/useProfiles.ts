@@ -64,7 +64,19 @@ export function useProfiles() {
         body: newUser
       });
 
-      if (error) throw new Error(error.message);
+      if (error) {
+        // Tenta extrair a mensagem real do corpo da resposta da Edge Function
+        const ctx = (error as any).context as Response | undefined;
+        if (ctx) {
+          try {
+            const body = await ctx.json();
+            throw new Error(body.error ?? error.message);
+          } catch (parseErr: any) {
+            if (parseErr.message !== error.message) throw parseErr;
+          }
+        }
+        throw new Error(error.message);
+      }
       if (data?.error) throw new Error(data.error);
 
       return data?.user;
