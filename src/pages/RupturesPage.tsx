@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
 import { useRuptures } from "@/hooks/api/useRuptures";
+import { TIPOS_ANALISE } from "@/lib/analysis-data";
 import { hasActionPermission } from "@/lib/permissions";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -252,7 +253,14 @@ const RupturesPage = () => {
                           </div>
                           <div>
                             <p className="text-xs text-muted-foreground font-mono">{analysis?.codigo ?? ""}</p>
-                            <p className="font-medium text-foreground">{analysis?.nome ?? "—"}</p>
+                            <p className="font-medium text-foreground">
+                              {analysis?.produto ?? analysis?.nome ?? "—"}
+                            </p>
+                            {analysis?.tipo && (
+                              <p className="text-xs text-muted-foreground">
+                                {TIPOS_ANALISE.find(t => t.value === analysis.tipo)?.label ?? analysis.tipo}
+                              </p>
+                            )}
                           </div>
                         </div>
                       </TableCell>

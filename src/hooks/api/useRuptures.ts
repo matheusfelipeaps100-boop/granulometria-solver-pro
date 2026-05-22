@@ -21,6 +21,8 @@ export interface DBRuptureSchedule {
     analyses?: {
       nome: string;
       codigo: string;
+      produto: string | null;
+      tipo: string | null;
     };
   };
 }
@@ -67,7 +69,7 @@ export function useRuptures() {
             batch_code,
             produced_at,
             status,
-            analyses (nome, codigo)
+            analyses (nome, codigo, produto, tipo)
           )
         `)
         .order("data_prevista", { ascending: true });
