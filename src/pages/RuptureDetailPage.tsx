@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, FlaskConical, CheckCircle2, XCircle, Save, Flag, AlertTriangle } from "lucide-react";
+import { ArrowLeft, FlaskConical, CheckCircle2, XCircle, Save, Flag, AlertTriangle, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -219,6 +219,11 @@ const RuptureDetailPage = () => {
 
   const { batch, schedule, analysis } = found;
 
+  const isReadOnly =
+    schedule.status === 'concluido' ||
+    schedule.status === 'ignorado' ||
+    (batch as any).status === 'liberado_antecipado';
+
   const formatDate = (dateStr: string) => {
     const [year, month, day] = dateStr.split("-");
     return `${day}/${month}/${year}`;
@@ -349,7 +354,7 @@ const RuptureDetailPage = () => {
         </div>
         <div>
           <h1 className="text-2xl font-bold text-foreground">
-            Lançamento de Rompimento — {schedule.idade_dias} dias
+            {isReadOnly ? "Visualização de Rompimento" : "Lançamento de Rompimento"} — {schedule.idade_dias} dias
           </h1>
           <p className="text-sm text-muted-foreground">
             {batch.batch_code} · {analysis?.nome ?? "—"}
@@ -397,15 +402,21 @@ const RuptureDetailPage = () => {
         </CardContent>
       </Card>
 
+      {isReadOnly && (
+        <div className="flex items-center gap-2 rounded-lg border border-muted bg-muted/30 px-4 py-2 text-sm text-muted-foreground">
+          <Eye className="h-4 w-4 shrink-0" /> Modo somente visualização — este ensaio já foi registrado e não pode ser alterado.
+        </div>
+      )}
+
       {/* Data real + Responsável */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label>Data Real do Ensaio</Label>
-          <Input type="date" value={dataReal} onChange={(e) => setDataReal(e.target.value)} />
+          <Input type="date" value={dataReal} onChange={(e) => setDataReal(e.target.value)} disabled={isReadOnly} />
         </div>
         <div className="space-y-2">
           <Label>Responsável *</Label>
-          <Select value={responsavel} onValueChange={setResponsavel}>
+          <Select value={responsavel} onValueChange={setResponsavel} disabled={isReadOnly}>
             <SelectTrigger>
               <SelectValue placeholder="Selecione o responsável" />
             </SelectTrigger>
@@ -432,9 +443,10 @@ const RuptureDetailPage = () => {
               </div>
               <div className="flex items-center gap-3">
                 {tipo === "bloco" && (
-                  <Select 
-                    value={areas.bloco.toString()} 
+                  <Select
+                    value={areas.bloco.toString()}
                     onValueChange={(v) => setAreas(s => ({ ...s, bloco: parseFloat(v) }))}
+                    disabled={isReadOnly}
                   >
                     <SelectTrigger className="h-8 text-xs w-[130px]">
                       <SelectValue placeholder="Geometria" />
@@ -471,6 +483,7 @@ const RuptureDetailPage = () => {
                           value={sample.forca_kn === "0" ? "" : sample.forca_kn}
                           onFocus={(e) => e.target.select()}
                           onChange={(e) => updateSample(tipo, i, "forca_kn", e.target.value)}
+                          disabled={isReadOnly}
                         />
                         <span className="text-[10px] font-black text-muted-foreground mr-2">kN</span>
                       </div>
@@ -483,6 +496,7 @@ const RuptureDetailPage = () => {
                           value={sample.peso_kg === "0" ? "" : sample.peso_kg}
                           onFocus={(e) => e.target.select()}
                           onChange={(e) => updateSample(tipo, i, "peso_kg", e.target.value)}
+                          disabled={isReadOnly}
                         />
                         <span className="text-[10px] font-black text-muted-foreground mr-2">kg</span>
                       </div>
@@ -558,6 +572,7 @@ const RuptureDetailPage = () => {
           value={observacoes}
           onChange={(e) => setObservacoes(e.target.value)}
           rows={3}
+          disabled={isReadOnly}
         />
       </div>
 
@@ -614,24 +629,32 @@ const RuptureDetailPage = () => {
       </div>
 
       {/* Actions */}
-      <div className="flex flex-col sm:flex-row justify-end gap-3">
-        <Button variant="outline" onClick={() => navigate("/ruptures")} disabled={isCompleting || isFinalizing}>
-          Cancelar
-        </Button>
-        <Button onClick={handleSave} disabled={isCompleting || isFinalizing} className="gap-2">
-          <Save className="h-4 w-4" />
-          {isCompleting ? "Salvando..." : "Salvar Ensaio"}
-        </Button>
-        <Button
-          onClick={() => setFinalizeModalOpen(true)}
-          disabled={isCompleting || isFinalizing}
-          variant="outline"
-          className="gap-2 border-amber-500 text-amber-700 hover:bg-amber-50 font-bold"
-        >
-          <Flag className="h-4 w-4" />
-          Finalizar Análise Aqui
-        </Button>
-      </div>
+      {isReadOnly ? (
+        <div className="flex justify-end">
+          <Button variant="outline" onClick={() => navigate("/ruptures")}>
+            <ArrowLeft className="h-4 w-4 mr-2" /> Voltar aos Rompimentos
+          </Button>
+        </div>
+      ) : (
+        <div className="flex flex-col sm:flex-row justify-end gap-3">
+          <Button variant="outline" onClick={() => navigate("/ruptures")} disabled={isCompleting || isFinalizing}>
+            Cancelar
+          </Button>
+          <Button onClick={handleSave} disabled={isCompleting || isFinalizing} className="gap-2">
+            <Save className="h-4 w-4" />
+            {isCompleting ? "Salvando..." : "Salvar Ensaio"}
+          </Button>
+          <Button
+            onClick={() => setFinalizeModalOpen(true)}
+            disabled={isCompleting || isFinalizing}
+            variant="outline"
+            className="gap-2 border-amber-500 text-amber-700 hover:bg-amber-50 font-bold"
+          >
+            <Flag className="h-4 w-4" />
+            Finalizar Análise Aqui
+          </Button>
+        </div>
+      )}
 
       {/* Modal Finalização Antecipada */}
       <Dialog open={finalizeModalOpen} onOpenChange={setFinalizeModalOpen}>
