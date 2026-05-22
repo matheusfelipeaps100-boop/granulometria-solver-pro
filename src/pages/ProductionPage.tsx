@@ -10,7 +10,8 @@ import { ViewProductionModal } from "@/components/production/ViewProductionModal
 import { RegisterProductionModal } from "@/components/production/RegisterProductionModal";
 import { useAuth } from "@/hooks/useAuth";
 import { useAnalyses } from "@/hooks/api/useAnalyses";
-import { useProduction, type DBProductionBatch } from "@/hooks/api/useProduction";
+import { useProduction } from "@/hooks/api/useProduction";
+import type { StatusType } from "@/components/StatusBadge";
 import { hasActionPermission } from "@/lib/permissions";
 import { TIPOS_ANALISE } from "@/lib/analysis-data";
 import type { StoredAnalysis } from "@/hooks/api/useAnalyses";
@@ -118,10 +119,12 @@ const ProductionPage = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="pl-6">ANÁLISE / TRAÇO</TableHead>
-                  <TableHead>TIPO</TableHead>
-                  <TableHead>STATUS</TableHead>
-                  <TableHead>LOTE</TableHead>
+                  <TableHead className="pl-6 whitespace-nowrap">ANÁLISE / TRAÇO</TableHead>
+                  <TableHead className="whitespace-nowrap">TIPO</TableHead>
+                  <TableHead className="whitespace-nowrap">STATUS</TableHead>
+                  <TableHead className="whitespace-nowrap">LOTE</TableHead>
+                  <TableHead className="whitespace-nowrap">DATA PRODUÇÃO</TableHead>
+                  <TableHead className="whitespace-nowrap">DATA RESULTADO</TableHead>
                   <TableHead>ROMPIMENTOS</TableHead>
                   <TableHead className="text-right pr-6">AÇÃO</TableHead>
                 </TableRow>
@@ -139,13 +142,13 @@ const ProductionPage = () => {
                             <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
                               <ClipboardList className="h-5 w-5 text-primary" />
                             </div>
-                            <div>
+                            <div className="whitespace-nowrap">
                               <p className="text-xs text-muted-foreground font-mono">{analysis.codigo}</p>
                               <p className="font-medium text-foreground">{analysis.nome}</p>
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="whitespace-nowrap">
                           <div className="text-sm font-medium">{analysis.produto ?? tipoLabel}</div>
                           {analysis.produto && (
                             <div className="text-xs text-muted-foreground">{tipoLabel}</div>
@@ -157,6 +160,8 @@ const ProductionPage = () => {
                         <TableCell>
                           <span className="text-xs text-muted-foreground italic">Aguardando registro</span>
                         </TableCell>
+                        <TableCell>—</TableCell>
+                        <TableCell>—</TableCell>
                         <TableCell>—</TableCell>
                         <TableCell className="text-right pr-6">
                           {canRegister && (
@@ -193,10 +198,24 @@ const ProductionPage = () => {
                         )}
                       </TableCell>
                       <TableCell>
-                        <StatusBadge status={batch.status} />
+                        <StatusBadge status={batch.status as StatusType} />
                       </TableCell>
                       <TableCell>
                         <span className="font-mono text-sm">{batch.batch_code}</span>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                        {batch.produced_at?.slice(0, 10).split('-').reverse().join('/')}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                        {(() => {
+                          const concluded = batch.rupture_schedules
+                            ?.filter(s => s.status === 'concluido' && s.data_executada)
+                            .sort((a, b) => (b.data_executada! > a.data_executada! ? 1 : -1));
+                          const last = concluded?.[0];
+                          return last?.data_executada
+                            ? last.data_executada.slice(0, 10).split('-').reverse().join('/')
+                            : '—';
+                        })()}
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
@@ -222,7 +241,7 @@ const ProductionPage = () => {
                 })}
                 {releasedAnalyses.length === 0 && filteredBatches.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Nenhum lote encontrado.</TableCell>
+                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Nenhum lote encontrado.</TableCell>
                   </TableRow>
                 )}
               </TableBody>

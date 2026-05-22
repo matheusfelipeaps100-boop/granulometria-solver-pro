@@ -29,6 +29,7 @@ export interface DBProductionBatch {
     id: string;
     idade_dias: number;
     data_prevista: string;
+    data_executada: string | null;
     status: ScheduleStatus;
   }[];
 }
@@ -48,7 +49,7 @@ export function useProduction() {
         .select(`
           *,
           analyses (codigo, nome, tipo, produto, status),
-          rupture_schedules (id, idade_dias, data_prevista, status)
+          rupture_schedules (id, idade_dias, data_prevista, data_executada, status)
         `)
         .eq("organization_id", orgId)
         .order("produced_at", { ascending: false });
