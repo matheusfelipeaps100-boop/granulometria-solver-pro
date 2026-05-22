@@ -58,7 +58,7 @@ export function ViewProductionModal({ open, onOpenChange, analysis, batch }: Vie
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Detalhes  {analysis.codigo}</DialogTitle>
         </DialogHeader>

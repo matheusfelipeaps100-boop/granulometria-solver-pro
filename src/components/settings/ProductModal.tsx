@@ -95,7 +95,7 @@ export function ProductModal({ open, onOpenChange, editId }: ProductModalProps) 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{editId ? "Editar Produto" : "Novo Produto"}</DialogTitle>
         </DialogHeader>

@@ -229,7 +229,7 @@ export function UsersTab() {
 
       {/* Modal Novo / Editar */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-[480px]">
+        <DialogContent className="sm:max-w-[480px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingId ? "Editar Usuário" : "Novo Usuário"}</DialogTitle>
           </DialogHeader>

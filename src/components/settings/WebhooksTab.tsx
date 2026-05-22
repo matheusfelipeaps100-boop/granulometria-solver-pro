@@ -275,7 +275,7 @@ export function WebhooksTab() {
       </Card>
 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingId ? "Editar Webhook" : "Novo Webhook"}</DialogTitle>
             <DialogDescription>

@@ -62,7 +62,7 @@ export function ViewRuptureResultModal({ open, onOpenChange, schedule, analysis 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between pr-8">
             <span>Resultado do Ensaio — {schedule.idade_dias}d</span>

@@ -850,7 +850,7 @@ export function StepGranulometry({ data, onChange, readOnly }: StepGranulometryP
           setIsBancoOpen(v);
         }}
       >
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl font-black uppercase tracking-tighter">BANCO DE AGREGADOS</DialogTitle>
             <DialogDescription className="text-xs uppercase font-bold text-muted-foreground tracking-widest">
@@ -929,7 +929,7 @@ export function StepGranulometry({ data, onChange, readOnly }: StepGranulometryP
 
       {/* MODAL COMBINAR DNA */}
       <Dialog open={isDnaOpen} onOpenChange={setIsDnaOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl font-black uppercase tracking-tighter">COMBINAR DNA DE PROJETO</DialogTitle>
             <DialogDescription className="text-xs uppercase font-bold text-muted-foreground tracking-widest">

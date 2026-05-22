@@ -635,7 +635,7 @@ const RuptureDetailPage = () => {
 
       {/* Modal Finalização Antecipada */}
       <Dialog open={finalizeModalOpen} onOpenChange={setFinalizeModalOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-amber-600">
               <Flag className="h-5 w-5" /> Finalizar Análise com Este Ensaio
