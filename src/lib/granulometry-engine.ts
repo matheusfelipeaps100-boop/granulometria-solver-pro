@@ -156,11 +156,14 @@ export function calcCombinedCurve(
   const sorted = [...sieveMap.entries()].sort((a, b) => a[0] - b[0]);
   let acum = 0;
 
+  // Peneiras com sieve_id menor que o menor id definido na curva padrão são peneiras
+  // maiores que o início da faixa → assume 100% passante (limite_min = limite_max = 1)
+  const minDefinedSieveId = limits?.length ? Math.min(...limits.map((l) => l.sieve_id)) : Infinity;
+
   return sorted.map(([sieve_id, data]) => {
     acum += data.pct_combinado;
     const foundLimit = limits?.find((l) => l.sieve_id === sieve_id);
-    // Peneiras onde acum ≈ 100% e a curva padrão não tem entrada: assume 100% passante
-    const limit = foundLimit ?? (acum >= 0.99 && limits?.length ? { sieve_id, limite_min: 1, limite_max: 1 } : undefined);
+    const limit = foundLimit ?? (sieve_id < minDefinedSieveId && limits?.length ? { sieve_id, limite_min: 1, limite_max: 1 } : undefined);
     const foraMin = limit ? acum < limit.limite_min : false;
     const foraMax = limit ? acum > limit.limite_max : false;
 
