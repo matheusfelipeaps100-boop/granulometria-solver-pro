@@ -242,7 +242,7 @@ const RupturesPage = () => {
                   // Sort schedules by idade_dias
                   const sorted = [...schedules].sort((a, b) => a.idade_dias - b.idade_dias);
 
-                  const canReleaseEarly = overallStatus === "pendente" || overallStatus === "em_andamento";
+                  const canReleaseEarly = overallStatus === "pendente" || overallStatus === "em_andamento" || overallStatus === "atrasado";
 
                   return (
                     <TableRow key={batch.id}>
