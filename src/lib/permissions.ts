@@ -29,7 +29,7 @@ export const ACTION_PERMISSIONS: Record<string, UserRole[]> = {
 
   // Apenas ADMIN e LABORATORIO podem gerenciar rompimentos
   "rupture:complete": ["ADMIN", "LABORATORIO"],
-  "rupture:early_release": ["ADMIN", "LABORATORIO"],
+  "rupture:early_release": ["ADMIN", "LABORATORIO", "ADMINISTRATIVO"],
 
   // Materiais e Traços: apenas ADMIN e LABORATORIO
   "material:create": ["ADMIN", "LABORATORIO"],
