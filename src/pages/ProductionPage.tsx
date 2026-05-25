@@ -115,7 +115,7 @@ const ProductionPage = () => {
       ) : (
         <Card className="shadow-sm">
           <CardContent className="p-0">
-            <div>
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -138,10 +138,17 @@ const ProductionPage = () => {
                     return (
                       <TableRow key={`pending-${analysis.id}`} className="bg-primary/5 border-l-4 border-l-primary">
                         <TableCell className="pl-6">
-                          <p className="text-xs text-muted-foreground font-mono">{analysis.codigo}</p>
-                          <p className="font-medium text-foreground">{analysis.nome}</p>
+                          <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                              <ClipboardList className="h-5 w-5 text-primary" />
+                            </div>
+                            <div className="whitespace-nowrap">
+                              <p className="text-xs text-muted-foreground font-mono">{analysis.codigo}</p>
+                              <p className="font-medium text-foreground">{analysis.nome}</p>
+                            </div>
+                          </div>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="whitespace-nowrap">
                           <div className="text-sm font-medium">{analysis.produto ?? tipoLabel}</div>
                           {analysis.produto && (
                             <div className="text-xs text-muted-foreground">{tipoLabel}</div>
@@ -174,10 +181,17 @@ const ProductionPage = () => {
                   return (
                     <TableRow key={batch.id}>
                       <TableCell className="pl-6">
-                        <p className="text-xs text-muted-foreground font-mono">{analysis?.codigo ?? "—"}</p>
-                        <p className="font-medium text-foreground">{analysis?.nome ?? "—"}</p>
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
+                            <ClipboardList className="h-5 w-5 text-muted-foreground" />
+                          </div>
+                          <div className="whitespace-nowrap">
+                            <p className="text-xs text-muted-foreground font-mono">{analysis?.codigo ?? "—"}</p>
+                            <p className="font-medium text-foreground">{analysis?.nome ?? "—"}</p>
+                          </div>
+                        </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="whitespace-nowrap">
                         <div className="text-sm font-medium">{analysis?.produto ?? tipoLabel}</div>
                         {analysis?.produto && (
                           <div className="text-xs text-muted-foreground">{tipoLabel}</div>
