@@ -185,13 +185,13 @@ const ProductionPage = () => {
                           <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
                             <ClipboardList className="h-5 w-5 text-muted-foreground" />
                           </div>
-                          <div>
+                          <div className="whitespace-nowrap">
                             <p className="text-xs text-muted-foreground font-mono">{analysis?.codigo ?? "—"}</p>
                             <p className="font-medium text-foreground">{analysis?.nome ?? "—"}</p>
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="whitespace-nowrap">
                         <div className="text-sm font-medium">{analysis?.produto ?? tipoLabel}</div>
                         {analysis?.produto && (
                           <div className="text-xs text-muted-foreground">{tipoLabel}</div>
