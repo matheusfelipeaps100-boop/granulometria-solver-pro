@@ -137,21 +137,14 @@ const ProductionPage = () => {
                     const tipoLabel = TIPOS_ANALISE.find((t) => t.value === analysis.tipo)?.label ?? "—";
                     return (
                       <TableRow key={`pending-${analysis.id}`} className="bg-primary/5 border-l-4 border-l-primary">
-                        <TableCell className="pl-6 max-w-[180px]">
-                          <div className="flex items-center gap-3 min-w-0">
-                            <div className="h-10 w-10 shrink-0 rounded-lg bg-primary/10 flex items-center justify-center">
-                              <ClipboardList className="h-5 w-5 text-primary" />
-                            </div>
-                            <div className="min-w-0">
-                              <p className="text-xs text-muted-foreground font-mono truncate">{analysis.codigo}</p>
-                              <p className="font-medium text-foreground truncate">{analysis.nome}</p>
-                            </div>
-                          </div>
+                        <TableCell className="pl-6">
+                          <p className="text-xs text-muted-foreground font-mono">{analysis.codigo}</p>
+                          <p className="font-medium text-foreground">{analysis.nome}</p>
                         </TableCell>
-                        <TableCell className="max-w-[140px]">
-                          <div className="text-sm font-medium truncate">{analysis.produto ?? tipoLabel}</div>
+                        <TableCell>
+                          <div className="text-sm font-medium">{analysis.produto ?? tipoLabel}</div>
                           {analysis.produto && (
-                            <div className="text-xs text-muted-foreground truncate">{tipoLabel}</div>
+                            <div className="text-xs text-muted-foreground">{tipoLabel}</div>
                           )}
                         </TableCell>
                         <TableCell>
@@ -180,21 +173,14 @@ const ProductionPage = () => {
                   const tipoLabel = TIPOS_ANALISE.find((t) => t.value === analysis?.tipo)?.label ?? "—";
                   return (
                     <TableRow key={batch.id}>
-                      <TableCell className="pl-6 max-w-[180px]">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="h-10 w-10 shrink-0 rounded-lg bg-muted flex items-center justify-center">
-                            <ClipboardList className="h-5 w-5 text-muted-foreground" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-xs text-muted-foreground font-mono truncate">{analysis?.codigo ?? "—"}</p>
-                            <p className="font-medium text-foreground truncate">{analysis?.nome ?? "—"}</p>
-                          </div>
-                        </div>
+                      <TableCell className="pl-6">
+                        <p className="text-xs text-muted-foreground font-mono">{analysis?.codigo ?? "—"}</p>
+                        <p className="font-medium text-foreground">{analysis?.nome ?? "—"}</p>
                       </TableCell>
-                      <TableCell className="max-w-[140px]">
-                        <div className="text-sm font-medium truncate">{analysis?.produto ?? tipoLabel}</div>
+                      <TableCell>
+                        <div className="text-sm font-medium">{analysis?.produto ?? tipoLabel}</div>
                         {analysis?.produto && (
-                          <div className="text-xs text-muted-foreground truncate">{tipoLabel}</div>
+                          <div className="text-xs text-muted-foreground">{tipoLabel}</div>
                         )}
                       </TableCell>
                       <TableCell>
