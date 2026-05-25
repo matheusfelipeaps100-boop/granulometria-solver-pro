@@ -27,7 +27,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Search, Eye, Pencil, Trash2, FileEdit, X } from "lucide-react";
+import { Plus, Search, Eye, Pencil, Trash2, FileEdit, X, Check } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
 import { TIPOS_ANALISE } from "@/lib/analysis-data";
@@ -49,7 +49,7 @@ const STEP_NAMES = ["Identificação", "Granulometria", "Dosagem", "Revisão", "
 
 const AnalysesPage = () => {
   const navigate = useNavigate();
-  const { analyses, deleteAnalysis, isDeleting } = useAnalyses();
+  const { analyses, deleteAnalysis, isDeleting, updateNome } = useAnalyses();
   const { profile } = useAuth();
   const { currentStep, formData, clearDraft } = useAnalysisDraftStore();
 
@@ -84,6 +84,19 @@ const AnalysesPage = () => {
   const [search, setSearch] = useState("");
   const [filterTipo, setFilterTipo] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [editingNome, setEditingNome] = useState<{ id: string; value: string } | null>(null);
+
+  const handleSaveNome = async () => {
+    if (!editingNome) return;
+    try {
+      await updateNome({ id: editingNome.id, nome: editingNome.value });
+      toast.success("Nome atualizado com sucesso!");
+    } catch {
+      toast.error("Erro ao atualizar nome.");
+    } finally {
+      setEditingNome(null);
+    }
+  };
 
   const allAnalyses = useMemo(() => {
     return analyses.map((a) => ({
@@ -215,7 +228,23 @@ const AnalysesPage = () => {
               {filtered.map((a) => (
                 <TableRow key={a.id} className="cursor-pointer hover:bg-muted/50">
                   <TableCell className="font-medium">{a.codigo}</TableCell>
-                  <TableCell>{a.nome}</TableCell>
+                  <TableCell>
+                    {editingNome?.id === a.id ? (
+                      <div className="flex items-center gap-1">
+                        <Input
+                          autoFocus
+                          className="h-7 text-sm w-36"
+                          value={editingNome.value}
+                          onChange={(e) => setEditingNome({ id: a.id, value: e.target.value })}
+                          onKeyDown={(e) => { if (e.key === "Enter") handleSaveNome(); if (e.key === "Escape") setEditingNome(null); }}
+                        />
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleSaveNome}><Check className="h-3 w-3 text-green-600" /></Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingNome(null)}><X className="h-3 w-3 text-muted-foreground" /></Button>
+                      </div>
+                    ) : (
+                      <span className={a.nome ? "" : "text-muted-foreground italic"}>{a.nome || "—"}</span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <div className="text-sm font-medium">{a.produto ?? TIPOS_ANALISE.find((t) => t.value === a.tipo)?.label ?? a.tipo}</div>
                     {a.produto && (
@@ -230,7 +259,7 @@ const AnalysesPage = () => {
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
                         {canEdit && (
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/analyses/new?edit=${a.codigo}`)} title="Revisar / Editar">
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingNome({ id: a.id, value: a.nome ?? "" })} title="Editar Nome">
                             <Pencil className="h-4 w-4 text-muted-foreground hover:text-foreground" />
                           </Button>
                         )}
