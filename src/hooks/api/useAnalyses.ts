@@ -265,10 +265,13 @@ export function useAnalyses() {
   });
 
   const updateStatusMutation = useMutation({
-    mutationFn: async ({ id, status, liberado_em }: { id: string; status: AnalysisStatus; liberado_em?: string }) => {
+    mutationFn: async ({ id, status, liberado_em, observacoes }: { id: string; status: AnalysisStatus; liberado_em?: string; observacoes?: string }) => {
       const updateData: Record<string, any> = { status };
       if (status === 'liberado_producao' && liberado_em) {
         updateData.liberado_em = liberado_em;
+      }
+      if (observacoes !== undefined) {
+        updateData.observacoes = observacoes || null;
       }
       const { data, error } = await supabase
         .from("analyses")

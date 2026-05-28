@@ -34,10 +34,11 @@ export function ReleaseProductionModal({ open, onOpenChange, data }: ReleaseProd
     try {
       if (!data.id) {
         // É um rascunho novo (criado na NewAnalysisPage sem ir pro banco)
-        await createAnalysis({ formData: data, status: "liberado_producao", liberado_em: dataHora });
+        const formDataWithObs = observacoes ? { ...data, observacoes } : data;
+        await createAnalysis({ formData: formDataWithObs, status: "liberado_producao", liberado_em: dataHora });
       } else {
         // Análise que já existe no Supabase
-        await updateStatus({ id: data.id, status: "liberado_producao", liberado_em: dataHora });
+        await updateStatus({ id: data.id, status: "liberado_producao", liberado_em: dataHora, observacoes: observacoes || undefined });
       }
       // Limpar rascunho se usava local
       useAnalysisDraftStore.getState().clearDraft();
