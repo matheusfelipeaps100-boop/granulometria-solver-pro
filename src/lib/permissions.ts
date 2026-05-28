@@ -19,7 +19,7 @@ export const ROUTE_PERMISSIONS: Record<string, UserRole[]> = {
 export const ACTION_PERMISSIONS: Record<string, UserRole[]> = {
   // Apenas ADMIN e LABORATORIO podem criar/editar análises
   "analysis:create": ["ADMIN", "LABORATORIO"],
-  "analysis:edit": ["ADMIN", "LABORATORIO"],
+  "analysis:edit": ["ADMIN"],
   "analysis:approve": ["ADMIN", "LABORATORIO"],
   "analysis:delete": ["ADMIN"],
 

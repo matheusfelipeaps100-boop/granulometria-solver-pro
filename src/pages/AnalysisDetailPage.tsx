@@ -1,17 +1,47 @@
-﻿import { useParams, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ArrowLeft, Loader2 } from "lucide-react";
-import { useAnalysis } from "@/hooks/api/useAnalyses";
+import { ArrowLeft, Loader2, Save } from "lucide-react";
+import { useAnalysis, useAnalyses } from "@/hooks/api/useAnalyses";
+import { useAuth } from "@/hooks/useAuth";
 import { StepGranulometry } from "@/components/analysis/StepGranulometry";
 import { StepDosage } from "@/components/analysis/StepDosage";
 import { StepReview } from "@/components/analysis/StepReview";
+import { toast } from "sonner";
 
 export default function AnalysisDetailPage() {
   const { codigo } = useParams<{ codigo: string }>();
   const navigate = useNavigate();
   const { data: analysis, isLoading, isError } = useAnalysis(codigo || null);
+  const { updateObservacoes } = useAnalyses();
+  const { profile } = useAuth();
+  const isAdmin = profile?.role === "ADMIN";
+
+  const [observacoes, setObservacoes] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (analysis) {
+      setObservacoes(analysis.formData?.observacoes || "");
+    }
+  }, [analysis]);
+
+  const hasChanges = analysis ? observacoes !== (analysis.formData?.observacoes || "") : false;
+
+  const handleSaveObservacoes = async () => {
+    if (!analysis?.id) return;
+    setIsSaving(true);
+    try {
+      await updateObservacoes({ id: analysis.id, observacoes });
+      toast.success("Observações salvas com sucesso!");
+    } catch (e: any) {
+      toast.error("Erro ao salvar observações: " + e.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -68,30 +98,39 @@ export default function AnalysisDetailPage() {
         <div className="mt-8 border-t pt-8 pb-32 flex flex-col gap-12">
           <section>
             <h2 className="text-xl font-bold mb-6 text-primary">1. Granulometria</h2>
-            <div className={analysis.status === 'aprovado' || analysis.status === 'liberado_producao' ? "pointer-events-none" : ""}>
-              <StepGranulometry 
-                data={analysis.formData} 
-                onChange={() => {}} 
-                readOnly={true} 
-              />
-            </div>
-          </section>
-          
-          <section>
-            <h2 className="text-xl font-bold mb-6 text-primary">2. Dosagem</h2>
-            <div className={analysis.status === 'aprovado' || analysis.status === 'liberado_producao' ? "pointer-events-none" : ""}>
-              <StepDosage 
-                data={analysis.formData} 
-                onChange={() => {}} 
+            <div className="pointer-events-none">
+              <StepGranulometry
+                data={analysis.formData}
+                onChange={() => {}}
+                readOnly={true}
               />
             </div>
           </section>
 
           <section>
-            <h2 className="text-xl font-bold mb-6 text-primary">3. Revisão Final</h2>
-            <StepReview 
-              data={analysis.formData} 
+            <h2 className="text-xl font-bold mb-6 text-primary">2. Dosagem</h2>
+            <div className="pointer-events-none">
+              <StepDosage
+                data={analysis.formData}
+                onChange={() => {}}
+              />
+            </div>
+          </section>
+
+          <section>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-primary">3. Revisão Final</h2>
+              {isAdmin && hasChanges && (
+                <Button size="sm" className="gap-2" onClick={handleSaveObservacoes} disabled={isSaving}>
+                  {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  Salvar Observações
+                </Button>
+              )}
+            </div>
+            <StepReview
+              data={{ ...analysis.formData, observacoes }}
               onApprove={() => {}}
+              onChange={isAdmin ? (u) => { if (u.observacoes !== undefined) setObservacoes(u.observacoes); } : undefined}
               readOnly={true}
             />
           </section>

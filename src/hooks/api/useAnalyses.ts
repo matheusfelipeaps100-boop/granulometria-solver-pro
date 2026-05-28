@@ -288,6 +288,16 @@ export function useAnalyses() {
     },
   });
 
+  const updateObservacoesMutation = useMutation({
+    mutationFn: async ({ id, observacoes }: { id: string; observacoes: string }) => {
+      const { error } = await supabase.from("analyses").update({ observacoes: observacoes || null }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["analyses", orgId] });
+    },
+  });
+
   const updateNomeMutation = useMutation({
     mutationFn: async ({ id, nome }: { id: string; nome: string }) => {
       const { error } = await supabase.from("analyses").update({ nome }).eq("id", id);
@@ -406,11 +416,13 @@ export function useAnalyses() {
     error,
     createAnalysis: createMutation.mutateAsync,
     updateStatus: updateStatusMutation.mutateAsync,
+    updateObservacoes: updateObservacoesMutation.mutateAsync,
     updateNome: updateNomeMutation.mutateAsync,
     deleteAnalysis: deleteMutation.mutateAsync,
     recalculateCosts: recalculateCostsMutation.mutateAsync,
     isCreating: createMutation.isPending,
     isUpdatingStatus: updateStatusMutation.isPending,
+    isUpdatingObservacoes: updateObservacoesMutation.isPending,
     isDeleting: deleteMutation.isPending,
     isRecalculatingCosts: recalculateCostsMutation.isPending,
   };

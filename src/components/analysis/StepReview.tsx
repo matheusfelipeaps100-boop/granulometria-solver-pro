@@ -306,8 +306,6 @@ export function StepReview({ data, onApprove, onChange, readOnly = false }: Step
               placeholder="Notas finais, ressalvas ou observações sobre a análise..."
               rows={2}
               className="resize-none text-sm"
-              readOnly={readOnly}
-              disabled={readOnly}
             />
           </div>
         </CardContent>
