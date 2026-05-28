@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ArrowLeft, Loader2, Save } from "lucide-react";
 import { useAnalysis, useAnalyses } from "@/hooks/api/useAnalyses";
@@ -22,13 +23,13 @@ export default function AnalysisDetailPage() {
   const [observacoes, setObservacoes] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
+  // Sincroniza estado local sempre que o dado do banco for (re)carregado
   useEffect(() => {
-    if (analysis) {
-      setObservacoes(analysis.formData?.observacoes || "");
-    }
-  }, [analysis]);
+    setObservacoes(analysis?.observacoes || "");
+  }, [analysis?.observacoes]);
 
-  const hasChanges = analysis ? observacoes !== (analysis.formData?.observacoes || "") : false;
+  const savedValue = analysis?.observacoes || "";
+  const hasChanges = observacoes !== savedValue;
 
   const handleSaveObservacoes = async () => {
     if (!analysis?.id) return;
@@ -94,6 +95,36 @@ export default function AnalysisDetailPage() {
         </Card>
       </div>
 
+      {/* Card de Observações — visível para todos, editável só para ADMIN */}
+      <Card className={isAdmin ? "border-warning/30 bg-warning/5" : ""}>
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base">Observações</CardTitle>
+            {isAdmin && hasChanges && (
+              <Button size="sm" className="gap-2" onClick={handleSaveObservacoes} disabled={isSaving}>
+                {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                Salvar
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isAdmin ? (
+            <Textarea
+              value={observacoes}
+              onChange={(e) => setObservacoes(e.target.value)}
+              placeholder="Adicione observações sobre esta análise..."
+              rows={3}
+              className="resize-none text-sm"
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+              {savedValue || "Nenhuma observação registrada."}
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
       {analysis.formData && (
         <div className="mt-8 border-t pt-8 pb-32 flex flex-col gap-12">
           <section>
@@ -118,19 +149,10 @@ export default function AnalysisDetailPage() {
           </section>
 
           <section>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-primary">3. Revisão Final</h2>
-              {isAdmin && hasChanges && (
-                <Button size="sm" className="gap-2" onClick={handleSaveObservacoes} disabled={isSaving}>
-                  {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                  Salvar Observações
-                </Button>
-              )}
-            </div>
+            <h2 className="text-xl font-bold mb-6 text-primary">3. Revisão Final</h2>
             <StepReview
-              data={{ ...analysis.formData, observacoes }}
+              data={analysis.formData}
               onApprove={() => {}}
-              onChange={isAdmin ? (u) => { if (u.observacoes !== undefined) setObservacoes(u.observacoes); } : undefined}
               readOnly={true}
             />
           </section>
@@ -139,5 +161,3 @@ export default function AnalysisDetailPage() {
     </div>
   );
 }
-
-

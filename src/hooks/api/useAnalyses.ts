@@ -295,6 +295,7 @@ export function useAnalyses() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["analyses", orgId] });
+      queryClient.invalidateQueries({ queryKey: ["analysis"] });
     },
   });
 
