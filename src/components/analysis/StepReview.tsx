@@ -36,6 +36,7 @@ import { cn } from "@/lib/utils";
 interface StepReviewProps {
   data: AnalysisFormData;
   onApprove: () => void;
+  onChange?: (updates: Partial<AnalysisFormData>) => void;
   readOnly?: boolean;
 }
 
@@ -60,9 +61,8 @@ function ProportionBar({ label, kg, totalKg }: { label: string; kg: number; tota
   );
 }
 
-export function StepReview({ data, onApprove, readOnly = false }: StepReviewProps) {
+export function StepReview({ data, onApprove, onChange, readOnly = false }: StepReviewProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [observacoesFinal, setObservacoesFinal] = useState(data.observacoes || "");
   const { curves: dbCurves } = useStandardCurves();
 
   const tipoLabel = TIPOS_ANALISE.find((t) => t.value === data.tipo_analise)?.label ?? "—";
@@ -301,8 +301,8 @@ export function StepReview({ data, onApprove, readOnly = false }: StepReviewProp
               Observações Finais
             </Label>
             <Textarea
-              value={observacoesFinal}
-              onChange={(e) => setObservacoesFinal(e.target.value)}
+              value={data.observacoes || ""}
+              onChange={(e) => onChange?.({ observacoes: e.target.value })}
               placeholder="Notas finais, ressalvas ou observações sobre a análise..."
               rows={2}
               className="resize-none text-sm"

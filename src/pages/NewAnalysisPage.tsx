@@ -320,7 +320,7 @@ const NewAnalysisPage = () => {
               <StepDosage data={formData} onChange={handleChange} />
             )}
             {currentStep === 4 && (
-              <StepReview data={formData} onApprove={handleApprove} />
+              <StepReview data={formData} onApprove={handleApprove} onChange={handleChange} />
             )}
             {currentStep === 5 && <StepResult data={formData} />}
           </div>
