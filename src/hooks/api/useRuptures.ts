@@ -173,6 +173,7 @@ export function useRuptures() {
         test_id: test.id,
         numero: s.numero,
         forca_kn: s.forca_kn,
+        peso_kg: (s as any).peso_kg ?? null,
         tensao_mpa: s.tensao_mpa,
         status: s.status,
         registrado_por: profile?.id
@@ -233,7 +234,7 @@ export function useRuptures() {
       // 3. Inserir amostras
       const { error: smError } = await supabase
         .from("rupture_samples")
-        .insert(testData.samples.map(s => ({ test_id: test.id, numero: s.numero, forca_kn: s.forca_kn, tensao_mpa: s.tensao_mpa, status: s.status, registrado_por: profile?.id })));
+        .insert(testData.samples.map(s => ({ test_id: test.id, numero: s.numero, forca_kn: s.forca_kn, peso_kg: (s as any).peso_kg ?? null, tensao_mpa: s.tensao_mpa, status: s.status, registrado_por: profile?.id })));
       if (smError) throw smError;
 
       // 4. Ignorar todos os demais agendamentos pendentes do mesmo lote

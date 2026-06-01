@@ -31,6 +31,16 @@ export interface DBProductionBatch {
     data_prevista: string;
     data_executada: string | null;
     status: ScheduleStatus;
+    responsavel_id: string | null;
+    responsavel_nome: string | null;
+    observacoes: string | null;
+    tests?: {
+      id: string;
+      tipo_amostra: string;
+      meta_mpa: number;
+      media_mpa: number;
+      samples: { numero: number; forca_kn: number; tensao_mpa: number; peso_kg: number | null }[];
+    }[];
   }[];
 }
 
@@ -49,7 +59,14 @@ export function useProduction() {
         .select(`
           *,
           analyses (codigo, nome, tipo, produto, status),
-          rupture_schedules (id, idade_dias, data_prevista, data_executada, status)
+          rupture_schedules (
+            id, idade_dias, data_prevista, data_executada, status,
+            responsavel_id, responsavel_nome, observacoes,
+            tests:rupture_tests (
+              id, tipo_amostra, meta_mpa, media_mpa,
+              samples:rupture_samples (numero, forca_kn, tensao_mpa, peso_kg)
+            )
+          )
         `)
         .eq("organization_id", orgId)
         .order("produced_at", { ascending: false });

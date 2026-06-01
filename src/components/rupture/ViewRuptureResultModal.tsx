@@ -7,8 +7,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Separator } from "@/components/ui/separator";
-import { ANALISTAS } from "@/lib/analysis-data";
-import { calcTensao, calcRuptureStats } from "@/lib/granulometry-engine";
+import { calcTensao, calcRuptureStats, calcTensaoPaver, calcRuptureStatsPaver } from "@/lib/granulometry-engine";
 import type { RuptureSchedule, StoredAnalysis } from "@/store/useAppStore";
 import { useMemo } from "react";
 
@@ -28,36 +27,29 @@ const tipoLabel: Record<string, string> = {
 export function ViewRuptureResultModal({ open, onOpenChange, schedule, analysis }: ViewRuptureResultModalProps) {
   if (!schedule || !analysis) return null;
 
-  const responsavel = ANALISTAS.find((a) => a.id === schedule.responsavel_id)?.nome ?? "—";
-  
+  const responsavel = (schedule as any).responsavel_nome ?? "—";
+
   const statsPerTipo = useMemo(() => {
-    if (!schedule.amostras || !schedule.geometrias) return null;
-    
+    const s = schedule as any;
+    const tests: any[] = s.tests ?? [];
+    if (tests.length === 0) return null;
     const meta = analysis.resistencia_prevista;
     const result: Record<string, any> = {};
-
-    for (const [tipo, amostras] of Object.entries(schedule.amostras)) {
-      const forcas = amostras
-        .map((s) => parseFloat(s.forca_kn))
-        .filter((f) => !isNaN(f) && f > 0);
-      
-      const area = schedule.geometrias[tipo];
-      
-      if (forcas.length > 0 && area) {
-        result[tipo] = {
-          stats: calcRuptureStats(forcas, meta, area),
-          geometria: area === 0.014 ? "14 cm" : (area === 0.019 ? "19 cm" : null),
-          amostras: amostras.map(s => {
-            const f = parseFloat(s.forca_kn);
-            return {
-              forca: f,
-              tensao: calcTensao(f, area)
-            };
-          })
-        };
-      }
+    for (const test of tests) {
+      const tipo = test.tipo_amostra;
+      const sorted = [...(test.samples ?? [])].sort((a: any, b: any) => a.numero - b.numero);
+      const forcas = sorted.map((s: any) => Number(s.forca_kn)).filter((f: number) => f > 0);
+      if (forcas.length === 0) continue;
+      const isPaver = tipo === "paver";
+      result[tipo] = {
+        stats: isPaver ? calcRuptureStatsPaver(forcas, meta) : calcRuptureStats(forcas, meta),
+        amostras: sorted.filter((s: any) => Number(s.forca_kn) > 0).map((s: any) => ({
+          forca: Number(s.forca_kn),
+          tensao: isPaver ? calcTensaoPaver(Number(s.forca_kn)) : calcTensao(Number(s.forca_kn)),
+        }))
+      };
     }
-    return result;
+    return Object.keys(result).length > 0 ? result : null;
   }, [schedule, analysis]);
 
   return (

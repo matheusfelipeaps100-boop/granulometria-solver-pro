@@ -1,0 +1,2 @@
+ALTER TABLE rupture_samples
+  ADD COLUMN IF NOT EXISTS peso_kg DECIMAL(10,3);
