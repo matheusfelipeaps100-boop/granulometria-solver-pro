@@ -88,11 +88,30 @@ const RuptureDetailPage = () => {
   // Pre-load data if available
   useEffect(() => {
     if (found?.schedule?.status === "concluido") {
-      const s = found.schedule;
+      const s = found.schedule as any;
       if (s.data_executada) setDataReal(s.data_executada);
       if (s.responsavel_id) setResponsavel(s.responsavel_id);
       if (s.observacoes) setObservacoes(s.observacoes);
-      if (s.amostras) setSamples(s.amostras as any);
+
+      const tests: any[] = s.tests ?? [];
+      if (tests.length > 0) {
+        setSamples((prev) => {
+          const next = { ...prev };
+          for (const test of tests) {
+            const tipo = test.tipo_amostra as TipoAmostra;
+            if (!TIPOS_AMOSTRA.includes(tipo)) continue;
+            const sorted = [...(test.samples ?? [])].sort((a: any, b: any) => a.numero - b.numero);
+            const loaded = sorted.map((sample: any) => ({
+              forca_kn: sample.forca_kn != null ? String(sample.forca_kn) : "",
+              peso_kg: sample.peso_kg != null ? String(sample.peso_kg) : "",
+            }));
+            while (loaded.length < 3) loaded.push({ forca_kn: "", peso_kg: "" });
+            next[tipo] = loaded;
+          }
+          return next;
+        });
+      }
+
       if (s.geometrias) setAreas(s.geometrias as any);
     }
   }, [found?.schedule]);
