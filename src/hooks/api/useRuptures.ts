@@ -291,6 +291,64 @@ export function useRuptures() {
     }
   });
 
+  const updateRuptureMutation = useMutation({
+    mutationFn: async ({
+      scheduleId,
+      dataExecutada,
+      observacoes,
+      testData
+    }: {
+      scheduleId: string;
+      dataExecutada: string;
+      observacoes?: string;
+      testData: {
+        tipo_amostra: string;
+        meta_mpa: number;
+        media_mpa: number;
+        min_mpa: number;
+        max_mpa: number;
+        desvio_padrao: number;
+        status: string;
+        notas?: string;
+        samples: { numero: number; forca_kn: number; peso_kg?: number | null; tensao_mpa: number; status: string }[];
+      };
+    }) => {
+      // 1. Atualizar schedule
+      const { error: sError } = await supabase
+        .from("rupture_schedules")
+        .update({ data_executada: dataExecutada, responsavel_id: profile?.id, responsavel_nome: profile?.nome, observacoes: observacoes ?? null })
+        .eq("id", scheduleId);
+      if (sError) throw sError;
+
+      // 2. Deletar tests existentes (cascade deleta rupture_samples)
+      const { error: dError } = await supabase
+        .from("rupture_tests")
+        .delete()
+        .eq("schedule_id", scheduleId);
+      if (dError) throw dError;
+
+      // 3. Re-inserir test
+      const { data: test, error: tError } = await supabase
+        .from("rupture_tests")
+        .insert([{ schedule_id: scheduleId, tipo_amostra: testData.tipo_amostra, meta_mpa: testData.meta_mpa, media_mpa: testData.media_mpa, min_mpa: testData.min_mpa, max_mpa: testData.max_mpa, desvio_padrao: testData.desvio_padrao, status: testData.status, notas: testData.notas }])
+        .select().single();
+      if (tError) throw tError;
+
+      // 4. Re-inserir samples
+      const { error: smError } = await supabase
+        .from("rupture_samples")
+        .insert(testData.samples.map(s => ({ test_id: test.id, numero: s.numero, forca_kn: s.forca_kn, peso_kg: s.peso_kg ?? null, tensao_mpa: s.tensao_mpa, status: s.status, registrado_por: profile?.id })));
+      if (smError) throw smError;
+
+      return { scheduleId, test };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["rupture_schedules", orgId] });
+      queryClient.invalidateQueries({ queryKey: ["rupture_schedule_detail"] });
+      queryClient.invalidateQueries({ queryKey: ["production_batches", orgId] });
+    }
+  });
+
   return {
     schedules,
     isLoadingSchedules,
@@ -300,7 +358,9 @@ export function useRuptures() {
     finalizeWithCurrentTest: finalizeWithCurrentTestMutation.mutateAsync,
     isFinalizing: finalizeWithCurrentTestMutation.isPending,
     releaseEarly: releaseEarlyMutation.mutateAsync,
-    isReleasing: releaseEarlyMutation.isPending
+    isReleasing: releaseEarlyMutation.isPending,
+    updateRupture: updateRuptureMutation.mutateAsync,
+    isUpdating: updateRuptureMutation.isPending,
   };
 }
 

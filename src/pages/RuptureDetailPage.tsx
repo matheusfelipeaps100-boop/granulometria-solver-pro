@@ -41,7 +41,7 @@ const RuptureDetailPage = () => {
   const navigate = useNavigate();
   const { profile } = useAuth();
   const { profiles } = useProfiles();
-  const { completeRupture, isCompleting, finalizeWithCurrentTest, isFinalizing } = useRuptures();
+  const { completeRupture, isCompleting, finalizeWithCurrentTest, isFinalizing, updateRupture, isUpdating } = useRuptures();
   const { data: scheduleData, isLoading } = useScheduleDetail(scheduleId);
 
   const found = useMemo(() => {
@@ -238,10 +238,13 @@ const RuptureDetailPage = () => {
 
   const { batch, schedule, analysis } = found;
 
-  const isReadOnly =
+  const isAdmin = profile?.role === "ADMIN";
+  const isConcluido =
     schedule.status === 'concluido' ||
-    schedule.status === 'ignorado' ||
     (batch as any).status === 'liberado_antecipado';
+  const isReadOnly =
+    schedule.status === 'ignorado' ||
+    (isConcluido && !isAdmin);
 
   const formatDate = (dateStr: string) => {
     const [year, month, day] = dateStr.split("-");
@@ -359,6 +362,50 @@ const RuptureDetailPage = () => {
     }
   };
 
+  const handleUpdate = async () => {
+    const tipoComAmostra = TIPOS_AMOSTRA.find((tipo) =>
+      samples[tipo].some((s) => s.forca_kn && parseFloat(s.forca_kn) > 0)
+    );
+    if (!tipoComAmostra) {
+      toast.error("Informe ao menos uma amostra com força (kN)");
+      return;
+    }
+    const testStats = statsPerTipo[tipoComAmostra];
+    if (!testStats) return;
+    try {
+      await updateRupture({
+        scheduleId: scheduleId!,
+        dataExecutada: dataReal,
+        observacoes,
+        testData: {
+          tipo_amostra: tipoComAmostra,
+          meta_mpa: found?.analysis?.resistencia_prevista ?? 0,
+          media_mpa: testStats.media,
+          min_mpa: testStats.minimo,
+          max_mpa: testStats.maximo,
+          desvio_padrao: testStats.desvio_padrao,
+          status: testStats.status,
+          notas: observacoes,
+          samples: samples[tipoComAmostra].map((s, idx) => ({
+            numero: idx + 1,
+            forca_kn: parseFloat(s.forca_kn),
+            peso_kg: s.peso_kg ? parseFloat(s.peso_kg) : null,
+            tensao_mpa: tipoComAmostra === "paver" && settings?.formula_tensao_paver
+              ? calcTensaoPaver(parseFloat(s.forca_kn), settings.formula_tensao_paver, areas[tipoComAmostra], settings?.formula_tensao_b)
+              : calcTensao(parseFloat(s.forca_kn), areas[tipoComAmostra], settings?.formula_tensao_b),
+            status: "concluido"
+          }))
+        }
+      });
+      toast.success("Ensaio atualizado com sucesso!", {
+        description: `${found?.batch.batch_code} — ${found?.schedule.idade_dias} dias`,
+      });
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao atualizar rompimento");
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Back */}
@@ -373,7 +420,7 @@ const RuptureDetailPage = () => {
         </div>
         <div>
           <h1 className="text-2xl font-bold text-foreground">
-            {isReadOnly ? "Visualização de Rompimento" : "Lançamento de Rompimento"} — {schedule.idade_dias} dias
+            {isReadOnly ? "Visualização de Rompimento" : isAdmin && isConcluido ? "Edição de Rompimento" : "Lançamento de Rompimento"} — {schedule.idade_dias} dias
           </h1>
           <p className="text-sm text-muted-foreground">
             {batch.batch_code} · {analysis?.nome ?? "—"}
@@ -656,6 +703,16 @@ const RuptureDetailPage = () => {
         <div className="flex justify-end">
           <Button variant="outline" onClick={() => navigate("/ruptures")}>
             <ArrowLeft className="h-4 w-4 mr-2" /> Voltar aos Rompimentos
+          </Button>
+        </div>
+      ) : isAdmin && isConcluido ? (
+        <div className="flex flex-col sm:flex-row justify-end gap-3">
+          <Button variant="outline" onClick={() => navigate("/ruptures")} disabled={isUpdating}>
+            Cancelar
+          </Button>
+          <Button onClick={handleUpdate} disabled={isUpdating} className="gap-2">
+            <Save className="h-4 w-4" />
+            {isUpdating ? "Atualizando..." : "Atualizar Ensaio"}
           </Button>
         </div>
       ) : (
