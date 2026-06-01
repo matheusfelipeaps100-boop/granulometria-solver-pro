@@ -468,7 +468,11 @@ const RuptureDetailPage = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {samples[tipo].map((sample, i) => {
                   const forca = parseFloat(sample.forca_kn);
-                  const tensao = !isNaN(forca) && forca > 0 ? calcTensao(forca, areas[tipo]) : null;
+                  const tensao = !isNaN(forca) && forca > 0
+                    ? tipo === "paver" && settings?.formula_tensao_paver
+                      ? calcTensaoPaver(forca, settings.formula_tensao_paver, areas[tipo], settings?.formula_tensao_b)
+                      : calcTensao(forca, areas[tipo], settings?.formula_tensao_b)
+                    : null;
                   return (
                     <div key={i} className="relative group">
                       <Label className="text-[10px] font-bold text-muted-foreground uppercase absolute -top-2 left-2 bg-background px-1 z-10">
