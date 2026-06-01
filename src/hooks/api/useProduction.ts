@@ -61,7 +61,7 @@ export function useProduction() {
           analyses (codigo, nome, tipo, produto, status),
           rupture_schedules (
             id, idade_dias, data_prevista, data_executada, status,
-            responsavel_id, responsavel_nome, observacoes,
+            responsavel_id, responsavel_nome,
             tests:rupture_tests (
               id, tipo_amostra, meta_mpa, media_mpa,
               samples:rupture_samples (numero, forca_kn, tensao_mpa, peso_kg)
