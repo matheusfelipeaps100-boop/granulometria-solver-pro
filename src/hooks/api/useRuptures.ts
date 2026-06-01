@@ -316,7 +316,7 @@ export function useRuptures() {
       // 1. Atualizar schedule
       const { error: sError } = await supabase
         .from("rupture_schedules")
-        .update({ data_executada: dataExecutada, responsavel_id: profile?.id, responsavel_nome: profile?.nome, observacoes: observacoes ?? null })
+        .update({ data_executada: dataExecutada, responsavel_id: profile?.id, responsavel_nome: profile?.nome })
         .eq("id", scheduleId);
       if (sError) throw sError;
 
