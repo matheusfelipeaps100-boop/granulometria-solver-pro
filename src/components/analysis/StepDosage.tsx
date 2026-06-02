@@ -135,21 +135,29 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
     [data.materiais_selecionados, totalKgMateriais]
   );
 
-  // Batelada informativa: calcula volume automaticamente para uma batelada padrão de cimento (ex: 50kg)
-  const BATELADA_PADRAO_CIMENTO_KG = 50;
-  // Se consumo_alvo_m3 > 0, calcula o volume correspondente a 50kg de cimento
-  const volume_batelada_auto = data.consumo_alvo_m3 > 0 ? BATELADA_PADRAO_CIMENTO_KG / data.consumo_alvo_m3 : 0;
+  // Cálculo do volume de batelada pelo método de volumes absolutos dos ingredientes
+  const cimento_batelada = data.consumo_alvo_m3; // campo armazena kg direto por batelada
+  const agua_batelada_prev = cimento_batelada * data.relacao_ac;
+  const vol_cim  = data.densidade_cimento > 0 ? cimento_batelada / (data.densidade_cimento * 1000) : 0;
+  const vol_agua = agua_batelada_prev / 1000;
+  const vol_agg  = proporcoes.reduce(
+    (s, m) => s + (m.proporcao_kg ?? 0) / ((m.densidade ?? 2.65) * 1000), 0
+  );
+  const volume_batelada_calc = vol_cim + vol_agua + vol_agg; // m³
+  const consumo_equiv_m3 = volume_batelada_calc > 0 ? cimento_batelada / volume_batelada_calc : 0;
+
   const dosageResult = useMemo(() => {
     return calcDosage({
       relacao_cimento: data.relacao_cimento,
       relacao_ac: data.relacao_ac,
-      consumo_alvo_m3: data.consumo_alvo_m3,
-      volume_m3: volume_batelada_auto,
+      consumo_alvo_m3: consumo_equiv_m3,
+      volume_m3: volume_batelada_calc,
       densidade_cimento: data.densidade_cimento,
       proporcoes_materiais: proporcoes,
       aditivos_ml: data.aditivos_ml,
     });
-  }, [data.relacao_cimento, data.relacao_ac, data.consumo_alvo_m3, data.densidade_cimento, proporcoes, data.aditivos_ml, volume_batelada_auto]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.relacao_cimento, data.relacao_ac, data.consumo_alvo_m3, data.relacao_ac, data.densidade_cimento, proporcoes, data.aditivos_ml]);
 
   const curvaConsumo = useMemo(
     () =>
@@ -318,7 +326,7 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
                     <Weight className="h-12 w-12" />
                   </div>
                   <Label className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-2 block">
-                    Consumo de Cimento Alvo (kg/m³)
+                    Cimento por Batelada (kg)
                   </Label>
                   <div className="flex items-baseline gap-2">
                     <Input
@@ -329,15 +337,19 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
                       value={data.consumo_alvo_m3 || ""}
                       onChange={(e) => {
                         const cons = parseFloat(e.target.value) || 0;
-                        // Ao editar o consumo → recalcula o traço (sem envolver volume)
                         const rel = cons > 0 && totalKgMateriais > 0
                           ? Math.round((totalKgMateriais / cons) * 10) / 10
                           : data.relacao_cimento;
                         onChange({ consumo_alvo_m3: cons, relacao_cimento: rel });
                       }}
                     />
-                    <span className="text-sm font-bold text-muted-foreground">kg/m³</span>
+                    <span className="text-sm font-bold text-muted-foreground">kg</span>
                   </div>
+                  {consumo_equiv_m3 > 0 && (
+                    <span className="text-[10px] text-muted-foreground mt-1 block">
+                      ≈ {consumo_equiv_m3.toFixed(0)} kg/m³ (equivalente)
+                    </span>
+                  )}
                 </div>
 
                 <div className="w-1/3 bg-muted/50 rounded-xl p-4 flex flex-col justify-center border border-border/50">
@@ -367,7 +379,7 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
                       step="0.01"
                       min="0"
                       className="h-10 font-black bg-background border-2 border-border/50 focus-visible:ring-primary shadow-none"
-                      value={volume_batelada_auto > 0 ? volume_batelada_auto.toFixed(3) : ""}
+                      value={volume_batelada_calc > 0 ? volume_batelada_calc.toFixed(3) : ""}
                       disabled
                     />
                     <span className="absolute right-3 top-2.5 text-[10px] font-bold text-muted-foreground uppercase">m³</span>
@@ -576,7 +588,7 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
         <div className="flex items-start gap-2 p-3 rounded-lg bg-primary/5 border border-primary/20">
           <AlertCircle className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
           <p className="text-xs text-muted-foreground">
-            <strong className="text-foreground">Custos automáticos:</strong> Os valores são sincronizados do cadastro de materiais. Altere o "<strong>Consumo de Cimento Alvo (kg/m³)</strong>" para recalcular os custos automaticamente.
+            <strong className="text-foreground">Custos automáticos:</strong> Os valores são sincronizados do cadastro de materiais. Altere o "<strong>Cimento por Batelada (kg)</strong>" para recalcular os custos automaticamente.
           </p>
         </div>
         <Card className="bg-foreground text-card border-none shadow-xl overflow-hidden">

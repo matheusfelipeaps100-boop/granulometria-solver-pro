@@ -215,8 +215,8 @@ export function useAnalyses() {
         const totalKgMats = formData.materiais_selecionados.reduce(
           (s: number, mat: any) => s + (mat.proporcao_kg ?? 0), 0
         );
+        const cimentoBat = formData.consumo_alvo_m3 || 0; // kg direto por batelada
         const volM3 = formData.volume_m3 || 0.55;
-        const cimentoBat = (formData.consumo_alvo_m3 || 0) * volM3;
         const custoCimentoBat = cimentoBat * ((formData.custo_cimento_ton || 0) / 1000);
         const custoAditivoBat = (formData.aditivos_ml || 0) * ((formData.custo_aditivo_lt || 0) / 1000);
         const custoAgregBat = formData.materiais_selecionados.reduce((sum: number, m: any) => {

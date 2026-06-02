@@ -133,7 +133,7 @@ export function createEmptyAnalysis(): AnalysisFormData {
     materiais_selecionados: [],
     relacao_cimento: 18.0,
     relacao_ac: 0.20,
-    consumo_alvo_m3: 137,
+    consumo_alvo_m3: 50,
     volume_m3: 0.55,
     densidade_cimento: 3.15,
     aditivos_ml: 0,
