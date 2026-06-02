@@ -328,17 +328,6 @@ const RupturesPage = () => {
                               {isExempting ? "..." : "Isentar"}
                             </Button>
                           )}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                              const target = [...sorted].reverse().find(s => s.status === 'concluido') ?? sorted[0];
-                              navigate(`/ruptures/${target.id}`);
-                            }}
-                            title="Ver Detalhes"
-                          >
-                            <Eye className="h-4 w-4 text-muted-foreground" />
-                          </Button>
                           {canReleaseEarlyPermission && (overallStatus === "em_andamento" || overallStatus === "atrasado") && (
                             <Button
                               variant="ghost"
@@ -355,6 +344,17 @@ const RupturesPage = () => {
                               {isReleasing ? "..." : "Liberar"}
                             </Button>
                           )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              const target = [...sorted].reverse().find(s => s.status === 'concluido') ?? sorted[0];
+                              navigate(`/ruptures/${target.id}`);
+                            }}
+                            title="Ver Detalhes"
+                          >
+                            <Eye className="h-4 w-4 text-muted-foreground" />
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
