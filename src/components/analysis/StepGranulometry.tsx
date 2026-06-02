@@ -43,7 +43,8 @@ import {
 } from "@/lib/analysis-data";
 import { useMaterials } from "@/hooks/api/useMaterials";
 import { useStandardCurves } from "@/hooks/api/useStandardCurves";
-import { Database, Dna, AlertTriangle, CheckCircle2, AlertCircle, Trash2, Plus } from "lucide-react";
+import { Database, Dna, AlertTriangle, CheckCircle2, AlertCircle, Trash2, Plus, Save, FolderOpen } from "lucide-react";
+import { useGranulometryPresets } from "@/hooks/api/useGranulometryPresets";
 
 interface StepGranulometryProps {
   data: AnalysisFormData;
@@ -58,6 +59,9 @@ export function StepGranulometry({ data, onChange, readOnly }: StepGranulometryP
   const [isBancoOpen, setIsBancoOpen] = useState(false);
   const [isDnaOpen, setIsDnaOpen] = useState(false);
   const [bancoDraft, setBancoDraft] = useState<string[]>([]); // Staging array para modal de materiais
+  const [isPresetSaveOpen, setIsPresetSaveOpen] = useState(false);
+  const [isPresetLoadOpen, setIsPresetLoadOpen] = useState(false);
+  const [presetNome, setPresetNome] = useState("");
 
   // Toggle para exibir/ocultar colunas % RETIDA
   const [showPctRetida, setShowPctRetida] = useState(false);
@@ -70,6 +74,7 @@ export function StepGranulometry({ data, onChange, readOnly }: StepGranulometryP
   const getLocalKey = (mi: number, sieveId: number) => `${mi}-${sieveId}`;
 
   const { materials: dbMaterials } = useMaterials();
+  const { presets, createPreset, isCreating: isSavingPreset, deletePreset } = useGranulometryPresets();
   const { curves: dbCurves } = useStandardCurves();
 
   // Converter curvas padrão do banco para o formato usado nos componentes
@@ -445,9 +450,9 @@ export function StepGranulometry({ data, onChange, readOnly }: StepGranulometryP
                 >
                   {showPctRetida ? "Ocultar % Retida" : "Mostrar % Retida"}
                 </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
+                <Button
+                  variant="outline"
+                  size="sm"
                   className="h-7 text-xs gap-1"
                   onClick={() => {
                     setBancoDraft(materials.map(m => m.material_id));
@@ -457,6 +462,26 @@ export function StepGranulometry({ data, onChange, readOnly }: StepGranulometryP
                   <Database className="h-3 w-3" />
                   BANCO DE AGREGADOS
                 </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs gap-1"
+                  onClick={() => setIsPresetLoadOpen(true)}
+                >
+                  <FolderOpen className="h-3 w-3" />
+                  CARREGAR
+                </Button>
+                {!readOnly && materials.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs gap-1"
+                    onClick={() => { setPresetNome(""); setIsPresetSaveOpen(true); }}
+                  >
+                    <Save className="h-3 w-3" />
+                    SALVAR
+                  </Button>
+                )}
               </div>
             </CardHeader>
             <CardContent className="overflow-x-auto p-0">
@@ -923,6 +948,124 @@ export function StepGranulometry({ data, onChange, readOnly }: StepGranulometryP
               CONFIRMAR SELEÇÃO
               <CheckCircle2 className="w-4 h-4" />
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL SALVAR GRANULOMETRIA */}
+      <Dialog open={isPresetSaveOpen} onOpenChange={setIsPresetSaveOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black uppercase tracking-tighter">SALVAR GRANULOMETRIA</DialogTitle>
+            <DialogDescription className="text-xs uppercase font-bold text-muted-foreground tracking-widest">
+              Dê um nome para este preset de granulometria
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 mt-2">
+            <div>
+              <label className="text-xs font-bold uppercase text-muted-foreground mb-1 block">Nome do Preset</label>
+              <input
+                className="border rounded px-3 py-2 text-sm w-full"
+                placeholder="Ex.: Semana 23 – Padrão Bloco"
+                value={presetNome}
+                onChange={(e) => setPresetNome(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && presetNome.trim()) {
+                    createPreset({
+                      nome: presetNome.trim(),
+                      materiais: data.materiais_selecionados,
+                      dna_selecionado: data.dna_selecionado,
+                      limites_curva: data.limites_curva,
+                    }).then(() => {
+                      toast.success("Granulometria salva com sucesso!");
+                      setIsPresetSaveOpen(false);
+                    }).catch(() => toast.error("Erro ao salvar granulometria"));
+                  }
+                }}
+                autoFocus
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => setIsPresetSaveOpen(false)}>
+                Cancelar
+              </Button>
+              <Button
+                size="sm"
+                disabled={!presetNome.trim() || isSavingPreset}
+                onClick={() => {
+                  createPreset({
+                    nome: presetNome.trim(),
+                    materiais: data.materiais_selecionados,
+                    dna_selecionado: data.dna_selecionado,
+                    limites_curva: data.limites_curva,
+                  }).then(() => {
+                    toast.success("Granulometria salva com sucesso!");
+                    setIsPresetSaveOpen(false);
+                  }).catch(() => toast.error("Erro ao salvar granulometria"));
+                }}
+              >
+                <Save className="h-3 w-3 mr-1" />
+                Salvar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL CARREGAR GRANULOMETRIA */}
+      <Dialog open={isPresetLoadOpen} onOpenChange={setIsPresetLoadOpen}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black uppercase tracking-tighter">CARREGAR GRANULOMETRIA</DialogTitle>
+            <DialogDescription className="text-xs uppercase font-bold text-muted-foreground tracking-widest">
+              Selecione um preset salvo para preencher a tabela
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-2 mt-4">
+            {presets.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <FolderOpen className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                <p className="text-sm font-medium">Nenhum preset salvo</p>
+                <p className="text-xs mt-1">Preencha a granulometria e clique em "Salvar" para criar um preset</p>
+              </div>
+            ) : presets.map((preset) => (
+              <div
+                key={preset.id}
+                className="flex items-center justify-between p-4 rounded-xl border border-border hover:border-primary hover:bg-accent/10 cursor-pointer transition-all group"
+                onClick={() => {
+                  onChange({
+                    materiais_selecionados: preset.materiais,
+                    dna_selecionado: preset.dna_selecionado ?? undefined,
+                    limites_curva: preset.limites_curva ?? undefined,
+                  });
+                  toast.success(`Granulometria "${preset.nome}" carregada!`);
+                  setIsPresetLoadOpen(false);
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center group-hover:bg-primary/10">
+                    <FolderOpen className="w-5 h-5 text-muted-foreground group-hover:text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-tight">{preset.nome}</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {preset.materiais.length} material(is) · {new Date(preset.created_at).toLocaleDateString("pt-BR")}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="opacity-0 group-hover:opacity-100 h-7 w-7 rounded-full border border-destructive/40 text-destructive hover:bg-destructive hover:text-white flex items-center justify-center transition-all text-xs"
+                  title="Excluir preset"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deletePreset(preset.id).then(() => toast.success("Preset excluído")).catch(() => toast.error("Erro ao excluir"));
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
           </div>
         </DialogContent>
       </Dialog>
