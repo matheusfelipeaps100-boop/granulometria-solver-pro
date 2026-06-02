@@ -236,11 +236,14 @@ export function StepReview({ data, onApprove, onChange, readOnly = false }: Step
               "border-primary/30 bg-primary/5"
             )}>
               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                CONSUMO CIMENTO
+                CIMENTO POR BATELADA
               </p>
               <p className="text-2xl font-black text-primary mt-0.5">
-                {dosageResult?.consumo_cimento_m3.toFixed(0) ?? "—"}
-                <span className="text-sm font-medium text-muted-foreground ml-1">kg/m³</span>
+                {data.consumo_alvo_m3.toFixed(0)}
+                <span className="text-sm font-medium text-muted-foreground ml-1">kg</span>
+              </p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                ≈ {dosageResult?.consumo_cimento_m3.toFixed(0) ?? "—"} kg/m³ (equiv.)
               </p>
             </div>
 
@@ -255,7 +258,7 @@ export function StepReview({ data, onApprove, onChange, readOnly = false }: Step
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Vol. Batelada</span>
-                <span className="font-bold">{data.volume_m3.toFixed(3)} m³</span>
+                <span className="font-bold">{dosageResult ? (dosageResult.massa_total_batelada / (dosageResult.densidade_efetiva * 1000)).toFixed(3) : "—"} m³</span>
               </div>
             </div>
           </CardContent>
