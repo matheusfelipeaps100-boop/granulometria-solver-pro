@@ -312,17 +312,6 @@ const RupturesPage = () => {
                       </TableCell>
                       <TableCell className="text-right pr-6">
                         <div className="flex justify-end items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                              const target = [...sorted].reverse().find(s => s.status === 'concluido') ?? sorted[0];
-                              navigate(`/ruptures/${target.id}`);
-                            }}
-                            title="Ver Detalhes"
-                          >
-                            <Eye className="h-4 w-4 text-muted-foreground" />
-                          </Button>
                           {canReleaseEarlyPermission && canReleaseEarly && (
                             <Button
                               variant="ghost"
@@ -339,6 +328,17 @@ const RupturesPage = () => {
                               {isExempting ? "..." : "Isentar"}
                             </Button>
                           )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              const target = [...sorted].reverse().find(s => s.status === 'concluido') ?? sorted[0];
+                              navigate(`/ruptures/${target.id}`);
+                            }}
+                            title="Ver Detalhes"
+                          >
+                            <Eye className="h-4 w-4 text-muted-foreground" />
+                          </Button>
                           {canReleaseEarlyPermission && (overallStatus === "em_andamento" || overallStatus === "atrasado") && (
                             <Button
                               variant="ghost"
