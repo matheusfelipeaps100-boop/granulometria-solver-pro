@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Package, Unlock, AlertTriangle, ClipboardList, Eye } from "lucide-react";
+import { Search, Package, Unlock, AlertTriangle, ClipboardList, Eye, CheckCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -27,7 +27,7 @@ const statusColor: Record<ScheduleStatus, string> = {
 };
 
 const RupturesPage = () => {
-  const { schedules, isLoadingSchedules, releaseEarly, isReleasing } = useRuptures();
+  const { schedules, isLoadingSchedules, releaseEarly, isReleasing, exemptFromTesting, isExempting } = useRuptures();
   const { profile } = useAuth();
   const navigate = useNavigate();
 
@@ -42,6 +42,10 @@ const RupturesPage = () => {
   const [batchToRelease, setBatchToRelease] = useState<string | null>(null);
   const [releaseReason, setReleaseReason] = useState("");
   const [releaseAnalyst, setReleaseAnalyst] = useState("");
+
+  // States of exempt from testing modal
+  const [exemptModalOpen, setExemptModalOpen] = useState(false);
+  const [batchToExempt, setBatchToExempt] = useState<string | null>(null);
 
   const today = useMemo(() => new Date().toISOString().split("T")[0], []);
 
@@ -94,6 +98,7 @@ const RupturesPage = () => {
 
   // Batch-level status
   const batchStatus = (schedules: any[], currentStatus: string) => {
+    if (currentStatus === "aprovado_sem_ensaio") return "aprovado_sem_ensaio";
     if (currentStatus === "liberado_antecipado") return "liberado_antecipado";
     if (schedules.every((s) => s.status === "concluido" || s.status === "ignorado")) return "concluido";
     if (schedules.some((s) => s.status === "atrasado")) return "atrasado";
@@ -134,6 +139,19 @@ const RupturesPage = () => {
     } catch (error) {
       console.error(error);
       toast.error("Erro ao liberar lote");
+    }
+  };
+
+  const handleExemptSubmit = async () => {
+    if (!batchToExempt) return;
+    try {
+      await exemptFromTesting({ batchId: batchToExempt });
+      toast.success("Produto aprovado sem ensaio.");
+      setExemptModalOpen(false);
+      setBatchToExempt(null);
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao isentar de ensaio");
     }
   };
 
@@ -305,7 +323,23 @@ const RupturesPage = () => {
                           >
                             <Eye className="h-4 w-4 text-muted-foreground" />
                           </Button>
-                          {canReleaseEarlyPermission && canReleaseEarly && (
+                          {canReleaseEarlyPermission && overallStatus === "pendente" && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled={isExempting}
+                              onClick={() => {
+                                setBatchToExempt((batch as any).id);
+                                setExemptModalOpen(true);
+                              }}
+                              className="text-success hover:text-success hover:bg-success/10 gap-2 font-bold"
+                              title="Aprovar sem ensaio"
+                            >
+                              <CheckCircle className="h-4 w-4" />
+                              {isExempting ? "..." : "Isentar"}
+                            </Button>
+                          )}
+                          {canReleaseEarlyPermission && canReleaseEarly && overallStatus !== "pendente" && (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -332,6 +366,34 @@ const RupturesPage = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Modal Isentar de Ensaio */}
+      <Dialog open={exemptModalOpen} onOpenChange={setExemptModalOpen}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-success">
+              <CheckCircle className="h-5 w-5" /> Isentar de Ensaio
+            </DialogTitle>
+            <DialogDescription>
+              Confirma que este produto não requer ensaio de rompimento?
+              Todos os agendamentos serão cancelados e o lote ficará com status <strong>Aprovado</strong>.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => { setExemptModalOpen(false); setBatchToExempt(null); }}>
+              Cancelar
+            </Button>
+            <Button
+              disabled={isExempting}
+              className="bg-success hover:bg-success/90 text-white"
+              onClick={handleExemptSubmit}
+            >
+              <CheckCircle className="h-4 w-4 mr-1" />
+              {isExempting ? "Processando..." : "Confirmar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal Liberação Antecipada */}
       <Dialog open={releaseModalOpen} onOpenChange={setReleaseModalOpen}>

@@ -261,6 +261,29 @@ export function useRuptures() {
     }
   });
 
+  const exemptFromTestingMutation = useMutation({
+    mutationFn: async ({ batchId }: { batchId: string }) => {
+      const { error: sError } = await supabase
+        .from("rupture_schedules")
+        .update({ status: "ignorado" })
+        .eq("batch_id", batchId)
+        .in("status", ["pendente", "atrasado", "em_andamento"]);
+      if (sError) throw sError;
+
+      const { error: bError } = await supabase
+        .from("production_batches")
+        .update({ status: "aprovado_sem_ensaio" })
+        .eq("id", batchId);
+      if (bError) throw bError;
+
+      return { batchId };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["rupture_schedules", orgId] });
+      queryClient.invalidateQueries({ queryKey: ["production_batches", orgId] });
+    },
+  });
+
   const releaseEarlyMutation = useMutation({
     mutationFn: async ({ batchId, motivo }: { batchId: string; motivo: string }) => {
       // 1. Marcar todos os agendamentos pendentes como 'ignorado'
@@ -357,6 +380,8 @@ export function useRuptures() {
     isCompleting: completeRuptureMutation.isPending,
     finalizeWithCurrentTest: finalizeWithCurrentTestMutation.mutateAsync,
     isFinalizing: finalizeWithCurrentTestMutation.isPending,
+    exemptFromTesting: exemptFromTestingMutation.mutateAsync,
+    isExempting: exemptFromTestingMutation.isPending,
     releaseEarly: releaseEarlyMutation.mutateAsync,
     isReleasing: releaseEarlyMutation.isPending,
     updateRupture: updateRuptureMutation.mutateAsync,
