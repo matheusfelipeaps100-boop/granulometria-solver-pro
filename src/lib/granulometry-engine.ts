@@ -402,3 +402,25 @@ export function calcVolumeFromCimento(
   if (consumo_kg <= 0 || densidade_cimento <= 0) return 0;
   return Math.round((consumo_kg * (1 + relacao_cimento)) / densidade_cimento);
 }
+
+/**
+ * CÁLCULO 11 — Volume de batelada pelo método de volumes absolutos
+ * Recebe kg de cimento por batelada diretamente e retorna
+ * { volume_batelada_m3, consumo_equiv_m3 } para uso em calcDosage.
+ */
+export function calcVolumeBateladaAbsoluto(
+  cimento_kg: number,
+  relacao_ac: number,
+  densidade_cimento: number,
+  materiais: Array<{ proporcao_kg: number; densidade?: number }>
+): { volume_batelada_m3: number; consumo_equiv_m3: number } {
+  const agua_kg = cimento_kg * relacao_ac;
+  const vol_cim = densidade_cimento > 0 ? cimento_kg / (densidade_cimento * 1000) : 0;
+  const vol_agua = agua_kg / 1000;
+  const vol_agg = materiais.reduce(
+    (s, m) => s + (m.proporcao_kg ?? 0) / ((m.densidade ?? 2.65) * 1000), 0
+  );
+  const volume_batelada_m3 = vol_cim + vol_agua + vol_agg;
+  const consumo_equiv_m3 = volume_batelada_m3 > 0 ? cimento_kg / volume_batelada_m3 : 0;
+  return { volume_batelada_m3, consumo_equiv_m3 };
+}

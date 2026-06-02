@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { CheckCircle2, Info } from "lucide-react";
-import { calcCombinedCurve, calcCurvaStatus, calcDosage } from "@/lib/granulometry-engine";
+import { calcCombinedCurve, calcCurvaStatus, calcDosage, calcVolumeBateladaAbsoluto } from "@/lib/granulometry-engine";
 import {
   TIPOS_ANALISE,
   ANALISTAS,
@@ -94,18 +94,25 @@ export function StepReview({ data, onApprove, onChange, readOnly = false }: Step
 
   const dosageResult = useMemo(() => {
     if (data.materiais_selecionados.length === 0) return null;
+    const proporcoes = data.materiais_selecionados.map((m) => ({
+      nome: m.nome,
+      proporcao_kg: m.proporcao_kg ?? 0,
+      proporcao_pct: totalKgMateriais > 0 ? (m.proporcao_kg ?? 0) / totalKgMateriais : 0,
+      densidade: m.densidade,
+    }));
+    const { volume_batelada_m3, consumo_equiv_m3 } = calcVolumeBateladaAbsoluto(
+      data.consumo_alvo_m3,
+      data.relacao_ac,
+      data.densidade_cimento,
+      proporcoes
+    );
     return calcDosage({
       relacao_cimento: data.relacao_cimento,
       relacao_ac: data.relacao_ac,
-      consumo_alvo_m3: data.consumo_alvo_m3,
-      volume_m3: data.volume_m3,
+      consumo_alvo_m3: consumo_equiv_m3,
+      volume_m3: volume_batelada_m3,
       densidade_cimento: data.densidade_cimento,
-      proporcoes_materiais: data.materiais_selecionados.map((m) => ({
-        nome: m.nome,
-        proporcao_kg: m.proporcao_kg ?? 0,
-        proporcao_pct: totalKgMateriais > 0 ? (m.proporcao_kg ?? 0) / totalKgMateriais : 0,
-        densidade: m.densidade
-      })),
+      proporcoes_materiais: proporcoes,
       aditivos_ml: data.aditivos_ml,
     });
   }, [data, totalKgMateriais]);

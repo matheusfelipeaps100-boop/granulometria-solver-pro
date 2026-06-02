@@ -13,7 +13,7 @@ import {
   ResponsiveContainer,
   ReferenceDot,
 } from "recharts";
-import { calcDosage, calcRelacaoFromConsumo } from "@/lib/granulometry-engine";
+import { calcDosage } from "@/lib/granulometry-engine";
 import type { AnalysisFormData } from "@/lib/analysis-data";
 import { Beaker, Droplets, Weight, BarChart3, Pill, AlertCircle } from "lucide-react";
 import { cn, calcularCustoMaterial } from "@/lib/utils";
