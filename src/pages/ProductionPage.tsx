@@ -3,7 +3,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { RefreshCw, Eye, ClipboardList, FileEdit, Calendar, Package } from "lucide-react";
 import { toast } from "sonner";
 import { ViewProductionModal } from "@/components/production/ViewProductionModal";
@@ -125,7 +124,6 @@ const ProductionPage = () => {
                   <TableHead className="whitespace-nowrap">LOTE</TableHead>
                   <TableHead className="whitespace-nowrap">DATA PRODUÇÃO</TableHead>
                   <TableHead className="whitespace-nowrap">DATA RESULTADO</TableHead>
-                  <TableHead>ROMPIMENTOS</TableHead>
                   <TableHead className="text-right pr-6">AÇÃO</TableHead>
                 </TableRow>
               </TableHeader>
@@ -160,7 +158,6 @@ const ProductionPage = () => {
                         <TableCell>
                           <span className="text-xs text-muted-foreground italic">Aguardando registro</span>
                         </TableCell>
-                        <TableCell>—</TableCell>
                         <TableCell>—</TableCell>
                         <TableCell>—</TableCell>
                         <TableCell className="text-right pr-6">
@@ -217,15 +214,6 @@ const ProductionPage = () => {
                             : '—';
                         })()}
                       </TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          {batch.rupture_schedules?.map((s) => (
-                            <Badge key={s.id} variant="outline" className="text-xs">
-                              {s.idade_dias}d
-                            </Badge>
-                          ))}
-                        </div>
-                      </TableCell>
                       <TableCell className="text-right pr-6">
                         <div className="flex items-center justify-end gap-1">
                           <Button variant="ghost" size="icon" title="Visualizar" onClick={() => setViewAnalysis(analysis)}>
@@ -241,7 +229,7 @@ const ProductionPage = () => {
                 })}
                 {releasedAnalyses.length === 0 && filteredBatches.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Nenhum lote encontrado.</TableCell>
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Nenhum lote encontrado.</TableCell>
                   </TableRow>
                 )}
               </TableBody>

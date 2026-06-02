@@ -72,7 +72,7 @@ export function useRuptures() {
             analyses (nome, codigo, produto, tipo)
           )
         `)
-        .order("data_prevista", { ascending: true });
+        .order("data_prevista", { ascending: false });
 
       if (error) throw error;
       return data as any[];
