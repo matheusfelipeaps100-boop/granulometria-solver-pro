@@ -323,7 +323,7 @@ const RupturesPage = () => {
                           >
                             <Eye className="h-4 w-4 text-muted-foreground" />
                           </Button>
-                          {canReleaseEarlyPermission && overallStatus === "pendente" && (
+                          {canReleaseEarlyPermission && canReleaseEarly && (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -339,7 +339,7 @@ const RupturesPage = () => {
                               {isExempting ? "..." : "Isentar"}
                             </Button>
                           )}
-                          {canReleaseEarlyPermission && canReleaseEarly && overallStatus !== "pendente" && (
+                          {canReleaseEarlyPermission && (overallStatus === "em_andamento" || overallStatus === "atrasado") && (
                             <Button
                               variant="ghost"
                               size="sm"
