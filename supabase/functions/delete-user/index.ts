@@ -56,6 +56,22 @@ Deno.serve(async (req) => {
       throw new Error('Forbidden: Cannot delete a user from another organization.');
     }
 
+    // Nullify FK references before deleting so constraints don't block the cascade
+    await adminClient.from('rupture_schedules').update({ responsavel_id: null }).eq('responsavel_id', userId);
+    await adminClient.from('rupture_samples').update({ registrado_por: null }).eq('registrado_por', userId);
+    await adminClient.from('analyses').update({ analista_id: null }).eq('analista_id', userId);
+    await adminClient.from('analyses').update({ aprovado_por: null }).eq('aprovado_por', userId);
+    await adminClient.from('analyses').update({ liberado_por: null }).eq('liberado_por', userId);
+    await adminClient.from('analyses').update({ created_by: null }).eq('created_by', userId);
+    await adminClient.from('production_batches').update({ operador_id: null }).eq('operador_id', userId);
+    await adminClient.from('production_batches').update({ created_by: null }).eq('created_by', userId);
+    await adminClient.from('materials').update({ created_by: null }).eq('created_by', userId);
+    await adminClient.from('standard_curves').update({ created_by: null }).eq('created_by', userId);
+    await adminClient.from('webhook_configs').update({ created_by: null }).eq('created_by', userId);
+    await adminClient.from('notifications').delete().eq('user_id', userId);
+    await adminClient.from('notification_preferences').delete().eq('user_id', userId);
+    await adminClient.from('granulometry_presets').delete().eq('created_by', userId);
+
     const { error: deleteError } = await adminClient.auth.admin.deleteUser(userId);
     if (deleteError) throw deleteError;
 
