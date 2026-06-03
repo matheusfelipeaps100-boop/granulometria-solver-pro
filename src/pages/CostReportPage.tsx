@@ -45,7 +45,7 @@ const CostReportPage = () => {
   const currentYear = new Date().getFullYear();
   const currentMonth = String(new Date().getMonth() + 1).padStart(2, '0');
   const [filterYear, setFilterYear] = useState(String(currentYear));
-  const [filterMonth, setFilterMonth] = useState("00"); // 00 = todos os meses
+  const [filterMonth, setFilterMonth] = useState(currentMonth);
   const [showDetailedCosts, setShowDetailedCosts] = useState(false); // Toggle para R$/m³ e R$/Bat.
 
   // Anos disponíveis para filtro
