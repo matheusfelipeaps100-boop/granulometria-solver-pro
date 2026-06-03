@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 const ROLE_LABELS: Record<string, string> = {
   ADMIN: "Administrativo",
   PRODUCAO: "Produção",
-  VENDAS: "Vendas",
+  VENDAS: "Diretor",
   LABORATORIO: "Laboratório",
 };
 

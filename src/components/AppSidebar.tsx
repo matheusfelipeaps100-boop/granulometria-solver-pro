@@ -50,7 +50,7 @@ const adminItems: NavItem[] = [
 const ROLE_LABELS: Record<UserRole, string> = {
   ADMIN: "Administrativo",
   PRODUCAO: "Produção",
-  VENDAS: "Vendas",
+  VENDAS: "Diretor",
   LABORATORIO: "Laboratório",
 };
 

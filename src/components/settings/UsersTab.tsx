@@ -27,7 +27,7 @@ import { toast } from "sonner";
 const ROLE_LABELS: Record<UserRole, string> = {
   ADMIN: "Administrativo",
   PRODUCAO: "Produção",
-  VENDAS: "Vendas",
+  VENDAS: "Diretor",
   LABORATORIO: "Laboratório",
 };
 
@@ -300,7 +300,7 @@ export function UsersTab() {
                   </SelectItem>
                   <SelectItem value="VENDAS">
                     <div className="flex flex-col">
-                      <span className="font-bold">Vendas</span>
+                      <span className="font-bold">Diretor</span>
                       <span className="text-[10px] text-muted-foreground">Visualização de análises, produção e rompimentos</span>
                     </div>
                   </SelectItem>
