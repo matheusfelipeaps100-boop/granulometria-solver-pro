@@ -1,3 +1,4 @@
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -7,31 +8,59 @@ import { Input } from "@/components/ui/input";
 import { useProduction } from "@/hooks/api/useProduction";
 import { useNavigate } from "react-router-dom";
 import { TIPOS_ANALISE } from "@/lib/analysis-data";
+import { DateRangeFilter } from "@/components/DateRangeFilter";
+import { getDefaultDateFilter, isInDateRange, formatPeriodLabel } from "@/lib/dateFilter";
+import type { DateFilter } from "@/lib/dateFilter";
 
 const ReportsPage = () => {
   const { batches, isLoadingBatches } = useProduction();
   const navigate = useNavigate();
 
-  const reportItems = batches.map((b) => {
-    const analysis = b.analyses;
-    const tipoLabel = TIPOS_ANALISE.find((t) => t.value === analysis?.tipo)?.label || analysis?.tipo || "—";
-    
-    return {
-      id: b.id,
-      tipo: analysis?.produto ?? tipoLabel,
-      codigo: analysis?.codigo ?? "",
-      nome: analysis?.nome ?? "—",
-      lote: b.batch_code,
-      produto: tipoLabel,
-      data: new Date(b.produced_at).toLocaleDateString("pt-BR"),
-      status: b.status,
-    };
-  }).sort((a, b) => b.lote.localeCompare(a.lote));
+  const [search, setSearch] = useState("");
+  const [dateFilter, setDateFilter] = useState<DateFilter>(getDefaultDateFilter());
+
+  const allItems = useMemo(() =>
+    batches.map((b) => {
+      const analysis = b.analyses;
+      const tipoLabel = TIPOS_ANALISE.find((t) => t.value === analysis?.tipo)?.label || analysis?.tipo || "—";
+      return {
+        id: b.id,
+        tipo: analysis?.produto ?? tipoLabel,
+        codigo: analysis?.codigo ?? "",
+        nome: analysis?.nome ?? "—",
+        lote: b.batch_code,
+        produto: tipoLabel,
+        data: new Date(b.produced_at).toLocaleDateString("pt-BR"),
+        produced_at: b.produced_at,
+        status: b.status,
+      };
+    }).sort((a, b) => b.lote.localeCompare(a.lote)),
+  [batches]);
+
+  const reportItems = useMemo(() =>
+    allItems.filter((r) => {
+      const matchDate = isInDateRange(r.produced_at, dateFilter);
+      const matchSearch = !search ||
+        r.lote.toLowerCase().includes(search.toLowerCase()) ||
+        r.tipo.toLowerCase().includes(search.toLowerCase()) ||
+        r.nome.toLowerCase().includes(search.toLowerCase()) ||
+        r.codigo.toLowerCase().includes(search.toLowerCase());
+      return matchDate && matchSearch;
+    }),
+  [allItems, dateFilter, search]);
+
+  // Placeholders: primeira e última data do período filtrado
+  const firstDate = useMemo(() =>
+    reportItems.length ? reportItems[reportItems.length - 1].produced_at?.slice(0, 10) : "",
+  [reportItems]);
+  const lastDate = useMemo(() =>
+    reportItems.length ? reportItems[0].produced_at?.slice(0, 10) : "",
+  [reportItems]);
 
   if (isLoadingBatches) {
     return (
       <div className="h-full w-full flex items-center justify-center p-12 text-primary">
-          <RefreshCw className="h-8 w-8 animate-spin" />
+        <RefreshCw className="h-8 w-8 animate-spin" />
       </div>
     );
   }
@@ -45,9 +74,25 @@ const ReportsPage = () => {
 
       <Card className="shadow-sm">
         <CardHeader className="pb-3">
-          <div className="relative max-w-sm">
+          <div className="relative max-w-sm mb-3">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Buscar por Lote ou Produto..." className="pl-9" />
+            <Input
+              placeholder="Buscar por Lote ou Produto..."
+              className="pl-9"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <DateRangeFilter
+              value={dateFilter}
+              onChange={setDateFilter}
+              placeholderFrom={firstDate}
+              placeholderTo={lastDate}
+            />
+            <span className="text-xs text-muted-foreground whitespace-nowrap ml-3">
+              {reportItems.length} relatório{reportItems.length !== 1 ? "s" : ""} — {formatPeriodLabel(dateFilter)}
+            </span>
           </div>
         </CardHeader>
         <CardContent>
@@ -98,7 +143,7 @@ const ReportsPage = () => {
               ) : (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center py-10 text-muted-foreground italic">
-                    Nenhum certificado de qualidade disponível para os lotes atuais.
+                    Nenhum certificado encontrado para o período selecionado.
                   </TableCell>
                 </TableRow>
               )}

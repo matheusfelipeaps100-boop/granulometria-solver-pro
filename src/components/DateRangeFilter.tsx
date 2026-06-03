@@ -31,9 +31,11 @@ const YEARS = Array.from({ length: 5 }, (_, i) => String(currentYear - i));
 interface DateRangeFilterProps {
   value: DateFilter;
   onChange: (v: DateFilter) => void;
+  placeholderFrom?: string;
+  placeholderTo?: string;
 }
 
-export function DateRangeFilter({ value, onChange }: DateRangeFilterProps) {
+export function DateRangeFilter({ value, onChange, placeholderFrom, placeholderTo }: DateRangeFilterProps) {
   const isHistorico = !value.month && !value.year && !value.dateFrom && !value.dateTo;
 
   const handleVerHistorico = () =>
@@ -86,37 +88,36 @@ export function DateRangeFilter({ value, onChange }: DateRangeFilterProps) {
       {/* Data Inicial */}
       <Input
         type="date"
-        className="h-9 w-[140px] text-xs"
+        className="h-9 w-[160px] text-xs"
         value={value.dateFrom}
+        placeholder={placeholderFrom}
         onChange={(e) =>
           onChange({ ...value, dateFrom: e.target.value, month: "", year: "" })
         }
-        placeholder="De"
       />
 
       {/* Data Final */}
       <Input
         type="date"
-        className="h-9 w-[140px] text-xs"
+        className="h-9 w-[160px] text-xs"
         value={value.dateTo}
+        placeholder={placeholderTo}
         onChange={(e) =>
           onChange({ ...value, dateTo: e.target.value, month: "", year: "" })
         }
-        placeholder="Até"
       />
 
-      {/* Ver Histórico */}
-      {!isHistorico && (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-9 gap-1.5 text-xs text-muted-foreground"
-          onClick={handleVerHistorico}
-        >
-          <History className="h-3.5 w-3.5" />
-          Ver Histórico
-        </Button>
-      )}
+      {/* Ver Histórico — sempre visível */}
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-9 gap-1.5 text-xs"
+        onClick={handleVerHistorico}
+        disabled={isHistorico}
+      >
+        <History className="h-3.5 w-3.5" />
+        Ver Histórico
+      </Button>
     </div>
   );
 }
