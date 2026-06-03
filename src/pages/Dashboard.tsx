@@ -168,11 +168,14 @@ const Dashboard = () => {
 
   // 2. Gráfico de Barras (Últimas 5 análises com meta — apenas previsto, sem simulação)
   const realBarData = useMemo(() => {
-    return analyses.slice(0, 5).reverse().map(a => ({
-      name: a.codigo,
-      previsto: a.resistencia_prevista || 0,
-    }));
-  }, [analyses]);
+    return analyses.slice(0, 5).reverse().map(a => {
+      const batch = batches.find(b => b.analysis_id === a.id);
+      return {
+        name: batch?.batch_number ?? a.codigo,
+        previsto: a.resistencia_prevista || 0,
+      };
+    });
+  }, [analyses, batches]);
 
   // 3. Gráfico de Pizza (Status dos agendamentos)
   const realPieData = useMemo(() => {
