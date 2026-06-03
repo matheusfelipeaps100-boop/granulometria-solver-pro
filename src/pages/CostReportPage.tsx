@@ -362,9 +362,9 @@ const CostReportPage = () => {
           </Button>
         </CardHeader>
         <CardContent className="pt-0">
-          <div className="rounded-md border overflow-hidden overflow-x-auto">
+          <div className="rounded-md border overflow-hidden overflow-x-auto overflow-y-auto max-h-[480px]">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-10 bg-background">
                 <TableRow className="bg-muted/40">
                   <TableHead className="text-[11px] font-bold uppercase tracking-wide h-9">Código</TableHead>
                   <TableHead className="text-[11px] font-bold uppercase tracking-wide h-9">Nome</TableHead>
