@@ -1,5 +1,8 @@
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { DateRangeFilter } from "@/components/DateRangeFilter";
+import { getDefaultDateFilter, isInDateRange, formatPeriodLabel } from "@/lib/dateFilter";
+import type { DateFilter } from "@/lib/dateFilter";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Search, Package, Unlock, AlertTriangle, ClipboardList, Eye, CheckCircle } from "lucide-react";
@@ -36,6 +39,7 @@ const RupturesPage = () => {
 
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [dateFilter, setDateFilter] = useState<DateFilter>(getDefaultDateFilter());
   
   // States of early release modal
   const [releaseModalOpen, setReleaseModalOpen] = useState(false);
@@ -82,6 +86,7 @@ const RupturesPage = () => {
   // Filter
   const filtered = useMemo(() => {
     return groupedBatches.filter((g) => {
+      if (!isInDateRange(g.batch?.produced_at, dateFilter)) return false;
       if (search) {
         const q = search.toLowerCase();
         const matchLote = g.batch?.batch_code?.toLowerCase().includes(q);
@@ -94,7 +99,7 @@ const RupturesPage = () => {
       }
       return true;
     });
-  }, [groupedBatches, search, filterStatus]);
+  }, [groupedBatches, search, filterStatus, dateFilter]);
 
   // Batch-level status
   const batchStatus = (schedules: any[], currentStatus: string) => {
@@ -224,6 +229,12 @@ const RupturesPage = () => {
                 <SelectItem value="atrasado">Atrasado</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          <div className="flex items-center justify-between mt-3">
+            <DateRangeFilter value={dateFilter} onChange={setDateFilter} />
+            <span className="text-xs text-muted-foreground whitespace-nowrap ml-3">
+              {filtered.length} lote{filtered.length !== 1 ? "s" : ""} — {formatPeriodLabel(dateFilter)}
+            </span>
           </div>
         </CardHeader>
         <CardContent className="p-0">

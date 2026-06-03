@@ -2,6 +2,9 @@ import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { StatusBadge } from "@/components/StatusBadge";
+import { DateRangeFilter } from "@/components/DateRangeFilter";
+import { getDefaultDateFilter, isInDateRange, formatPeriodLabel } from "@/lib/dateFilter";
+import type { DateFilter } from "@/lib/dateFilter";
 import {
   Table,
   TableBody,
@@ -84,6 +87,7 @@ const AnalysesPage = () => {
   const [search, setSearch] = useState("");
   const [filterTipo, setFilterTipo] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [dateFilter, setDateFilter] = useState<DateFilter>(getDefaultDateFilter());
   const [editingNome, setEditingNome] = useState<{ id: string; value: string } | null>(null);
 
   const handleSaveNome = async () => {
@@ -118,7 +122,9 @@ const AnalysesPage = () => {
       a.nome.toLowerCase().includes(search.toLowerCase());
     const matchTipo = filterTipo === "all" || a.tipo === filterTipo;
     const matchStatus = filterStatus === "all" || a.status === filterStatus;
-    return matchSearch && matchTipo && matchStatus;
+    const rawAnalise = analyses.find((r) => r.id === a.id);
+    const matchDate = isInDateRange(rawAnalise?.data_analise ?? null, dateFilter);
+    return matchSearch && matchTipo && matchStatus && matchDate;
   });
 
   const hasDraft = currentStep > 1 || !!formData.tipo_analise || !!formData.nome;
@@ -208,6 +214,12 @@ const AnalysesPage = () => {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          <div className="flex items-center justify-between mt-3">
+            <DateRangeFilter value={dateFilter} onChange={setDateFilter} />
+            <span className="text-xs text-muted-foreground whitespace-nowrap ml-3">
+              {filtered.length} análise{filtered.length !== 1 ? "s" : ""} — {formatPeriodLabel(dateFilter)}
+            </span>
           </div>
         </CardHeader>
         <CardContent>

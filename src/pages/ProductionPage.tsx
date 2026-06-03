@@ -1,5 +1,8 @@
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import { DateRangeFilter } from "@/components/DateRangeFilter";
+import { getDefaultDateFilter, isInDateRange, formatPeriodLabel } from "@/lib/dateFilter";
+import type { DateFilter } from "@/lib/dateFilter";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -22,6 +25,7 @@ const ProductionPage = () => {
   // Filtros
   const [batchFilter, setBatchFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [dateFilter, setDateFilter] = useState<DateFilter>(getDefaultDateFilter());
 
   const releasedAnalyses = analyses.filter((a) => a.status === "liberado_producao");
 
@@ -39,7 +43,8 @@ const ProductionPage = () => {
   const filteredBatches = batches.filter((batch) => {
     const matchesBatch = batchFilter ? batch.batch_code?.toLowerCase().includes(batchFilter.toLowerCase()) : true;
     const matchesStatus = statusFilter ? batch.status === statusFilter : true;
-    return matchesBatch && matchesStatus;
+    const matchesDate = isInDateRange(batch.produced_at, dateFilter);
+    return matchesBatch && matchesStatus && matchesDate;
   });
 
   const canRegister = profile ? hasActionPermission(profile.role, "batch:create") : false;
@@ -76,7 +81,7 @@ const ProductionPage = () => {
       </div>
 
       {/* Filtros */}
-      <div className="flex gap-4 mb-4">
+      <div className="flex flex-wrap gap-3 items-end mb-4">
         <div>
           <label className="block text-xs font-semibold mb-1">Filtrar por Lote</label>
           <input
@@ -98,6 +103,15 @@ const ProductionPage = () => {
               <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="block text-xs font-semibold">Período</label>
+          <div className="flex items-center gap-2">
+            <DateRangeFilter value={dateFilter} onChange={setDateFilter} />
+            <span className="text-xs text-muted-foreground whitespace-nowrap">
+              {filteredBatches.length} lote{filteredBatches.length !== 1 ? "s" : ""} — {formatPeriodLabel(dateFilter)}
+            </span>
+          </div>
         </div>
       </div>
 
