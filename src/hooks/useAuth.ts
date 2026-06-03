@@ -10,6 +10,7 @@ const ROLE_MAP: Record<string, UserRole> = {
   gestor:       "ADMIN",
   laboratorio:  "LABORATORIO",
   producao:     "PRODUCAO",
+  vendas:       "VENDAS",
   visualizador: "VENDAS",
   
   // Novas chaves geradas pelo painel (Cadastrados pela EdgeFunction)
