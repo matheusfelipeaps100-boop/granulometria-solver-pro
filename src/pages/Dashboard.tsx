@@ -171,7 +171,7 @@ const Dashboard = () => {
     return analyses.slice(0, 5).reverse().map(a => {
       const batch = batches.find(b => b.analysis_id === a.id);
       return {
-        name: batch?.batch_number ?? a.codigo,
+        name: batch?.batch_code ?? a.codigo,
         previsto: a.resistencia_prevista || 0,
       };
     });
