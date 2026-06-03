@@ -328,7 +328,7 @@ const RupturesPage = () => {
                               {isExempting ? "..." : "Isentar"}
                             </Button>
                           )}
-                          {canReleaseEarlyPermission && (overallStatus === "em_andamento" || overallStatus === "atrasado") && (
+                          {canReleaseEarlyPermission && canReleaseEarly && (
                             <Button
                               variant="ghost"
                               size="sm"
