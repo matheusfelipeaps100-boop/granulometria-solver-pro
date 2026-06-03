@@ -239,10 +239,12 @@ const RuptureDetailPage = () => {
   const { batch, schedule, analysis } = found;
 
   const isAdmin = profile?.role === "ADMIN";
+  const isVendas = profile?.role === "VENDAS";
   const isConcluido =
     schedule.status === 'concluido' ||
     (batch as any).status === 'liberado_antecipado';
   const isReadOnly =
+    isVendas ||
     schedule.status === 'ignorado' ||
     (isConcluido && !isAdmin);
 
