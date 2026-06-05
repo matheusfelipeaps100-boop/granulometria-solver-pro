@@ -83,6 +83,16 @@ const RupturesPage = () => {
     [groupedBatches]
   );
 
+  // Batch-level status
+  const batchStatus = (schedules: any[], currentStatus: string) => {
+    if (currentStatus === "aprovado_sem_ensaio") return "aprovado_sem_ensaio";
+    if (currentStatus === "liberado_antecipado") return "liberado_antecipado";
+    if (schedules.every((s) => s.status === "concluido" || s.status === "ignorado")) return "concluido";
+    if (schedules.some((s) => s.status === "atrasado")) return "atrasado";
+    if (schedules.some((s) => s.status === "em_andamento" || s.status === "concluido")) return "em_andamento";
+    return "pendente";
+  };
+
   // Filter
   const filtered = useMemo(() => {
     return groupedBatches.filter((g) => {
@@ -94,22 +104,12 @@ const RupturesPage = () => {
         if (!matchLote && !matchProduto) return false;
       }
       if (filterStatus !== "all") {
-        const hasStatus = g.schedules.some((s: any) => s.status === filterStatus);
-        if (!hasStatus) return false;
+        const computed = batchStatus(g.schedules, g.batch?.status ?? "");
+        if (computed !== filterStatus) return false;
       }
       return true;
     });
   }, [groupedBatches, search, filterStatus, dateFilter]);
-
-  // Batch-level status
-  const batchStatus = (schedules: any[], currentStatus: string) => {
-    if (currentStatus === "aprovado_sem_ensaio") return "aprovado_sem_ensaio";
-    if (currentStatus === "liberado_antecipado") return "liberado_antecipado";
-    if (schedules.every((s) => s.status === "concluido" || s.status === "ignorado")) return "concluido";
-    if (schedules.some((s) => s.status === "atrasado")) return "atrasado";
-    if (schedules.some((s) => s.status === "em_andamento" || s.status === "concluido")) return "em_andamento";
-    return "pendente";
-  };
 
   // Stats
   const stats = useMemo(() => ({
