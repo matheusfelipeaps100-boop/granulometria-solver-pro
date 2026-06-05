@@ -42,7 +42,7 @@ export function ViewProductionModal({ open, onOpenChange, analysis, batch }: Vie
 
     const cimento_kg = (fd.consumo_alvo_m3 || 0) * scale;
     const agua_l = cimento_kg * (fd.relacao_ac || 0);
-    const materiais = fd.materiais_selecionados.map((m: any) => ({
+    const materiais = (fd.materiais_selecionados ?? []).map((m: any) => ({
       nome: m.nome,
       kg: Math.round((m.proporcao_kg ?? 0) * scale * 10) / 10,
     }));

@@ -84,12 +84,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     // Ouvir mudanças de sessão em tempo real
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       if (session?.user) {
-        loadProfile(session.user.id);
+        // Recarrega o perfil apenas em eventos de login real, não em token refresh
+        if (event === "SIGNED_IN" || event === "USER_UPDATED") {
+          setLoading(true);
+          loadProfile(session.user.id).finally(() => setLoading(false));
+        } else if (event !== "TOKEN_REFRESHED") {
+          loadProfile(session.user.id);
+        }
       } else {
         setProfile(null);
+        setLoading(false);
       }
     });
 

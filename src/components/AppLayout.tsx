@@ -2,6 +2,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { AppHeader } from "@/components/AppHeader";
 import { Outlet } from "react-router-dom";
+import { PageErrorBoundary } from "@/components/PageErrorBoundary";
 
 export function AppLayout() {
   return (
@@ -12,7 +13,9 @@ export function AppLayout() {
           <AppHeader />
           <main id="main-scroll" className="flex-1 overflow-auto bg-slate-50/50">
             <div className="mx-auto w-full max-w-7xl p-4 md:p-6 lg:p-8">
-              <Outlet />
+              <PageErrorBoundary>
+                <Outlet />
+              </PageErrorBoundary>
             </div>
           </main>
         </div>
