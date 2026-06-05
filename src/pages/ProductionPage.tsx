@@ -29,14 +29,12 @@ const ProductionPage = () => {
 
   const releasedAnalyses = analyses.filter((a) => a.status === "liberado_producao");
 
-  // Opções de status possíveis
+  // Opções de status possíveis (valores reais do banco)
   const statusOptions = [
     { value: "", label: "Todos" },
     { value: "aguardando_rompimentos", label: "Aguardando Rompimentos" },
-    { value: "aprovado", label: "Aprovado" },
-    { value: "aprovado_antecipado", label: "Aprovado Antecipado" },
-    { value: "reprovado", label: "Reprovado" },
-    { value: "liberado_producao", label: "Liberado Produção" },
+    { value: "aprovado_sem_ensaio", label: "Aprovado" },
+    { value: "liberado_antecipado", label: "Aprovado Antecipado" },
   ];
 
   // Filtragem dos lotes

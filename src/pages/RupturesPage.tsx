@@ -225,8 +225,10 @@ const RupturesPage = () => {
                 <SelectItem value="all">Todos status</SelectItem>
                 <SelectItem value="pendente">Pendente</SelectItem>
                 <SelectItem value="em_andamento">Em Andamento</SelectItem>
-                <SelectItem value="concluido">Concluído</SelectItem>
                 <SelectItem value="atrasado">Atrasado</SelectItem>
+                <SelectItem value="concluido">Concluído</SelectItem>
+                <SelectItem value="aprovado_sem_ensaio">Aprovado</SelectItem>
+                <SelectItem value="liberado_antecipado">Aprovado Antecipado</SelectItem>
               </SelectContent>
             </Select>
           </div>
