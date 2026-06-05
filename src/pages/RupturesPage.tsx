@@ -88,7 +88,14 @@ const RupturesPage = () => {
     if (currentStatus === "aprovado_sem_ensaio") return "aprovado_sem_ensaio";
     if (currentStatus === "liberado_antecipado") return "liberado_antecipado";
     if (schedules.every((s) => s.status === "concluido" || s.status === "ignorado")) return "concluido";
-    if (schedules.some((s) => s.status === "atrasado")) return "atrasado";
+    const atrasados = schedules.filter((s) => s.status === "atrasado");
+    if (atrasados.length > 0) {
+      const maxAtrasadoDias = Math.max(...atrasados.map((s) => s.idade_dias));
+      const hasLaterConcluido = schedules.some(
+        (s) => s.status === "concluido" && s.idade_dias > maxAtrasadoDias
+      );
+      if (!hasLaterConcluido) return "atrasado";
+    }
     if (schedules.some((s) => s.status === "em_andamento" || s.status === "concluido")) return "em_andamento";
     return "pendente";
   };
