@@ -313,14 +313,15 @@ const RupturesPage = () => {
                                 key={s.id}
                                 disabled={s.status === 'ignorado'}
                                 onClick={() => {
-                                  if (s.status !== 'ignorado' && canCompleteRupture) {
+                                  if (s.status === 'ignorado') return;
+                                  if (s.status === 'concluido' || canCompleteRupture) {
                                     navigate(`/ruptures/${s.id}`);
-                                  } else if (s.status !== 'ignorado' && !canCompleteRupture) {
+                                  } else {
                                     toast.error("Você não tem permissão para realizar rompimentos.");
                                   }
                                 }}
-                                className={`inline-flex items-center justify-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors ${statusColor[s.status]} ${s.status !== 'ignorado' && canCompleteRupture ? 'cursor-pointer' : 'cursor-default'}`}
-                                title={canCompleteRupture ? `${s.idade_dias}d — ${s.status} — ${formatDate(s.data_prevista)}` : "Visualização restrita"}
+                                className={`inline-flex items-center justify-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors ${statusColor[s.status]} ${s.status !== 'ignorado' && (canCompleteRupture || s.status === 'concluido') ? 'cursor-pointer' : 'cursor-default'}`}
+                                title={canCompleteRupture || s.status === 'concluido' ? `${s.idade_dias}d — ${s.status} — ${formatDate(s.data_prevista)}` : "Visualização restrita"}
                               >
                                 {s.idade_dias}d
                               </button>
