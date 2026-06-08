@@ -62,14 +62,12 @@ export function calcularCustoTracoCompleto({
   let agregadosBatelada = 0;
   let aditivoBatelada = 0;
 
-  const volM3 = formData?.volume_m3 || 0.55;
-
   // Cimento
   const cimentoDb = dbMaterials?.find((m) => m.tipo === 'cimento' || m.nome?.toLowerCase().includes('cimento'));
   const cimento_valor = cimentoDb?.custo_valor ?? cimentoDb?.custo_tonelada ?? formData?.custo_cimento_ton ?? 0;
   const cimento_unidade = cimentoDb?.custo_unidade || (cimentoDb?.custo_tonelada != null ? 'tonelada' : 'tonelada');
-  const cimento_densidade = cimentoDb?.densidade || 3.15;
-  // consumo_alvo_m3 já é a quantidade em kg para a batelada de referência
+  const cimento_densidade = cimentoDb?.densidade || formData?.densidade_cimento || 3.15;
+  // consumo_alvo_m3 armazena kg de cimento por batelada
   const consumo_cimento_kg = formData?.consumo_alvo_m3 || 0;
   cimentoBatelada = calcularCustoMaterial({
     custo_valor: cimento_valor,
@@ -79,7 +77,8 @@ export function calcularCustoTracoCompleto({
   });
 
   // Agregados
-  agregadosBatelada = (formData?.materiais_selecionados || []).reduce((sum: number, mat: any) => {
+  const materiais = formData?.materiais_selecionados || [];
+  agregadosBatelada = materiais.reduce((sum: number, mat: any) => {
     const dbMat = dbMaterials?.find((m) => m.id === mat.material_id);
     const custo_valor = dbMat?.custo_valor ?? dbMat?.custo_tonelada ?? 0;
     const custo_unidade = dbMat?.custo_unidade || (dbMat?.custo_tonelada != null ? 'tonelada' : 'tonelada');
@@ -92,17 +91,25 @@ export function calcularCustoTracoCompleto({
   if (formData?.aditivos_ml > 0) {
     const aditivoDb = dbMaterials?.find((m) => m.tipo === 'aditivo' || m.nome?.toLowerCase().includes('aditivo'));
     const aditivo_valor = aditivoDb?.custo_valor ?? 0;
-    const aditivo_unidade = aditivoDb?.custo_unidade || 'litro';
     if (aditivo_valor && formData?.aditivos_ml) {
-      if (aditivo_unidade === 'litro' || aditivo_unidade === 'kg') {
-        aditivoBatelada = aditivo_valor * (formData.aditivos_ml / 1000);
-      } else {
-        aditivoBatelada = aditivo_valor * (formData.aditivos_ml / 1000);
-      }
+      aditivoBatelada = aditivo_valor * (formData.aditivos_ml / 1000);
     }
   }
 
   const totalBatelada = cimentoBatelada + agregadosBatelada + aditivoBatelada;
+
+  // Recalcula o volume pelo método de volumes absolutos, igual ao StepDosage.
+  // Isso corrige análises antigas cujo volume_batelada_litros foi gravado com o fallback 0.55.
+  const relacao_ac = formData?.relacao_ac ?? 0.2;
+  const vol_cim  = cimento_densidade > 0 ? consumo_cimento_kg / (cimento_densidade * 1000) : 0;
+  const vol_agua = (consumo_cimento_kg * relacao_ac) / 1000;
+  const vol_agg  = materiais.reduce(
+    (s: number, m: any) => s + (m.proporcao_kg ?? 0) / ((m.densidade ?? 2.65) * 1000), 0
+  );
+  const volRecalculado = vol_cim + vol_agua + vol_agg;
+  // Usa o volume recalculado quando disponível; cai para formData.volume_m3 só se não houver materiais
+  const volM3 = volRecalculado > 0 ? volRecalculado : (formData?.volume_m3 || 0.55);
+
   const totalM3 = volM3 > 0 ? totalBatelada / volM3 : 0;
 
   return {
