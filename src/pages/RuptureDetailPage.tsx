@@ -91,9 +91,9 @@ const RuptureDetailPage = () => {
       const s = found.schedule as any;
       if (s.data_executada) setDataReal(s.data_executada);
       if (s.responsavel_id) setResponsavel(s.responsavel_id);
-      if (s.observacoes) setObservacoes(s.observacoes);
 
       const tests: any[] = s.tests ?? [];
+      if (tests[0]?.notas) setObservacoes(tests[0].notas);
       if (tests.length > 0) {
         setSamples((prev) => {
           const next = { ...prev };
