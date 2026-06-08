@@ -216,7 +216,10 @@ export function useAnalyses() {
           (s: number, mat: any) => s + (mat.proporcao_kg ?? 0), 0
         );
         const cimentoBat = formData.consumo_alvo_m3 || 0; // kg direto por batelada
-        const volM3 = formData.volume_m3 || 0.55;
+        const volM3 = formData.volume_m3 > 0 ? formData.volume_m3 : (() => {
+          console.warn("[INSERT dosagem] volume_m3 inválido:", formData.volume_m3, "— usando fallback 0.55");
+          return 0.55;
+        })();
         const custoCimentoBat = cimentoBat * ((formData.custo_cimento_ton || 0) / 1000);
         const custoAditivoBat = (formData.aditivos_ml || 0) * ((formData.custo_aditivo_lt || 0) / 1000);
         const custoAgregBat = formData.materiais_selecionados.reduce((sum: number, m: any) => {
@@ -231,7 +234,7 @@ export function useAnalyses() {
           analysis_id: analysisId,
           relacao_cimento: formData.relacao_cimento,
           relacao_ac: formData.relacao_ac,
-          volume_batelada_litros: formData.volume_m3 * 1000,
+          volume_batelada_litros: volM3 * 1000,
           densidade_cimento: formData.densidade_cimento,
           consumo_cimento_kg: formData.consumo_alvo_m3,
           aditivos_ml: formData.aditivos_ml,
@@ -376,10 +379,16 @@ export function useAnalyses() {
       const relacao = dosage?.relacao_cimento || 0;
       const totalKgFallback = consumo * relacao;
       
-      const volM3 = dosage?.volume_batelada_litros ? dosage.volume_batelada_litros / 1000 : 0.55;
-      
+      const volM3 = dosage?.volume_batelada_litros
+        ? dosage.volume_batelada_litros / 1000
+        : (() => {
+            console.warn("[UPDATE aprovação] volume_batelada_litros ausente — usando fallback 0.55");
+            return 0.55;
+          })();
+
       // Recalcula custos usando os dados salvos
-      const cimentoBat = (consumo || 0) * volM3;
+      // consumo_cimento_kg já é a quantidade total de cimento por batelada (kg), não kg/m³
+      const cimentoBat = consumo || 0;
       const custoCimentoBat = cimentoBat * ((dosage?.custo_cimento_ton || 0) / 1000);
       const custoAditivoBat = (dosage?.aditivos_ml || 0) * ((dosage?.custo_aditivo_lt || 0) / 1000);
       

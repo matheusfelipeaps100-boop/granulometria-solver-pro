@@ -146,6 +146,14 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
   const volume_batelada_calc = vol_cim + vol_agua + vol_agg; // m³
   const consumo_equiv_m3 = volume_batelada_calc > 0 ? cimento_batelada / volume_batelada_calc : 0;
 
+  // Sincroniza o volume calculado com o store para garantir que o INSERT salve o valor correto
+  useEffect(() => {
+    if (volume_batelada_calc > 0 && Math.abs(volume_batelada_calc - (data.volume_m3 ?? 0)) > 0.0001) {
+      onChange({ volume_m3: volume_batelada_calc });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [volume_batelada_calc]);
+
   const dosageResult = useMemo(() => {
     return calcDosage({
       relacao_cimento: data.relacao_cimento,
