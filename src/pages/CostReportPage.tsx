@@ -334,7 +334,7 @@ const CostReportPage = () => {
                   </span>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold truncate">{t.nome}</p>
-                    <p className="text-xs text-muted-foreground font-mono">{t.codigo}</p>
+                    <p className="text-xs text-muted-foreground">{t.lote}</p>
                   </div>
                   <div className="text-right">
                     <span className="text-lg font-black text-foreground">R$ {t.custoTotal.toFixed(2)}</span>

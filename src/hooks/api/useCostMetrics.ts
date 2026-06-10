@@ -25,7 +25,7 @@ export interface CostMetrics {
   /** Dados mensais (últimos 6 meses) */
   mensais: MonthlyCost[];
   /** Top 5 traços mais caros por m³ */
-  topTracos: Array<{ codigo: string; nome: string; custoM3: number; custoTotal: number }>;
+  topTracos: Array<{ codigo: string; nome: string; lote: string; custoM3: number; custoTotal: number }>;
 }
 
 const MONTH_LABELS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
@@ -147,9 +147,12 @@ export function useCostMetrics(): CostMetrics & { isLoading: boolean } {
           formData: a.formData,
           dbMaterials: dbMaterials || [],
         });
+        const batchesForAnalysis = batches.filter((b) => b.analysis_id === a.id);
+        const lote = batchesForAnalysis.map((b) => b.batch_code).join(", ") || "—";
         return {
           codigo: a.codigo,
           nome: a.nome,
+          lote,
           custoM3: custos.totalM3,
           custoTotal: custos.totalBatelada,
         };
