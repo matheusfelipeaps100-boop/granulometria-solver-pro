@@ -158,38 +158,6 @@ const CostReportPage = () => {
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
-          <Select value={filterYear} onValueChange={setFilterYear}>
-            <SelectTrigger className="w-32">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {availableYears.map((y) => (
-                <SelectItem key={y} value={y}>{y}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={filterMonth} onValueChange={setFilterMonth}>
-            <SelectTrigger className="w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="00">Todos os meses</SelectItem>
-              <SelectItem value="01">Janeiro</SelectItem>
-              <SelectItem value="02">Fevereiro</SelectItem>
-              <SelectItem value="03">Março</SelectItem>
-              <SelectItem value="04">Abril</SelectItem>
-              <SelectItem value="05">Maio</SelectItem>
-              <SelectItem value="06">Junho</SelectItem>
-              <SelectItem value="07">Julho</SelectItem>
-              <SelectItem value="08">Agosto</SelectItem>
-              <SelectItem value="09">Setembro</SelectItem>
-              <SelectItem value="10">Outubro</SelectItem>
-              <SelectItem value="11">Novembro</SelectItem>
-              <SelectItem value="12">Dezembro</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
       </div>
 
       {/* KPI Resumo */}
@@ -353,16 +321,48 @@ const CostReportPage = () => {
 
       {/* Tabela Detalhada */}
       <Card className="shadow-sm">
-        <CardHeader className="pb-2 flex flex-row items-center justify-between">
-          <CardTitle className="text-sm font-bold text-foreground">Detalhamento por Análise — {filterMonth !== "00" ? `${filterMonth}/${filterYear}` : filterYear}</CardTitle>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowDetailedCosts(!showDetailedCosts)}
-            className="text-xs"
-          >
-            {showDetailedCosts ? "Ocultar" : "Mostrar"} Detalhes de Custo
-          </Button>
+        <CardHeader className="pb-2 flex flex-row flex-wrap items-center justify-between gap-2">
+          <CardTitle className="text-sm font-bold text-foreground">Detalhamento por Análise</CardTitle>
+          <div className="flex items-center gap-2">
+            <Select value={filterYear} onValueChange={setFilterYear}>
+              <SelectTrigger className="w-28 h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {availableYears.map((y) => (
+                  <SelectItem key={y} value={y}>{y}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={filterMonth} onValueChange={setFilterMonth}>
+              <SelectTrigger className="w-36 h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="00">Todos os meses</SelectItem>
+                <SelectItem value="01">Janeiro</SelectItem>
+                <SelectItem value="02">Fevereiro</SelectItem>
+                <SelectItem value="03">Março</SelectItem>
+                <SelectItem value="04">Abril</SelectItem>
+                <SelectItem value="05">Maio</SelectItem>
+                <SelectItem value="06">Junho</SelectItem>
+                <SelectItem value="07">Julho</SelectItem>
+                <SelectItem value="08">Agosto</SelectItem>
+                <SelectItem value="09">Setembro</SelectItem>
+                <SelectItem value="10">Outubro</SelectItem>
+                <SelectItem value="11">Novembro</SelectItem>
+                <SelectItem value="12">Dezembro</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowDetailedCosts(!showDetailedCosts)}
+              className="text-xs h-8"
+            >
+              {showDetailedCosts ? "Ocultar" : "Mostrar"} Detalhes de Custo
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="pt-0">
           <div className="rounded-md border overflow-hidden overflow-x-auto overflow-y-auto max-h-[480px]">
