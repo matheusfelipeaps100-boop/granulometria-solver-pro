@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useEffect } from "react";
+import { useMemo, useCallback, useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -91,6 +91,7 @@ const CustomConsumoCurveTooltip = ({ active, payload, label, dbMaterials, data, 
 
 export function StepDosage({ data, onChange }: StepDosageProps) {
     const { materials: dbMaterials } = useMaterials();
+  const [aditivoUnidade, setAditivoUnidade] = useState<'mL' | 'g'>('mL');
 
   // Auto-sincroniza custos de cimento e aditivo do banco de dados
   useEffect(() => {
@@ -450,18 +451,24 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
                 </div>
                 <div className="space-y-2">
                   <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                    Aditivo / Batelada (mL)
+                    Aditivo / Batelada ({aditivoUnidade})
                   </Label>
                   <div className="relative">
                     <Input
                       type="number"
-                      step="1"
+                      step="0.001"
                       min="0"
                       className="h-10 font-black bg-background border border-border/50 focus-visible:ring-primary shadow-none"
                       value={data.aditivos_ml || ""}
                       onChange={(e) => onChange({ aditivos_ml: parseFloat(e.target.value) || 0 })}
                     />
-                    <span className="absolute right-3 top-2.5 text-[10px] font-bold text-muted-foreground uppercase">mL</span>
+                    <button
+                      type="button"
+                      onClick={() => setAditivoUnidade(u => u === 'mL' ? 'g' : 'mL')}
+                      className="absolute right-3 top-2.5 text-[10px] font-bold text-muted-foreground uppercase hover:text-primary transition-colors cursor-pointer"
+                    >
+                      {aditivoUnidade}
+                    </button>
                   </div>
                 </div>
               </div>
