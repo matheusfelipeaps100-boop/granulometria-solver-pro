@@ -451,9 +451,9 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
                 </div>
                 <div className="space-y-2">
                   <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                    Aditivo / Batelada ({aditivoUnidade})
+                    Aditivo / Batelada
                   </Label>
-                  <div className="relative">
+                  <div className="flex items-center gap-2">
                     <Input
                       type="number"
                       step="0.001"
@@ -465,7 +465,8 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
                     <button
                       type="button"
                       onClick={() => setAditivoUnidade(u => u === 'mL' ? 'g' : 'mL')}
-                      className="absolute right-3 top-2.5 text-[10px] font-bold text-muted-foreground uppercase hover:text-primary transition-colors cursor-pointer"
+                      title="Clique para alternar entre mL e g"
+                      className="h-10 px-2.5 shrink-0 rounded-md border border-border/50 bg-muted text-[10px] font-bold text-muted-foreground uppercase hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-colors cursor-pointer"
                     >
                       {aditivoUnidade}
                     </button>
