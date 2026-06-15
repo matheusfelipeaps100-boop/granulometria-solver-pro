@@ -34,11 +34,15 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
   const [batchCode, setBatchCode] = useState(generateBatchCode);
   const [operador, setOperador] = useState("");
   const [maquina, setMaquina] = useState("");
-  const [volume] = useState(() => {
-    if (analysis?.formData.volume_m3) return (analysis.formData.volume_m3 * 1000).toString();
-    if (settings?.volume_batelada_padrao) return settings.volume_batelada_padrao.toString();
-    return "550";
-  });
+  const [volume, setVolume] = useState("550");
+
+  useEffect(() => {
+    if (analysis?.formData.volume_m3) {
+      setVolume((analysis.formData.volume_m3 * 1000).toString());
+    } else if (settings?.volume_batelada_padrao) {
+      setVolume(settings.volume_batelada_padrao.toString());
+    }
+  }, [analysis?.id]);
   const [dataProducao, setDataProducao] = useState(new Date().toISOString().slice(0, 16));
   const [observacoes, setObservacoes] = useState("");
   const [aguaKg, setAguaKg] = useState<string>("");
