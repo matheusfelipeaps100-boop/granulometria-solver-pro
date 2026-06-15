@@ -14,7 +14,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { ClipboardList } from "lucide-react";
 import { toast } from "sonner";
 import { useProduction } from "@/hooks/api/useProduction";
-import { useTechnicalSettings } from "@/hooks/api/useTechnicalSettings";
 import type { StoredAnalysis } from "@/hooks/api/useAnalyses";
 
 interface RegisterProductionModalProps {
@@ -29,31 +28,10 @@ function generateBatchCode() {
 
 export function RegisterProductionModal({ open, onOpenChange, analysis }: RegisterProductionModalProps) {
   const { createBatch, isCreating } = useProduction();
-  const { settings } = useTechnicalSettings();
 
   const [batchCode, setBatchCode] = useState(generateBatchCode);
   const [operador, setOperador] = useState("");
   const [maquina, setMaquina] = useState("");
-  const [volume, setVolume] = useState("550");
-
-  useEffect(() => {
-    if (analysis?.formData) {
-      const fd = analysis.formData;
-      const cim = fd.consumo_alvo_m3 || 0;
-      const dens = fd.densidade_cimento || 3.15;
-      const ac = fd.relacao_ac || 0;
-      const volCim = dens > 0 ? cim / (dens * 1000) : 0;
-      const volAgua = (cim * ac) / 1000;
-      const volAgg = (fd.materiais_selecionados ?? []).reduce(
-        (s: number, m: any) => s + (m.proporcao_kg ?? 0) / ((m.densidade ?? 2.65) * 1000), 0
-      );
-      const volRecalcM3 = volCim + volAgua + volAgg;
-      const volL = volRecalcM3 > 0 ? volRecalcM3 * 1000 : (fd.volume_m3 || 0.55) * 1000;
-      setVolume(Math.round(volL).toString());
-    } else if (settings?.volume_batelada_padrao) {
-      setVolume(settings.volume_batelada_padrao.toString());
-    }
-  }, [analysis?.id]);
   const [dataProducao, setDataProducao] = useState(new Date().toISOString().slice(0, 16));
   const [observacoes, setObservacoes] = useState("");
   const [aguaKg, setAguaKg] = useState<string>("");
@@ -68,34 +46,17 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
     }
   }, [analysis?.id]);
 
-  // Receita calculada diretamente dos dados da análise
+  // Receita calculada diretamente dos valores da análise, sem escala
   const recipe = useMemo(() => {
     if (!analysis) return null;
-    const volProdL = Number(volume);
-    if (volProdL <= 0) return null;
     const fd = analysis.formData;
-
-    // Recalcula volume original pelos volumes absolutos (igual a lib/utils.ts)
-    // para corrigir análises antigas com volume_batelada_litros = fallback 550 L
-    const cimento_kg_orig = fd.consumo_alvo_m3 || 0;
-    const densidadeCim = fd.densidade_cimento || 3.15;
-    const relAC = fd.relacao_ac || 0;
-    const volCim = densidadeCim > 0 ? cimento_kg_orig / (densidadeCim * 1000) : 0;
-    const volAgua = (cimento_kg_orig * relAC) / 1000;
-    const volAgg = (fd.materiais_selecionados ?? []).reduce(
-      (s: number, m: any) => s + (m.proporcao_kg ?? 0) / ((m.densidade ?? 2.65) * 1000), 0
-    );
-    const volRecalcM3 = volCim + volAgua + volAgg;
-    const volOrigL = volRecalcM3 > 0 ? volRecalcM3 * 1000 : (fd.volume_m3 || 0.55) * 1000;
-    const scale = volOrigL > 0 ? volProdL / volOrigL : 1;
-
-    const cimento_kg = (fd.consumo_alvo_m3 || 0) * scale;
+    const cimento_kg = fd.consumo_alvo_m3 || 0;
     const agua_l = cimento_kg * (fd.relacao_ac || 0);
     const materiais = (fd.materiais_selecionados ?? []).map((m: any) => ({
       nome: m.nome,
-      kg: Math.round((m.proporcao_kg ?? 0) * scale * 10) / 10,
+      kg: Math.round((m.proporcao_kg ?? 0) * 10) / 10,
     }));
-    const aditivos_ml = Math.round((fd.aditivos_ml || 0) * scale * 10) / 10;
+    const aditivos_ml = Math.round((fd.aditivos_ml || 0) * 10) / 10;
     const totalKg = Math.round((cimento_kg + materiais.reduce((s: number, m: any) => s + m.kg, 0) + agua_l + aditivos_ml / 1000) * 10) / 10;
 
     return {
@@ -105,7 +66,7 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
       aditivos_batelada_ml: aditivos_ml,
       massa_total_batelada: totalKg,
     };
-  }, [analysis, volume]);
+  }, [analysis]);
 
   useEffect(() => {
     if (recipe) {
@@ -144,7 +105,7 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
         batch_code: batchCode.trim(),
         operador_nome: operador.trim(),
         maquina,
-        volume_produzido: Number(volume),
+        volume_produzido: Math.round((analysis.formData.volume_m3 || 0.55) * 1000),
         notas: observacoes,
         produced_at: dataProducao,
       });
@@ -220,11 +181,10 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="volume">Volume Produzido (L)</Label>
+              <Label>Volume Produzido (L)</Label>
               <Input
-                id="volume"
                 type="number"
-                value={volume}
+                value={Math.round((analysis.formData.volume_m3 || 0.55) * 1000)}
                 readOnly
                 className="bg-muted/50 cursor-not-allowed"
               />
