@@ -124,7 +124,11 @@ const CostReportPage = () => {
         lotes: nBatches,
         custoTotal: custos.totalBatelada,
       };
-    }).sort((a, b) => b.custoTotal - a.custoTotal);
+    }).sort((a, b) => {
+      const da = new Date(a.data.split("/").reverse().join("-")).getTime();
+      const db = new Date(b.data.split("/").reverse().join("-")).getTime();
+      return db - da;
+    });
   }, [filteredAnalyses, batches, dbMaterials]);
 
   const totalGeral = detailedRows.reduce((s, r) => s + r.custoTotal, 0);
