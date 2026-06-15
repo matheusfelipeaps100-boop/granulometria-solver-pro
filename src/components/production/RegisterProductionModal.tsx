@@ -37,8 +37,19 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
   const [volume, setVolume] = useState("550");
 
   useEffect(() => {
-    if (analysis?.formData.volume_m3) {
-      setVolume((analysis.formData.volume_m3 * 1000).toString());
+    if (analysis?.formData) {
+      const fd = analysis.formData;
+      const cim = fd.consumo_alvo_m3 || 0;
+      const dens = fd.densidade_cimento || 3.15;
+      const ac = fd.relacao_ac || 0;
+      const volCim = dens > 0 ? cim / (dens * 1000) : 0;
+      const volAgua = (cim * ac) / 1000;
+      const volAgg = (fd.materiais_selecionados ?? []).reduce(
+        (s: number, m: any) => s + (m.proporcao_kg ?? 0) / ((m.densidade ?? 2.65) * 1000), 0
+      );
+      const volRecalcM3 = volCim + volAgua + volAgg;
+      const volL = volRecalcM3 > 0 ? volRecalcM3 * 1000 : (fd.volume_m3 || 0.55) * 1000;
+      setVolume(Math.round(volL).toString());
     } else if (settings?.volume_batelada_padrao) {
       setVolume(settings.volume_batelada_padrao.toString());
     }
@@ -63,7 +74,19 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
     const volProdL = Number(volume);
     if (volProdL <= 0) return null;
     const fd = analysis.formData;
-    const volOrigL = (fd.volume_m3 || 0.55) * 1000;
+
+    // Recalcula volume original pelos volumes absolutos (igual a lib/utils.ts)
+    // para corrigir análises antigas com volume_batelada_litros = fallback 550 L
+    const cimento_kg_orig = fd.consumo_alvo_m3 || 0;
+    const densidadeCim = fd.densidade_cimento || 3.15;
+    const relAC = fd.relacao_ac || 0;
+    const volCim = densidadeCim > 0 ? cimento_kg_orig / (densidadeCim * 1000) : 0;
+    const volAgua = (cimento_kg_orig * relAC) / 1000;
+    const volAgg = (fd.materiais_selecionados ?? []).reduce(
+      (s: number, m: any) => s + (m.proporcao_kg ?? 0) / ((m.densidade ?? 2.65) * 1000), 0
+    );
+    const volRecalcM3 = volCim + volAgua + volAgg;
+    const volOrigL = volRecalcM3 > 0 ? volRecalcM3 * 1000 : (fd.volume_m3 || 0.55) * 1000;
     const scale = volOrigL > 0 ? volProdL / volOrigL : 1;
 
     const cimento_kg = (fd.consumo_alvo_m3 || 0) * scale;
