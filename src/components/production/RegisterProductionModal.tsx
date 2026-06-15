@@ -267,9 +267,9 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
                   </tbody>
                 </table>
               </div>
-              {totalBatelada > (settings?.volume_batelada_padrao || 550) && (
+              {totalBatelada > 550 && (
                 <p className="text-[10px] text-destructive font-bold animate-pulse">
-                  ⚠️ ATENÇÃO: Massa total excede a capacidade de {settings?.volume_batelada_padrao || 550}kg do misturador!
+                  ⚠️ ATENÇÃO: Massa total excede a capacidade de 550kg do misturador!
                 </p>
               )}
             </div>
