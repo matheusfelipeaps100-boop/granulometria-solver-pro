@@ -546,32 +546,49 @@ const RuptureDetailPage = () => {
                       <Label className="text-[10px] font-bold text-muted-foreground uppercase absolute -top-2 left-2 bg-background px-1 z-10">
                         Amostra {i + 1}
                       </Label>
-                      <div className="flex items-center gap-2 mb-1">
-                        <Input
-                          type="number"
-                          step="0.1"
-                          placeholder="Força (kN)"
-                          className="h-10 font-bold focus-visible:ring-primary/30"
-                          value={sample.forca_kn === "0" ? "" : sample.forca_kn}
-                          onFocus={(e) => e.target.select()}
-                          onChange={(e) => updateSample(tipo, i, "forca_kn", e.target.value)}
-                          disabled={isReadOnly}
-                        />
-                        <span className="text-[10px] font-black text-muted-foreground mr-2">kN</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          type="number"
-                          step="0.01"
-                          placeholder="Peso (kg)"
-                          className="h-10 font-bold focus-visible:ring-primary/30"
-                          value={sample.peso_kg === "0" ? "" : sample.peso_kg}
-                          onFocus={(e) => e.target.select()}
-                          onChange={(e) => updateSample(tipo, i, "peso_kg", e.target.value)}
-                          disabled={isReadOnly}
-                        />
-                        <span className="text-[10px] font-black text-muted-foreground mr-2">kg</span>
-                      </div>
+                      {isReadOnly ? (
+                        <>
+                          <div className="flex items-center gap-2 mb-1 border rounded-md px-3 h-10">
+                            <p className="font-bold text-foreground text-base flex-1">
+                              {sample.forca_kn && sample.forca_kn !== "0" ? sample.forca_kn : <span className="text-muted-foreground">—</span>}
+                            </p>
+                            <span className="text-[10px] font-black text-muted-foreground">kN</span>
+                          </div>
+                          <div className="flex items-center gap-2 border rounded-md px-3 h-10">
+                            <p className="font-bold text-foreground text-base flex-1">
+                              {sample.peso_kg && sample.peso_kg !== "0" ? sample.peso_kg : <span className="text-muted-foreground">—</span>}
+                            </p>
+                            <span className="text-[10px] font-black text-muted-foreground">kg</span>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex items-center gap-2 mb-1">
+                            <Input
+                              type="number"
+                              step="0.1"
+                              placeholder="Força (kN)"
+                              className="h-10 font-bold focus-visible:ring-primary/30"
+                              value={sample.forca_kn === "0" ? "" : sample.forca_kn}
+                              onFocus={(e) => e.target.select()}
+                              onChange={(e) => updateSample(tipo, i, "forca_kn", e.target.value)}
+                            />
+                            <span className="text-[10px] font-black text-muted-foreground mr-2">kN</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              placeholder="Peso (kg)"
+                              className="h-10 font-bold focus-visible:ring-primary/30"
+                              value={sample.peso_kg === "0" ? "" : sample.peso_kg}
+                              onFocus={(e) => e.target.select()}
+                              onChange={(e) => updateSample(tipo, i, "peso_kg", e.target.value)}
+                            />
+                            <span className="text-[10px] font-black text-muted-foreground mr-2">kg</span>
+                          </div>
+                        </>
+                      )}
                       {tensao !== null && (
                         <p className="text-[11px] mt-1 flex justify-between px-1">
                           <span className="text-muted-foreground">Resistência:</span>
