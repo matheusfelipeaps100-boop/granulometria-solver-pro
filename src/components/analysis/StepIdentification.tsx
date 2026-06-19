@@ -110,7 +110,7 @@ export function StepIdentification({ data, onChange }: StepIdentificationProps) 
             <Square className="h-6 w-6" strokeWidth={1.5} />
           </div>
           <div className="text-center">
-            <p className="text-sm font-black tracking-wider">BLOCOS / TIJOLOS</p>
+            <p className="text-sm font-black tracking-wider">BLOCOS</p>
             <p className="text-[11px] text-muted-foreground mt-0.5">Padrão + Estrutural</p>
           </div>
         </button>
@@ -145,7 +145,7 @@ export function StepIdentification({ data, onChange }: StepIdentificationProps) 
             <Layers className="h-6 w-6" strokeWidth={1.5} />
           </div>
           <div className="text-center">
-            <p className="text-sm font-black tracking-wider">PROS / PAVERS</p>
+            <p className="text-sm font-black tracking-wider">PAVERS</p>
             <p className="text-[11px] text-muted-foreground mt-0.5">Base + Face</p>
           </div>
         </button>
