@@ -93,25 +93,28 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
     const { materials: dbMaterials } = useMaterials();
   const [aditivoUnidade, setAditivoUnidade] = useState<'mL' | 'g'>('mL');
 
-  // Auto-sincroniza custos de cimento e aditivo do banco de dados
+  // Auto-sincroniza custos de cimento e aditivo com o material ativo cadastrado.
+  // Não depende de data.custo_cimento_ton/custo_aditivo_lt para não sobrescrever
+  // o valor enquanto o usuário está digitando; só resincroniza quando a lista de
+  // materiais muda (ex.: troca do cimento ativo no cadastro).
   useEffect(() => {
     const cimentoDb = dbMaterials.find((m) => m.ativo && (m.tipo === 'cimento' || m.nome.toLowerCase().includes('cimento')));
     const aditivoDb = dbMaterials.find((m) => m.ativo && (m.tipo === 'aditivo' || m.nome.toLowerCase().includes('aditivo')));
 
     const updates: Partial<AnalysisFormData> = {};
 
-    // Se cimento foi encontrado e custo não estava preenchido, auto-preenche
-    if (cimentoDb && (data.custo_cimento_ton === 0 || data.custo_cimento_ton === undefined || data.custo_cimento_ton === null)) {
+    // Sincroniza com o custo do cimento ativo, mesmo que já houvesse um valor (ex.: rascunho antigo com material arquivado)
+    if (cimentoDb) {
       const cimentoValor = cimentoDb.custo_valor ?? cimentoDb.custo_tonelada ?? 0;
-      if (cimentoValor > 0) {
+      if (cimentoValor > 0 && cimentoValor !== data.custo_cimento_ton) {
         updates.custo_cimento_ton = cimentoValor;
       }
     }
 
-    // Se aditivo foi encontrado e custo não estava preenchido, auto-preenche
-    if (aditivoDb && (data.custo_aditivo_lt === 0 || data.custo_aditivo_lt === undefined || data.custo_aditivo_lt === null)) {
+    // Sincroniza com o custo do aditivo ativo, mesmo que já houvesse um valor (ex.: rascunho antigo com material arquivado)
+    if (aditivoDb) {
       const aditivoValor = aditivoDb.custo_valor ?? 0;
-      if (aditivoValor > 0) {
+      if (aditivoValor > 0 && aditivoValor !== data.custo_aditivo_lt) {
         updates.custo_aditivo_lt = aditivoValor;
       }
     }
@@ -119,7 +122,8 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
     if (Object.keys(updates).length > 0) {
       onChange(updates);
     }
-  }, [dbMaterials, data.custo_cimento_ton, data.custo_aditivo_lt, onChange]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dbMaterials, onChange]);
 
   const totalKgMateriais = useMemo(
     () => data.materiais_selecionados.reduce((s, m) => s + (m.proporcao_kg ?? 0), 0),
