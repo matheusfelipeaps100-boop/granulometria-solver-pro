@@ -54,7 +54,7 @@ function gerarCurvaConsumo(
 const CustomConsumoCurveTooltip = ({ active, payload, label, dbMaterials, data, dosageResult }: any) => {
   if (!active || !payload?.length) return null;
   // Cálculo do custo dinâmico do cimento
-  const cimentoDb = dbMaterials.find((m: any) => m.tipo === 'cimento' || m.nome.toLowerCase().includes('cimento'));
+  const cimentoDb = dbMaterials.find((m: any) => m.ativo && (m.tipo === 'cimento' || m.nome.toLowerCase().includes('cimento')));
   const cimento_valor = cimentoDb?.custo_valor ?? cimentoDb?.custo_tonelada ?? data.custo_cimento_ton ?? 0;
   const cimento_unidade = cimentoDb?.custo_unidade || (cimentoDb?.custo_tonelada != null ? 'tonelada' : 'tonelada');
   const cimento_densidade = cimentoDb?.densidade || 3.15;
@@ -66,7 +66,7 @@ const CustomConsumoCurveTooltip = ({ active, payload, label, dbMaterials, data, 
   });
 
   // Cálculo do custo dinâmico do aditivo
-  const aditivoDb = dbMaterials.find((m: any) => m.tipo === 'aditivo' || m.nome.toLowerCase().includes('aditivo'));
+  const aditivoDb = dbMaterials.find((m: any) => m.ativo && (m.tipo === 'aditivo' || m.nome.toLowerCase().includes('aditivo')));
   const aditivo_valor = aditivoDb?.custo_valor ?? 0;
   const aditivo_unidade = aditivoDb?.custo_unidade || 'litro';
   let custoAditivo = 0;
@@ -95,8 +95,8 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
 
   // Auto-sincroniza custos de cimento e aditivo do banco de dados
   useEffect(() => {
-    const cimentoDb = dbMaterials.find((m) => m.tipo === 'cimento' || m.nome.toLowerCase().includes('cimento'));
-    const aditivoDb = dbMaterials.find((m) => m.tipo === 'aditivo' || m.nome.toLowerCase().includes('aditivo'));
+    const cimentoDb = dbMaterials.find((m) => m.ativo && (m.tipo === 'cimento' || m.nome.toLowerCase().includes('cimento')));
+    const aditivoDb = dbMaterials.find((m) => m.ativo && (m.tipo === 'aditivo' || m.nome.toLowerCase().includes('aditivo')));
 
     const updates: Partial<AnalysisFormData> = {};
 
@@ -179,7 +179,7 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
   );
 
   // Cálculo do custo dinâmico do cimento
-  const cimentoDb = dbMaterials.find((m) => m.tipo === 'cimento' || m.nome.toLowerCase().includes('cimento'));
+  const cimentoDb = dbMaterials.find((m) => m.ativo && (m.tipo === 'cimento' || m.nome.toLowerCase().includes('cimento')));
   const cimento_valor = cimentoDb?.custo_valor ?? cimentoDb?.custo_tonelada ?? data.custo_cimento_ton ?? 0;
   const cimento_unidade = cimentoDb?.custo_unidade || (cimentoDb?.custo_tonelada != null ? 'tonelada' : 'tonelada');
   const cimento_densidade = cimentoDb?.densidade || 3.15;
@@ -192,7 +192,7 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
   });
 
   // Cálculo do custo dinâmico do aditivo
-  const aditivoDb = dbMaterials.find((m) => m.tipo === 'aditivo' || m.nome.toLowerCase().includes('aditivo'));
+  const aditivoDb = dbMaterials.find((m) => m.ativo && (m.tipo === 'aditivo' || m.nome.toLowerCase().includes('aditivo')));
   const aditivo_valor = aditivoDb?.custo_valor ?? 0;
   const aditivo_unidade = aditivoDb?.custo_unidade || 'litro';
   let custoAditivo = 0;
