@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import jsPDF from "jspdf";
 import { toast } from "sonner";
+import { generateDashboardExcel } from "@/lib/excel-generator";
 import { RealtimeDashboardMetrics } from "@/components/RealtimeDashboardMetrics";
 import {
   LineChart,
@@ -104,7 +105,7 @@ export function AnalyticsPage() {
     loadHistoryData();
   }, [profile?.organization_id]);
 
-  const handleExportReport = () => {
+  const handleExportReport = async () => {
     try {
       const doc = new jsPDF("p", "mm", "a4");
       const margin = 16;
@@ -149,7 +150,10 @@ export function AnalyticsPage() {
       });
 
       doc.save(`dashboard_${new Date().toISOString().split("T")[0]}.pdf`);
-      toast.success("Relatório exportado com sucesso!");
+      await generateDashboardExcel(history, alertStatus);
+      toast.success("Relatório exportado com sucesso!", {
+        description: "Arquivos .pdf e .xlsx baixados",
+      });
     } catch (err) {
       console.error(err);
       toast.error("Erro ao exportar relatório.");

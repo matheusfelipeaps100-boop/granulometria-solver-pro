@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/table";
 import { FileText, Factory, Bookmark, CheckCircle2, Loader2, Printer } from "lucide-react";
 import { generateAnalysisPDF } from "@/lib/pdf-generator";
+import { generateAnalysisExcel } from "@/lib/excel-generator";
 import { ReleaseProductionModal } from "./ReleaseProductionModal";
 import { SaveStandardTraceModal } from "./SaveStandardTraceModal";
 import {
@@ -217,15 +218,16 @@ export function StepResult({ data }: StepResultProps) {
     };
   }, [dosageResult, data, precosAtuais]);
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     setGeneratingPdf(true);
     try {
       generateAnalysisPDF(data, { limitesDna: dna?.limites });
-      toast.success("PDF gerado com sucesso!", {
-        description: `Arquivo ${data.codigo}_relatorio.pdf baixado`,
+      await generateAnalysisExcel(data, { limitesDna: dna?.limites });
+      toast.success("Relatório exportado com sucesso!", {
+        description: `Arquivos ${data.codigo}_relatorio.pdf e .xlsx baixados`,
       });
     } catch (err) {
-      toast.error("Erro ao gerar PDF");
+      toast.error("Erro ao gerar relatório");
       console.error(err);
     } finally {
       setGeneratingPdf(false);

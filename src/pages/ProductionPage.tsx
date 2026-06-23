@@ -18,6 +18,7 @@ import { hasActionPermission } from "@/lib/permissions";
 import { TIPOS_ANALISE, createEmptyAnalysis } from "@/lib/analysis-data";
 import type { StoredAnalysis } from "@/hooks/api/useAnalyses";
 import { generateAnalysisPDF } from "@/lib/pdf-generator";
+import { generateAnalysisExcel } from "@/lib/excel-generator";
 
 const ProductionPage = () => {
   const { profile } = useAuth();
@@ -51,9 +52,9 @@ const ProductionPage = () => {
   const [viewAnalysis, setViewAnalysis] = useState<StoredAnalysis | null>(null);
   const [registerAnalysis, setRegisterAnalysis] = useState<StoredAnalysis | null>(null);
 
-  const handleExportPDF = (analysis: StoredAnalysis) => {
+  const handleExportPDF = async (analysis: StoredAnalysis) => {
     try {
-      generateAnalysisPDF({
+      const pdfData = {
         ...createEmptyAnalysis(),
         ...analysis.formData,
         id: analysis.id,
@@ -65,13 +66,15 @@ const ProductionPage = () => {
         unidade: analysis.unidade ?? "",
         observacoes: analysis.observacoes ?? "",
         data: analysis.data_analise,
-      });
-      toast.success("PDF exportado com sucesso!", {
-        description: `Relatório de produção ${analysis.codigo} baixado`,
+      };
+      generateAnalysisPDF(pdfData);
+      await generateAnalysisExcel(pdfData);
+      toast.success("Relatório exportado com sucesso!", {
+        description: `Arquivos ${analysis.codigo}_relatorio.pdf e .xlsx baixados`,
       });
     } catch (err) {
       console.error(err);
-      toast.error("Erro ao gerar PDF do relatório.");
+      toast.error("Erro ao gerar relatório.");
     }
   };
 
