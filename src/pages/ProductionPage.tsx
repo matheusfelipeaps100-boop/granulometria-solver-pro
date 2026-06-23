@@ -15,8 +15,9 @@ import { useAnalyses } from "@/hooks/api/useAnalyses";
 import { useProduction } from "@/hooks/api/useProduction";
 import type { StatusType } from "@/components/StatusBadge";
 import { hasActionPermission } from "@/lib/permissions";
-import { TIPOS_ANALISE } from "@/lib/analysis-data";
+import { TIPOS_ANALISE, createEmptyAnalysis } from "@/lib/analysis-data";
 import type { StoredAnalysis } from "@/hooks/api/useAnalyses";
+import { generateAnalysisPDF } from "@/lib/pdf-generator";
 
 const ProductionPage = () => {
   const { profile } = useAuth();
@@ -50,10 +51,28 @@ const ProductionPage = () => {
   const [viewAnalysis, setViewAnalysis] = useState<StoredAnalysis | null>(null);
   const [registerAnalysis, setRegisterAnalysis] = useState<StoredAnalysis | null>(null);
 
-  const handleExportPDF = (analysis: any) => {
-    toast.success("PDF exportado com sucesso!", {
-      description: `Relatório de produção ${analysis.codigo} baixado`,
-    });
+  const handleExportPDF = (analysis: StoredAnalysis) => {
+    try {
+      generateAnalysisPDF({
+        ...createEmptyAnalysis(),
+        ...analysis.formData,
+        id: analysis.id,
+        codigo: analysis.codigo,
+        nome: analysis.nome,
+        tipo_analise: analysis.tipo as any,
+        produto_nome: analysis.produto ?? "",
+        resistencia_prevista: analysis.resistencia_prevista ?? 0,
+        unidade: analysis.unidade ?? "",
+        observacoes: analysis.observacoes ?? "",
+        data: analysis.data_analise,
+      });
+      toast.success("PDF exportado com sucesso!", {
+        description: `Relatório de produção ${analysis.codigo} baixado`,
+      });
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao gerar PDF do relatório.");
+    }
   };
 
   const getBatchForAnalysis = (analysisId: string) => batches.find((b) => b.analysis_id === analysisId);
@@ -231,7 +250,7 @@ const ProductionPage = () => {
                           <Button variant="ghost" size="icon" title="Visualizar" onClick={() => setViewAnalysis(analysis)}>
                             <Eye className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" title="Exportar PDF" onClick={() => handleExportPDF(analysis)}>
+                          <Button variant="ghost" size="icon" title="Exportar PDF" disabled={!analysis} onClick={() => analysis && handleExportPDF(analysis)}>
                             <FileEdit className="h-4 w-4" />
                           </Button>
                         </div>
