@@ -4,15 +4,24 @@
 // (calcCombinedCurve, calcDosage) para manter os números idênticos ao PDF.
 // =============================================================================
 
-import ExcelJS from "exceljs";
+import * as ExcelJSNamespace from "exceljs";
 import { calcCombinedCurve, calcDosage } from "./granulometry-engine";
 import { PENEIRAS_PADRAO, TIPOS_ANALISE, type AnalysisFormData } from "./analysis-data";
+
+// O bundle de browser do exceljs expõe `Workbook` como propriedade nomeada,
+// sem `default` — o interop do bundler pode entregar o módulo de formas
+// diferentes (`{ Workbook }` direto ou `{ default: { Workbook } }`), então
+// resolvemos os dois casos aqui em vez de confiar num import default fixo.
+const ExcelJS: typeof ExcelJSNamespace =
+  (ExcelJSNamespace as any).default ?? ExcelJSNamespace;
+
+type Workbook = ExcelJSNamespace.Workbook;
 
 interface ExcelOptions {
   limitesDna?: Array<{ sieve_id: number; limite_min: number; limite_max: number }>;
 }
 
-async function downloadWorkbook(workbook: ExcelJS.Workbook, filename: string): Promise<void> {
+async function downloadWorkbook(workbook: Workbook, filename: string): Promise<void> {
   const buffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([buffer], {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
