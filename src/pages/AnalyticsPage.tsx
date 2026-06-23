@@ -6,6 +6,8 @@ import { AlertCircle, RefreshCw, Download } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
+import jsPDF from "jspdf";
+import { toast } from "sonner";
 import { RealtimeDashboardMetrics } from "@/components/RealtimeDashboardMetrics";
 import {
   LineChart,
@@ -102,6 +104,58 @@ export function AnalyticsPage() {
     loadHistoryData();
   }, [profile?.organization_id]);
 
+  const handleExportReport = () => {
+    try {
+      const doc = new jsPDF("p", "mm", "a4");
+      const margin = 16;
+      let y = margin;
+
+      doc.setFontSize(16);
+      doc.setFont("helvetica", "bold");
+      doc.text("Dashboard em Tempo Real — Relatório", margin, y);
+      y += 8;
+
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Gerado em: ${new Date().toLocaleString("pt-BR")}`, margin, y);
+      y += 10;
+
+      doc.setFont("helvetica", "bold");
+      doc.text("Alertas", margin, y);
+      y += 6;
+      doc.setFont("helvetica", "normal");
+      doc.text(`Rompimentos atrasados: ${alertStatus.high}`, margin, y);
+      y += 6;
+      doc.text(`Rompimentos pendentes (estimativa): ${alertStatus.medium}`, margin, y);
+      y += 10;
+
+      doc.setFont("helvetica", "bold");
+      doc.text("Histórico (últimos 7 dias)", margin, y);
+      y += 8;
+
+      doc.setFont("helvetica", "bold");
+      doc.text("Data", margin, y);
+      doc.text("Análises", margin + 40, y);
+      doc.text("Lotes", margin + 80, y);
+      doc.text("Rompimentos", margin + 110, y);
+      y += 6;
+      doc.setFont("helvetica", "normal");
+      history.forEach((h) => {
+        doc.text(h.date, margin, y);
+        doc.text(String(h.analyses), margin + 40, y);
+        doc.text(String(h.batches), margin + 80, y);
+        doc.text(String(h.ruptures), margin + 110, y);
+        y += 6;
+      });
+
+      doc.save(`dashboard_${new Date().toISOString().split("T")[0]}.pdf`);
+      toast.success("Relatório exportado com sucesso!");
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao exportar relatório.");
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
@@ -111,7 +165,7 @@ export function AnalyticsPage() {
             Visualize métricas atualizadas em tempo real do seu processo de granulometria
           </p>
         </div>
-        <Button variant="outline" size="sm" className="gap-2">
+        <Button variant="outline" size="sm" className="gap-2" onClick={handleExportReport}>
           <Download className="h-4 w-4" />
           Exportar Relatório
         </Button>
