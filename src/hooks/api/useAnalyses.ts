@@ -19,6 +19,8 @@ export interface StoredAnalysis {
   data_analise: string;
   liberado_em: string | null;
   created_at: string;
+  analista_id?: string | null;
+  analista_nome?: string | null;
   formData: any; // Mapeado dinamicamente pelas tabelas analysis_dosage e analysis_materials
 }
 
@@ -46,6 +48,7 @@ export function useAnalyses() {
           .from("analyses")
           .select(`
             *,
+            profiles!analyses_analista_id_fkey(nome),
             analysis_dosage(*),
             analysis_materials(
               *,
@@ -117,8 +120,11 @@ export function useAnalyses() {
             })
           };
 
+          const analistaNome = Array.isArray(row.profiles) ? row.profiles[0]?.nome : row.profiles?.nome;
+
           return {
             ...row,
+            analista_nome: analistaNome ?? null,
             formData
           } as StoredAnalysis;
         });

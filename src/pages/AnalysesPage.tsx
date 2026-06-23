@@ -123,12 +123,12 @@ const AnalysesPage = () => {
       nome: a.nome,
       tipo: a.tipo,
       produto: a.produto ?? null,
-      analista: "Você",
+      analista: a.analista_id === profile?.id ? "Você" : (a.analista_nome || "—"),
       data: a.data_analise ? new Date(a.data_analise + "T12:00:00").toLocaleDateString("pt-BR") : "—",
       data_analise: a.data_analise ?? "",
       status: a.status,
     }));
-  }, [analyses]);
+  }, [analyses, profile?.id]);
 
   const filtered = allAnalyses.filter((a) => {
     const matchSearch =
