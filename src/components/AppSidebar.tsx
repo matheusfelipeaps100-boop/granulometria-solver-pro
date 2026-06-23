@@ -33,14 +33,14 @@ import {
 type NavItem = { title: string; url: string; icon: React.ElementType; allowedRoles: UserRole[]; exact?: boolean };
 
 const mainItems: NavItem[] = [
-  { title: "Métricas", url: "/", icon: LayoutDashboard, allowedRoles: ["ADMIN", "PRODUCAO", "VENDAS", "LABORATORIO"], exact: true },
-  { title: "Análises", url: "/analyses", icon: FlaskConical, allowedRoles: ["ADMIN", "VENDAS", "LABORATORIO"] },
-  { title: "Produção", url: "/production", icon: Factory, allowedRoles: ["ADMIN", "PRODUCAO", "VENDAS"] },
-  { title: "Rompimentos", url: "/ruptures", icon: Hammer, allowedRoles: ["ADMIN", "VENDAS", "LABORATORIO"] },
+  { title: "Métricas", url: "/", icon: LayoutDashboard, allowedRoles: ["ADMIN", "PRODUCAO", "VENDAS", "GERENTE", "LABORATORIO"], exact: true },
+  { title: "Análises", url: "/analyses", icon: FlaskConical, allowedRoles: ["ADMIN", "VENDAS", "GERENTE", "LABORATORIO"] },
+  { title: "Produção", url: "/production", icon: Factory, allowedRoles: ["ADMIN", "PRODUCAO", "VENDAS", "GERENTE"] },
+  { title: "Rompimentos", url: "/ruptures", icon: Hammer, allowedRoles: ["ADMIN", "VENDAS", "GERENTE", "LABORATORIO"] },
   { title: "Traços Padrão", url: "/standard-traces", icon: Boxes, allowedRoles: ["ADMIN", "LABORATORIO"] },
   { title: "Materiais", url: "/materials", icon: Package, allowedRoles: ["ADMIN", "LABORATORIO"] },
-  { title: "Relatórios", url: "/reports", icon: FileText, allowedRoles: ["ADMIN", "VENDAS", "LABORATORIO"], exact: true },
-  { title: "Custos", url: "/reports/costs", icon: DollarSign, allowedRoles: ["ADMIN", "VENDAS", "LABORATORIO"] },
+  { title: "Relatórios", url: "/reports", icon: FileText, allowedRoles: ["ADMIN", "VENDAS", "GERENTE", "LABORATORIO"], exact: true },
+  { title: "Custos", url: "/reports/costs", icon: DollarSign, allowedRoles: ["ADMIN", "VENDAS", "GERENTE", "LABORATORIO"] },
 ];
 
 const adminItems: NavItem[] = [
@@ -51,6 +51,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
   ADMIN: "Administrativo",
   PRODUCAO: "Produção",
   VENDAS: "Diretor",
+  GERENTE: "Gerente",
   LABORATORIO: "Laboratório",
 };
 

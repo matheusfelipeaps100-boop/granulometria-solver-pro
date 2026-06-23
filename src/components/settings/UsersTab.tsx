@@ -28,6 +28,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
   ADMIN: "Administrativo",
   PRODUCAO: "Produção",
   VENDAS: "Diretor",
+  GERENTE: "Gerente",
   LABORATORIO: "Laboratório",
 };
 
@@ -35,6 +36,7 @@ const ROLE_COLORS: Record<UserRole, string> = {
   ADMIN: "bg-red-500/15 text-red-700 border-red-200",
   PRODUCAO: "bg-blue-500/15 text-blue-700 border-blue-200",
   VENDAS: "bg-emerald-500/15 text-emerald-700 border-emerald-200",
+  GERENTE: "bg-amber-500/15 text-amber-700 border-amber-200",
   LABORATORIO: "bg-purple-500/15 text-purple-700 border-purple-200",
 };
 
@@ -301,6 +303,12 @@ export function UsersTab() {
                   <SelectItem value="VENDAS">
                     <div className="flex flex-col">
                       <span className="font-bold">Diretor</span>
+                      <span className="text-[10px] text-muted-foreground">Visualização de análises, produção e rompimentos</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="GERENTE">
+                    <div className="flex flex-col">
+                      <span className="font-bold">Gerente</span>
                       <span className="text-[10px] text-muted-foreground">Visualização de análises, produção e rompimentos</span>
                     </div>
                   </SelectItem>

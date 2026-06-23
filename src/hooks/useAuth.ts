@@ -12,12 +12,14 @@ const ROLE_MAP: Record<string, UserRole> = {
   producao:     "PRODUCAO",
   vendas:       "VENDAS",
   visualizador: "VENDAS",
-  
+  gerente:      "GERENTE",
+
   // Novas chaves geradas pelo painel (Cadastrados pela EdgeFunction)
   ADMIN:        "ADMIN",
   LABORATORIO:  "LABORATORIO",
   PRODUCAO:     "PRODUCAO",
   VENDAS:       "VENDAS",
+  GERENTE:      "GERENTE",
 };
 
 export interface AuthProfile {

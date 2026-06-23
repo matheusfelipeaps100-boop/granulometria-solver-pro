@@ -26,7 +26,7 @@ export interface AnalysisType {
   ativo: boolean;
 }
 
-export type UserRole = "ADMIN" | "PRODUCAO" | "VENDAS" | "LABORATORIO";
+export type UserRole = "ADMIN" | "PRODUCAO" | "VENDAS" | "LABORATORIO" | "GERENTE";
 
 export type AnalysisStatus = "rascunho" | "em_analise" | "aprovado" | "liberado_producao";
 

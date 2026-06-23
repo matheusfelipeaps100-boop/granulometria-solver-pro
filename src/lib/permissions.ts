@@ -3,14 +3,14 @@ import { UserRole } from "@/store/useAppStore";
 // Mapeamento de quais rotas cada role pode acessar.
 // chave = path, valor = lista de roles que têm acesso.
 export const ROUTE_PERMISSIONS: Record<string, UserRole[]> = {
-  "/": ["ADMIN", "PRODUCAO", "VENDAS", "LABORATORIO"],
-  "/analyses": ["ADMIN", "VENDAS", "LABORATORIO"],
+  "/": ["ADMIN", "PRODUCAO", "VENDAS", "GERENTE", "LABORATORIO"],
+  "/analyses": ["ADMIN", "VENDAS", "GERENTE", "LABORATORIO"],
   "/analyses/new": ["ADMIN", "LABORATORIO"],
   "/materials": ["ADMIN", "LABORATORIO"],
   "/standard-traces": ["ADMIN", "LABORATORIO"],
-  "/production": ["ADMIN", "PRODUCAO", "VENDAS"],
-  "/ruptures": ["ADMIN", "VENDAS", "LABORATORIO"],
-  "/reports": ["ADMIN", "VENDAS", "LABORATORIO"],
+  "/production": ["ADMIN", "PRODUCAO", "VENDAS", "GERENTE"],
+  "/ruptures": ["ADMIN", "VENDAS", "GERENTE", "LABORATORIO"],
+  "/reports": ["ADMIN", "VENDAS", "GERENTE", "LABORATORIO"],
   "/settings": ["ADMIN"],
 };
 
@@ -25,7 +25,7 @@ export const ACTION_PERMISSIONS: Record<string, UserRole[]> = {
 
   // Apenas ADMIN e PRODUCAO podem criar lotes de produção
   "batch:create": ["ADMIN", "PRODUCAO"],
-  "batch:view": ["ADMIN", "PRODUCAO", "VENDAS", "LABORATORIO"],
+  "batch:view": ["ADMIN", "PRODUCAO", "VENDAS", "GERENTE", "LABORATORIO"],
 
   // Apenas ADMIN e LABORATORIO podem gerenciar rompimentos
   "rupture:complete": ["ADMIN", "LABORATORIO"],

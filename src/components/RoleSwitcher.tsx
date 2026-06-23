@@ -22,6 +22,7 @@ export function RoleSwitcher() {
           <SelectItem value="ADMIN">Administrativo</SelectItem>
           <SelectItem value="PRODUCAO">Produção</SelectItem>
           <SelectItem value="VENDAS">Diretor</SelectItem>
+          <SelectItem value="GERENTE">Gerente</SelectItem>
           <SelectItem value="LABORATORIO">Laboratório</SelectItem>
         </SelectContent>
       </Select>

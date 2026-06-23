@@ -7,6 +7,7 @@ const ROLE_LABELS: Record<string, string> = {
   ADMIN: "Administrativo",
   PRODUCAO: "Produção",
   VENDAS: "Diretor",
+  GERENTE: "Gerente",
   LABORATORIO: "Laboratório",
 };
 
@@ -14,6 +15,7 @@ const ROLE_REDIRECTS: Record<string, string> = {
   ADMIN: "/",
   PRODUCAO: "/production",
   VENDAS: "/analyses",
+  GERENTE: "/analyses",
   LABORATORIO: "/analyses",
 };
 

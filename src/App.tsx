@@ -35,12 +35,12 @@ const App = () => (
         <Routes>
           <Route element={<AppLayout />}>
             <Route path="/" element={
-              <ProtectedRoute allowedRoles={["ADMIN", "PRODUCAO", "VENDAS", "LABORATORIO"]}>
+              <ProtectedRoute allowedRoles={["ADMIN", "PRODUCAO", "VENDAS", "GERENTE", "LABORATORIO"]}>
                 <Dashboard />
               </ProtectedRoute>
             } />
             <Route path="/analyses" element={
-              <ProtectedRoute allowedRoles={["ADMIN", "VENDAS", "LABORATORIO"]}>
+              <ProtectedRoute allowedRoles={["ADMIN", "VENDAS", "GERENTE", "LABORATORIO"]}>
                 <AnalysesPage />
               </ProtectedRoute>
             } />
@@ -50,7 +50,7 @@ const App = () => (
               </ProtectedRoute>
             } />
             <Route path="/analyses/:codigo" element={
-              <ProtectedRoute allowedRoles={["ADMIN", "VENDAS", "LABORATORIO"]}>
+              <ProtectedRoute allowedRoles={["ADMIN", "VENDAS", "GERENTE", "LABORATORIO"]}>
                 <AnalysisDetailPage />
               </ProtectedRoute>
             } />
@@ -65,32 +65,32 @@ const App = () => (
               </ProtectedRoute>
             } />
             <Route path="/production" element={
-              <ProtectedRoute allowedRoles={["ADMIN", "PRODUCAO", "VENDAS"]}>
+              <ProtectedRoute allowedRoles={["ADMIN", "PRODUCAO", "VENDAS", "GERENTE"]}>
                 <ProductionPage />
               </ProtectedRoute>
             } />
             <Route path="/ruptures" element={
-              <ProtectedRoute allowedRoles={["ADMIN", "VENDAS", "LABORATORIO"]}>
+              <ProtectedRoute allowedRoles={["ADMIN", "VENDAS", "GERENTE", "LABORATORIO"]}>
                 <RupturesPage />
               </ProtectedRoute>
             } />
             <Route path="/ruptures/:scheduleId" element={
-              <ProtectedRoute allowedRoles={["ADMIN", "LABORATORIO", "VENDAS"]}>
+              <ProtectedRoute allowedRoles={["ADMIN", "LABORATORIO", "VENDAS", "GERENTE"]}>
                 <RuptureDetailPage />
               </ProtectedRoute>
             } />
             <Route path="/reports" element={
-              <ProtectedRoute allowedRoles={["ADMIN", "VENDAS", "LABORATORIO"]}>
+              <ProtectedRoute allowedRoles={["ADMIN", "VENDAS", "GERENTE", "LABORATORIO"]}>
                 <ReportsPage />
               </ProtectedRoute>
             } />
             <Route path="/reports/batch/:batchId" element={
-              <ProtectedRoute allowedRoles={["ADMIN", "VENDAS", "LABORATORIO"]}>
+              <ProtectedRoute allowedRoles={["ADMIN", "VENDAS", "GERENTE", "LABORATORIO"]}>
                 <QualityReportPage />
               </ProtectedRoute>
             } />
             <Route path="/reports/costs" element={
-              <ProtectedRoute allowedRoles={["ADMIN", "VENDAS", "LABORATORIO"]}>
+              <ProtectedRoute allowedRoles={["ADMIN", "VENDAS", "GERENTE", "LABORATORIO"]}>
                 <CostReportPage />
               </ProtectedRoute>
             } />

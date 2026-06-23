@@ -12,6 +12,7 @@ const ROLE_HOME: Record<string, string> = {
   ADMIN: "/",
   PRODUCAO: "/production",
   VENDAS: "/analyses",
+  GERENTE: "/analyses",
   LABORATORIO: "/analyses",
 };
 
