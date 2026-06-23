@@ -221,7 +221,7 @@ export function StepResult({ data }: StepResultProps) {
   const handleExportPDF = async () => {
     setGeneratingPdf(true);
     try {
-      generateAnalysisPDF(data, { limitesDna: dna?.limites });
+      generateAnalysisPDF(data, { limitesDna: dna?.limites, dnaNome: dna?.nome });
       await generateAnalysisExcel(data, { limitesDna: dna?.limites });
       toast.success("Relatório exportado com sucesso!", {
         description: `Arquivos ${data.codigo}_relatorio.pdf e .xlsx baixados`,
