@@ -61,6 +61,7 @@ const AnalysesPage = () => {
   const canCreate = hasActionPermission(currentUserRole, "analysis:create");
   const canEdit = hasActionPermission(currentUserRole, "analysis:edit");
   const canDelete = hasActionPermission(currentUserRole, "analysis:delete");
+  const isAdmin = currentUserRole === "ADMIN";
   
   const [deleteModal, setDeleteModal] = useState<{ open: boolean; id: string; codigo: string; nome: string }>({
     open: false,
@@ -306,7 +307,7 @@ const AnalysesPage = () => {
                             <Pencil className="h-4 w-4 text-muted-foreground hover:text-foreground" />
                           </Button>
                         )}
-                        {canEdit && (
+                        {isAdmin && (
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingData({ id: a.id, value: a.data_analise })} title="Editar Data">
                             <CalendarDays className="h-4 w-4 text-muted-foreground hover:text-foreground" />
                           </Button>
