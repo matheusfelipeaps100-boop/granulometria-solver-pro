@@ -30,7 +30,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Search, Eye, Pencil, Trash2, FileEdit, X, Check } from "lucide-react";
+import { Plus, Search, Eye, Pencil, Trash2, FileEdit, X, Check, CalendarDays } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
 import { TIPOS_ANALISE } from "@/lib/analysis-data";
@@ -52,7 +52,7 @@ const STEP_NAMES = ["Identificação", "Granulometria", "Dosagem", "Revisão", "
 
 const AnalysesPage = () => {
   const navigate = useNavigate();
-  const { analyses, deleteAnalysis, isDeleting, updateNome } = useAnalyses();
+  const { analyses, deleteAnalysis, isDeleting, updateNome, updateData } = useAnalyses();
   const { profile } = useAuth();
   const { currentStep, formData, clearDraft } = useAnalysisDraftStore();
 
@@ -89,6 +89,7 @@ const AnalysesPage = () => {
   const [filterStatus, setFilterStatus] = useState("all");
   const [dateFilter, setDateFilter] = useState<DateFilter>(getDefaultDateFilter());
   const [editingNome, setEditingNome] = useState<{ id: string; value: string } | null>(null);
+  const [editingData, setEditingData] = useState<{ id: string; value: string } | null>(null);
 
   const handleSaveNome = async () => {
     if (!editingNome) return;
@@ -102,6 +103,18 @@ const AnalysesPage = () => {
     }
   };
 
+  const handleSaveData = async () => {
+    if (!editingData) return;
+    try {
+      await updateData({ id: editingData.id, data_analise: editingData.value });
+      toast.success("Data atualizada com sucesso!");
+    } catch {
+      toast.error("Erro ao atualizar data.");
+    } finally {
+      setEditingData(null);
+    }
+  };
+
   const allAnalyses = useMemo(() => {
     return analyses.map((a) => ({
       id: a.id,
@@ -111,6 +124,7 @@ const AnalysesPage = () => {
       produto: a.produto ?? null,
       analista: "Você",
       data: a.data_analise ? new Date(a.data_analise + "T12:00:00").toLocaleDateString("pt-BR") : "—",
+      data_analise: a.data_analise ?? "",
       status: a.status,
     }));
   }, [analyses]);
@@ -264,7 +278,24 @@ const AnalysesPage = () => {
                     )}
                   </TableCell>
                   <TableCell>{a.analista}</TableCell>
-                  <TableCell>{a.data}</TableCell>
+                  <TableCell>
+                    {editingData?.id === a.id ? (
+                      <div className="flex items-center gap-1">
+                        <Input
+                          autoFocus
+                          type="date"
+                          className="h-7 text-sm w-36"
+                          value={editingData.value}
+                          onChange={(e) => setEditingData({ id: a.id, value: e.target.value })}
+                          onKeyDown={(e) => { if (e.key === "Enter") handleSaveData(); if (e.key === "Escape") setEditingData(null); }}
+                        />
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleSaveData}><Check className="h-3 w-3 text-green-600" /></Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingData(null)}><X className="h-3 w-3 text-muted-foreground" /></Button>
+                      </div>
+                    ) : (
+                      a.data
+                    )}
+                  </TableCell>
                   <TableCell>
                     <StatusBadge status={a.status} />
                   </TableCell>
@@ -273,6 +304,11 @@ const AnalysesPage = () => {
                         {canEdit && (
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingNome({ id: a.id, value: a.nome ?? "" })} title="Editar Nome">
                             <Pencil className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                          </Button>
+                        )}
+                        {canEdit && (
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingData({ id: a.id, value: a.data_analise })} title="Editar Data">
+                            <CalendarDays className="h-4 w-4 text-muted-foreground hover:text-foreground" />
                           </Button>
                         )}
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/analyses/${a.codigo}`)} title="Visualizar">

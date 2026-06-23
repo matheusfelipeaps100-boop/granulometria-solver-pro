@@ -312,6 +312,16 @@ export function useAnalyses() {
     },
   });
 
+  const updateDataMutation = useMutation({
+    mutationFn: async ({ id, data_analise }: { id: string; data_analise: string }) => {
+      const { error } = await supabase.from("analyses").update({ data_analise }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["analyses", orgId] });
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       // Verificar se há lotes de produção vinculados antes de excluir
@@ -428,6 +438,7 @@ export function useAnalyses() {
     updateStatus: updateStatusMutation.mutateAsync,
     updateObservacoes: updateObservacoesMutation.mutateAsync,
     updateNome: updateNomeMutation.mutateAsync,
+    updateData: updateDataMutation.mutateAsync,
     deleteAnalysis: deleteMutation.mutateAsync,
     recalculateCosts: recalculateCostsMutation.mutateAsync,
     isCreating: createMutation.isPending,
