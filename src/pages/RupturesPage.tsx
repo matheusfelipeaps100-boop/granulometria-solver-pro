@@ -29,6 +29,8 @@ const statusColor: Record<ScheduleStatus, string> = {
   ignorado: "border-muted text-muted-foreground bg-muted/20 opacity-50 cursor-not-allowed",
 };
 
+const dueTodayColor = "border-orange-400 text-orange-700 bg-orange-50 hover:bg-orange-100";
+
 const RupturesPage = () => {
   const { schedules, isLoadingSchedules, releaseEarly, isReleasing, exemptFromTesting, isExempting } = useRuptures();
   const { profile } = useAuth();
@@ -308,24 +310,29 @@ const RupturesPage = () => {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          {sorted.map((s) => (
-                            <button
-                                key={s.id}
-                                disabled={s.status === 'ignorado'}
-                                onClick={() => {
-                                  if (s.status === 'ignorado') return;
-                                  if (s.status === 'concluido' || canCompleteRupture) {
-                                    navigate(`/ruptures/${s.id}`);
-                                  } else {
-                                    toast.error("Você não tem permissão para realizar rompimentos.");
-                                  }
-                                }}
-                                className={`inline-flex items-center justify-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors ${statusColor[s.status]} ${s.status !== 'ignorado' && (canCompleteRupture || s.status === 'concluido') ? 'cursor-pointer' : 'cursor-default'}`}
-                                title={canCompleteRupture || s.status === 'concluido' ? `${s.idade_dias}d — ${s.status} — ${formatDate(s.data_prevista)}` : "Visualização restrita"}
-                              >
-                                {s.idade_dias}d
-                              </button>
-                          ))}
+                          {sorted.map((s) => {
+                            const isDueToday = s.status === "pendente" && s.data_prevista === today;
+                            const chipColor = isDueToday ? dueTodayColor : statusColor[s.status];
+                            const statusLabel = isDueToday ? "hoje" : s.status;
+                            return (
+                              <button
+                                  key={s.id}
+                                  disabled={s.status === 'ignorado'}
+                                  onClick={() => {
+                                    if (s.status === 'ignorado') return;
+                                    if (s.status === 'concluido' || canCompleteRupture) {
+                                      navigate(`/ruptures/${s.id}`);
+                                    } else {
+                                      toast.error("Você não tem permissão para realizar rompimentos.");
+                                    }
+                                  }}
+                                  className={`inline-flex items-center justify-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors ${chipColor} ${s.status !== 'ignorado' && (canCompleteRupture || s.status === 'concluido') ? 'cursor-pointer' : 'cursor-default'}`}
+                                  title={canCompleteRupture || s.status === 'concluido' ? `${s.idade_dias}d — ${statusLabel} — ${formatDate(s.data_prevista)}` : "Visualização restrita"}
+                                >
+                                  {s.idade_dias}d
+                                </button>
+                            );
+                          })}
                         </div>
                       </TableCell>
                       <TableCell className="text-sm">
