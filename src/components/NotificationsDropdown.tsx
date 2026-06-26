@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Bell, AlertTriangle, Clock, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -6,6 +6,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -60,9 +61,8 @@ export function NotificationsDropdown() {
         .from("notifications")
         .select("*")
         .eq("user_id", profile.id)
-        .eq("lida", false)
         .order("created_at", { ascending: false })
-        .limit(20);
+        .limit(50);
 
       if (!error && data) {
         setNotifications(
@@ -137,14 +137,17 @@ export function NotificationsDropdown() {
       .update({ lida: true })
       .eq("id", notificationId);
 
-    setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === notificationId ? { ...n, lida: true } : n))
+    );
 
     if (link) {
       navigate(link);
     }
   };
 
-  const unreadCount = notifications.filter((n) => !n.lida).length;
+  const unread = useMemo(() => notifications.filter((n) => !n.lida), [notifications]);
+  const read = useMemo(() => notifications.filter((n) => n.lida), [notifications]);
 
   if (loading) {
     return (
@@ -154,50 +157,84 @@ export function NotificationsDropdown() {
     );
   }
 
+  const renderList = (items: Notification[], emptyLabel: string) => {
+    if (items.length === 0) {
+      return (
+        <div className="p-6 text-center text-sm text-muted-foreground">{emptyLabel}</div>
+      );
+    }
+
+    return (
+      <ScrollArea className="h-72">
+        <div className="divide-y divide-border">
+          {items.map((n) => (
+            <button
+              key={n.id}
+              onClick={() => handleNotificationClick(n.id, n.link)}
+              className={`w-full text-left px-4 py-3 transition-colors flex items-start gap-3 ${
+                n.lida ? "opacity-60 hover:bg-muted/30" : "hover:bg-muted/50"
+              }`}
+            >
+              {(typeConfig[n.tipo] ?? defaultTypeConfig).icon}
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-foreground leading-tight break-words">
+                  {n.titulo}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5 break-words">
+                  {n.mensagem}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {new Date(n.created_at).toLocaleDateString("pt-BR")}
+                </p>
+              </div>
+              {!n.lida && (
+                <div className="h-2 w-2 rounded-full bg-blue-500 shrink-0 mt-2" />
+              )}
+            </button>
+          ))}
+        </div>
+      </ScrollArea>
+    );
+  };
+
   return (
     <Popover>
       <PopoverTrigger asChild>
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5 text-muted-foreground" />
-          {unreadCount > 0 && (
+          {unread.length > 0 && (
             <span className="absolute -top-0.5 -right-0.5 h-5 w-5 rounded-full text-[10px] font-bold flex items-center justify-center text-primary-foreground bg-destructive">
-              {unreadCount > 9 ? "9+" : unreadCount}
+              {unread.length > 9 ? "9+" : unread.length}
             </span>
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align="end">
+      <PopoverContent className="w-96 p-0" align="end">
         <div className="px-4 py-3 border-b border-border">
           <h4 className="text-sm font-semibold text-foreground">Notificações</h4>
-          <p className="text-xs text-muted-foreground">{unreadCount} não lidas</p>
         </div>
-        {notifications.length === 0 ? (
-          <div className="p-6 text-center text-sm text-muted-foreground">
-            Nenhuma notificação 🎉
-          </div>
-        ) : (
-          <ScrollArea className="max-h-80">
-            <div className="divide-y divide-border">
-              {notifications.map((n) => (
-                <button
-                  key={n.id}
-                  onClick={() => handleNotificationClick(n.id, n.link)}
-                  className="w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors flex items-start gap-3"
-                >
-                  {(typeConfig[n.tipo] ?? defaultTypeConfig).icon}
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-foreground leading-tight">{n.titulo}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5 truncate">{n.mensagem}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {new Date(n.created_at).toLocaleDateString("pt-BR")}
-                    </p>
-                  </div>
-                  {!n.lida && <div className="h-2 w-2 rounded-full bg-blue-500 shrink-0 mt-2" />}
-                </button>
-              ))}
-            </div>
-          </ScrollArea>
-        )}
+        <Tabs defaultValue="unread">
+          <TabsList className="w-full rounded-none bg-transparent border-b border-border h-auto p-0">
+            <TabsTrigger
+              value="unread"
+              className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+            >
+              Não lidas {unread.length > 0 && `(${unread.length})`}
+            </TabsTrigger>
+            <TabsTrigger
+              value="read"
+              className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+            >
+              Lidas {read.length > 0 && `(${read.length})`}
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="unread" className="mt-0">
+            {renderList(unread, "Nenhuma notificação pendente 🎉")}
+          </TabsContent>
+          <TabsContent value="read" className="mt-0">
+            {renderList(read, "Nenhuma notificação lida ainda")}
+          </TabsContent>
+        </Tabs>
       </PopoverContent>
     </Popover>
   );
