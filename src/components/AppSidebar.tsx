@@ -36,7 +36,7 @@ const mainItems: NavItem[] = [
   { title: "Métricas", url: "/", icon: LayoutDashboard, allowedRoles: ["ADMIN", "PRODUCAO", "VENDAS", "GERENTE", "LABORATORIO"], exact: true },
   { title: "Análises", url: "/analyses", icon: FlaskConical, allowedRoles: ["ADMIN", "VENDAS", "GERENTE", "LABORATORIO"] },
   { title: "Produção", url: "/production", icon: Factory, allowedRoles: ["ADMIN", "PRODUCAO", "VENDAS", "GERENTE"] },
-  { title: "Rompimentos", url: "/ruptures", icon: Hammer, allowedRoles: ["ADMIN", "VENDAS", "GERENTE", "LABORATORIO"] },
+  { title: "Rompimentos", url: "/ruptures", icon: Hammer, allowedRoles: ["ADMIN", "PRODUCAO", "VENDAS", "GERENTE", "LABORATORIO"] },
   { title: "Traços Padrão", url: "/standard-traces", icon: Boxes, allowedRoles: ["ADMIN", "LABORATORIO"] },
   { title: "Materiais", url: "/materials", icon: Package, allowedRoles: ["ADMIN", "LABORATORIO"] },
   { title: "Relatórios", url: "/reports", icon: FileText, allowedRoles: ["ADMIN", "VENDAS", "GERENTE", "LABORATORIO"], exact: true },
