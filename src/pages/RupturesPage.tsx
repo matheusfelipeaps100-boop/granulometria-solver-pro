@@ -29,7 +29,7 @@ const statusColor: Record<ScheduleStatus, string> = {
   ignorado: "border-muted text-muted-foreground bg-muted/20 opacity-50 cursor-not-allowed",
 };
 
-const dueTodayColor = "border-orange-400 text-orange-700 bg-orange-50 hover:bg-orange-100";
+const dueTodayColor = "border-sky-400 text-sky-700 bg-sky-50 hover:bg-sky-100";
 
 const RupturesPage = () => {
   const { schedules, isLoadingSchedules, releaseEarly, isReleasing, exemptFromTesting, isExempting } = useRuptures();
