@@ -70,12 +70,12 @@ const App = () => (
               </ProtectedRoute>
             } />
             <Route path="/ruptures" element={
-              <ProtectedRoute allowedRoles={["ADMIN", "VENDAS", "GERENTE", "LABORATORIO"]}>
+              <ProtectedRoute allowedRoles={["ADMIN", "PRODUCAO", "VENDAS", "GERENTE", "LABORATORIO"]}>
                 <RupturesPage />
               </ProtectedRoute>
             } />
             <Route path="/ruptures/:scheduleId" element={
-              <ProtectedRoute allowedRoles={["ADMIN", "LABORATORIO", "VENDAS", "GERENTE"]}>
+              <ProtectedRoute allowedRoles={["ADMIN", "LABORATORIO", "PRODUCAO", "VENDAS", "GERENTE"]}>
                 <RuptureDetailPage />
               </ProtectedRoute>
             } />
