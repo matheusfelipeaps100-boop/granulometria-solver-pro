@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Bell, AlertTriangle, Clock, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,12 +14,37 @@ import type { Notification as DBNotification } from "@/types/database.types";
 
 interface Notification {
   id: string;
-  type: "analysis_approved" | "rupture_scheduled" | "rupture_overdue" | "batch_status";
-  title: string;
-  description: string;
-  read: boolean;
+  tipo: string;
+  titulo: string;
+  mensagem: string;
+  link: string | null;
+  lida: boolean;
   created_at: string;
 }
+
+const typeConfig: Record<string, { icon: JSX.Element; color: string }> = {
+  trace_approved: {
+    icon: <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />,
+    color: "text-green-600",
+  },
+  rupture_due_today: {
+    icon: <Clock className="h-4 w-4 text-blue-500 shrink-0" />,
+    color: "text-blue-500",
+  },
+  rupture_overdue: {
+    icon: <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />,
+    color: "text-destructive",
+  },
+  batch_status: {
+    icon: <CheckCircle2 className="h-4 w-4 text-amber-600 shrink-0" />,
+    color: "text-amber-600",
+  },
+};
+
+const defaultTypeConfig = {
+  icon: <Bell className="h-4 w-4 text-muted-foreground shrink-0" />,
+  color: "text-muted-foreground",
+};
 
 export function NotificationsDropdown() {
   const { profile } = useAuth();
@@ -27,7 +52,6 @@ export function NotificationsDropdown() {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Load initial notifications and subscribe to realtime updates
   useEffect(() => {
     if (!profile?.id) return;
 
@@ -35,8 +59,8 @@ export function NotificationsDropdown() {
       const { data, error } = await supabase
         .from("notifications")
         .select("*")
-        .eq("recipient_id", profile.id)
-        .eq("read", false)
+        .eq("user_id", profile.id)
+        .eq("lida", false)
         .order("created_at", { ascending: false })
         .limit(20);
 
@@ -44,10 +68,11 @@ export function NotificationsDropdown() {
         setNotifications(
           data.map((n: DBNotification) => ({
             id: n.id,
-            type: n.type,
-            title: n.title,
-            description: n.message,
-            read: n.read,
+            tipo: n.tipo,
+            titulo: n.titulo,
+            mensagem: n.mensagem,
+            link: n.link,
+            lida: n.lida,
             created_at: n.created_at,
           }))
         );
@@ -57,21 +82,21 @@ export function NotificationsDropdown() {
 
     fetchNotifications();
 
-    // Subscribe to realtime notifications for this user
     const channel = supabase
       .channel("notifications-realtime")
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "notifications" },
         (payload: any) => {
-          if (payload.new.recipient_id === profile.id) {
+          if (payload.new.user_id === profile.id) {
             setNotifications((prev) => [
               {
                 id: payload.new.id,
-                type: payload.new.type,
-                title: payload.new.title,
-                description: payload.new.message,
-                read: payload.new.read,
+                tipo: payload.new.tipo,
+                titulo: payload.new.titulo,
+                mensagem: payload.new.mensagem,
+                link: payload.new.link,
+                lida: payload.new.lida,
                 created_at: payload.new.created_at,
               },
               ...prev,
@@ -83,15 +108,15 @@ export function NotificationsDropdown() {
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "notifications" },
         (payload: any) => {
-          if (payload.new.recipient_id === profile.id) {
+          if (payload.new.user_id === profile.id) {
             setNotifications((prev) =>
               prev.map((n) =>
                 n.id === payload.new.id
                   ? {
                       ...n,
-                      read: payload.new.read,
-                      title: payload.new.title,
-                      description: payload.new.message,
+                      lida: payload.new.lida,
+                      titulo: payload.new.titulo,
+                      mensagem: payload.new.mensagem,
                     }
                   : n
               )
@@ -106,39 +131,20 @@ export function NotificationsDropdown() {
     };
   }, [profile?.id]);
 
-  const handleNotificationClick = async (notificationId: string, relatedEntityId: string | null) => {
-    // Mark as read
+  const handleNotificationClick = async (notificationId: string, link: string | null) => {
     await supabase
       .from("notifications")
-      .update({ read: true })
+      .update({ lida: true })
       .eq("id", notificationId);
 
-    // Navigate based on entity type
-    if (relatedEntityId) {
-      navigate(`/ruptures/${relatedEntityId}`);
+    setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+
+    if (link) {
+      navigate(link);
     }
   };
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
-
-  const typeConfig = {
-    analysis_approved: {
-      icon: <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />,
-      color: "text-green-600",
-    },
-    rupture_scheduled: {
-      icon: <Clock className="h-4 w-4 text-blue-500 shrink-0" />,
-      color: "text-blue-500",
-    },
-    rupture_overdue: {
-      icon: <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />,
-      color: "text-destructive",
-    },
-    batch_status: {
-      icon: <CheckCircle2 className="h-4 w-4 text-amber-600 shrink-0" />,
-      color: "text-amber-600",
-    },
-  };
+  const unreadCount = notifications.filter((n) => !n.lida).length;
 
   if (loading) {
     return (
@@ -175,18 +181,18 @@ export function NotificationsDropdown() {
               {notifications.map((n) => (
                 <button
                   key={n.id}
-                  onClick={() => handleNotificationClick(n.id, n.id)}
+                  onClick={() => handleNotificationClick(n.id, n.link)}
                   className="w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors flex items-start gap-3"
                 >
-                  {typeConfig[n.type]?.icon}
+                  {(typeConfig[n.tipo] ?? defaultTypeConfig).icon}
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-foreground leading-tight">{n.title}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5 truncate">{n.description}</p>
+                    <p className="text-sm font-medium text-foreground leading-tight">{n.titulo}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 truncate">{n.mensagem}</p>
                     <p className="text-xs text-muted-foreground mt-1">
                       {new Date(n.created_at).toLocaleDateString("pt-BR")}
                     </p>
                   </div>
-                  {!n.read && <div className="h-2 w-2 rounded-full bg-blue-500 shrink-0 mt-2" />}
+                  {!n.lida && <div className="h-2 w-2 rounded-full bg-blue-500 shrink-0 mt-2" />}
                 </button>
               ))}
             </div>

@@ -3,8 +3,11 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { AppHeader } from "@/components/AppHeader";
 import { Outlet } from "react-router-dom";
 import { PageErrorBoundary } from "@/components/PageErrorBoundary";
+import { useRuptureNotificationsSync } from "@/hooks/useRuptureNotificationsSync";
 
 export function AppLayout() {
+  useRuptureNotificationsSync();
+
   return (
     <SidebarProvider>
       <div className="h-screen flex w-full overflow-hidden">

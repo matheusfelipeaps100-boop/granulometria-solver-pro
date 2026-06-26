@@ -199,27 +199,38 @@ export interface QualityReport {
 }
 
 // Notifications
-export type NotificationType = 'analysis_approved' | 'rupture_scheduled' | 'rupture_overdue' | 'batch_status'
+export type NotificationType =
+  | 'trace_approved'
+  | 'rupture_due_today'
+  | 'rupture_overdue'
+  | 'batch_status'
+  | string // tipos futuros não devem travar a UI
 
 export interface Notification {
   id: string
   organization_id: string
-  recipient_id: string
-  type: NotificationType
-  title: string
-  message: string
-  read: boolean
-  related_entity_id: string | null
+  user_id: string
+  tipo: NotificationType
+  titulo: string
+  mensagem: string
+  link: string | null
+  lida: boolean
+  dados: Record<string, unknown> | null
   created_at: string
 }
 
 export interface NotificationPreferences {
   id: string
   user_id: string
-  enable_email: boolean
-  enable_in_app: boolean
-  created_at: string
-  updated_at: string
+  rupture_due_email: boolean
+  rupture_due_push: boolean
+  rupture_overdue_email: boolean
+  rupture_overdue_push: boolean
+  trace_approved_email: boolean
+  batch_rejected_email: boolean
+  report_ready_email: boolean
+  report_ready_push: boolean
+  antecedencia_horas: number
 }
 
 // Webhooks
