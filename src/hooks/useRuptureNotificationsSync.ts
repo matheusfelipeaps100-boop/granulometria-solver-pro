@@ -3,11 +3,14 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 
 const RECIPIENT_ROLES = ["admin", "gestor", "laboratorio", "producao"];
+const RUPTURE_TYPES = ["rupture_due_today", "rupture_overdue"];
+const RESOLVED_STATUSES = ["concluido", "ignorado"];
 
 /**
  * Ao abrir o app, garante que existam notificações para rompimentos
  * previstos para hoje ou em atraso, sem depender de pg_cron.
  * Idempotente: não duplica notificação para o mesmo schedule+tipo.
+ * Também marca como lidas notificações cujo rompimento já foi concluído.
  */
 export function useRuptureNotificationsSync() {
   const { profile } = useAuth();
@@ -17,7 +20,54 @@ export function useRuptureNotificationsSync() {
 
     const orgId = profile.organization_id;
 
+    const markResolvedAsRead = async () => {
+      const { data: unread } = await supabase
+        .from("notifications")
+        .select("id, dados")
+        .eq("organization_id", orgId)
+        .eq("lida", false)
+        .in("tipo", RUPTURE_TYPES);
+
+      if (!unread || unread.length === 0) return;
+
+      const scheduleIds = [
+        ...new Set(
+          unread
+            .map((n) => (n.dados as any)?.schedule_id as string | undefined)
+            .filter((id): id is string => !!id)
+        ),
+      ];
+
+      if (scheduleIds.length === 0) return;
+
+      const { data: schedules } = await supabase
+        .from("rupture_schedules")
+        .select("id, status")
+        .in("id", scheduleIds);
+
+      const resolvedIds = new Set(
+        (schedules ?? [])
+          .filter((s) => RESOLVED_STATUSES.includes(s.status))
+          .map((s) => s.id)
+      );
+
+      if (resolvedIds.size === 0) return;
+
+      const notificationIdsToMark = unread
+        .filter((n) => resolvedIds.has((n.dados as any)?.schedule_id))
+        .map((n) => n.id);
+
+      if (notificationIdsToMark.length === 0) return;
+
+      await supabase
+        .from("notifications")
+        .update({ lida: true })
+        .in("id", notificationIdsToMark);
+    };
+
     const sync = async () => {
+      await markResolvedAsRead();
+
       const today = new Date().toISOString().split("T")[0];
 
       const { data: schedules, error: schedulesError } = await supabase
