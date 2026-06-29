@@ -305,7 +305,7 @@ const QualityReportPage = () => {
           )}
 
           {/* Dados Gerais */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-8">
             <div className="space-y-1">
               <p className="text-[10px] uppercase font-black text-muted-foreground">Produto / Análise</p>
               <p className="text-sm font-bold">{analysisTypeMeta?.label || analysis.tipo}</p>
@@ -318,10 +318,6 @@ const QualityReportPage = () => {
             <div className="space-y-1">
               <p className="text-[10px] uppercase font-black text-muted-foreground">Máquina</p>
               <p className="text-sm font-bold">{batch.maquina || "—"}</p>
-            </div>
-            <div className="space-y-1 text-right">
-              <p className="text-[10px] uppercase font-black text-muted-foreground">Volume Lote</p>
-              <p className="text-sm font-black">{batch.volume_produzido ?? "—"} L</p>
             </div>
           </div>
 
