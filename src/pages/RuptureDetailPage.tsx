@@ -17,7 +17,7 @@ import { useRuptures, useScheduleDetail } from "@/hooks/api/useRuptures";
 import { useProfiles } from "@/hooks/api/useProfiles";
 import { useTechnicalSettings } from "@/hooks/api/useTechnicalSettings";
 import { TIPOS_ANALISE } from "@/lib/analysis-data";
-import { calcTensao, calcRuptureStats, AREAS_PADRAO, calcTensaoPaver, calcRuptureStatsPaver } from "@/lib/granulometry-engine";
+import { calcTensao, calcRuptureStats, AREAS_PADRAO, calcTensaoPaver, calcRuptureStatsPaver, getMetaForAge } from "@/lib/granulometry-engine";
 
 import { cn } from "@/lib/utils";
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LineChart, Line } from "recharts";
@@ -181,7 +181,8 @@ const RuptureDetailPage = () => {
 
   // Calculate stats per test type in real-time
   const statsPerTipo = useMemo(() => {
-    const meta = found?.analysis?.resistencia_prevista ?? 0;
+    const metaFinal = found?.analysis?.resistencia_prevista ?? 0;
+    const idadeDias = found?.schedule?.idade_dias ?? 0;
     const result: Record<TipoAmostra, ReturnType<typeof calcRuptureStats> | null> = {
       bloco: null,
       paver: null,
@@ -194,6 +195,7 @@ const RuptureDetailPage = () => {
     const multiplicadorPaver = settings?.formula_tensao_paver;
 
     for (const tipo of TIPOS_AMOSTRA) {
+      const meta = getMetaForAge(tipo, idadeDias, settings, metaFinal);
       const forcas = samples[tipo]
         .map((s) => parseFloat(s.forca_kn))
         .filter((f) => !isNaN(f) && f > 0);
@@ -285,7 +287,7 @@ const RuptureDetailPage = () => {
         motivo: finalizeMotivo,
         testData: {
           tipo_amostra: tipoComAmostra,
-          meta_mpa: found?.analysis?.resistencia_prevista ?? 0,
+          meta_mpa: getMetaForAge(tipoComAmostra, found?.schedule?.idade_dias ?? 0, settings, found?.analysis?.resistencia_prevista ?? 0),
           media_mpa: testStats.media,
           min_mpa: testStats.minimo,
           max_mpa: testStats.maximo,
@@ -337,7 +339,7 @@ const RuptureDetailPage = () => {
         dataExecutada: dataReal,
         testData: {
           tipo_amostra: tipoComAmostra,
-          meta_mpa: found?.analysis?.resistencia_prevista ?? 0,
+          meta_mpa: getMetaForAge(tipoComAmostra, found?.schedule?.idade_dias ?? 0, settings, found?.analysis?.resistencia_prevista ?? 0),
           media_mpa: testStats.media,
           min_mpa: testStats.minimo,
           max_mpa: testStats.maximo,
@@ -381,7 +383,7 @@ const RuptureDetailPage = () => {
         observacoes,
         testData: {
           tipo_amostra: tipoComAmostra,
-          meta_mpa: found?.analysis?.resistencia_prevista ?? 0,
+          meta_mpa: getMetaForAge(tipoComAmostra, found?.schedule?.idade_dias ?? 0, settings, found?.analysis?.resistencia_prevista ?? 0),
           media_mpa: testStats.media,
           min_mpa: testStats.minimo,
           max_mpa: testStats.maximo,

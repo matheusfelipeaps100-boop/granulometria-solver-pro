@@ -7,8 +7,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Separator } from "@/components/ui/separator";
-import { calcTensao, calcRuptureStats, calcTensaoPaver, calcRuptureStatsPaver } from "@/lib/granulometry-engine";
+import { calcTensao, calcRuptureStats, calcTensaoPaver, calcRuptureStatsPaver, getMetaForAge } from "@/lib/granulometry-engine";
 import type { RuptureSchedule, StoredAnalysis } from "@/store/useAppStore";
+import type { TechnicalSettings } from "@/hooks/api/useTechnicalSettings";
 import { useMemo } from "react";
 
 interface ViewRuptureResultModalProps {
@@ -16,6 +17,7 @@ interface ViewRuptureResultModalProps {
   onOpenChange: (open: boolean) => void;
   schedule: RuptureSchedule | null;
   analysis: StoredAnalysis | null;
+  settings?: TechnicalSettings | null;
 }
 
 const tipoLabel: Record<string, string> = {
@@ -24,7 +26,7 @@ const tipoLabel: Record<string, string> = {
   cp: "Corpo de Prova (CP)",
 };
 
-export function ViewRuptureResultModal({ open, onOpenChange, schedule, analysis }: ViewRuptureResultModalProps) {
+export function ViewRuptureResultModal({ open, onOpenChange, schedule, analysis, settings }: ViewRuptureResultModalProps) {
   if (!schedule || !analysis) return null;
 
   const responsavel = (schedule as any).responsavel_nome ?? "—";
@@ -33,10 +35,11 @@ export function ViewRuptureResultModal({ open, onOpenChange, schedule, analysis 
     const s = schedule as any;
     const tests: any[] = s.tests ?? [];
     if (tests.length === 0) return null;
-    const meta = analysis.resistencia_prevista;
+    const metaFinal = analysis.resistencia_prevista;
     const result: Record<string, any> = {};
     for (const test of tests) {
       const tipo = test.tipo_amostra;
+      const meta = getMetaForAge(tipo, s.idade_dias, settings, metaFinal);
       const sorted = [...(test.samples ?? [])].sort((a: any, b: any) => a.numero - b.numero);
       const forcas = sorted.map((s: any) => Number(s.forca_kn)).filter((f: number) => f > 0);
       if (forcas.length === 0) continue;
@@ -50,7 +53,7 @@ export function ViewRuptureResultModal({ open, onOpenChange, schedule, analysis 
       };
     }
     return Object.keys(result).length > 0 ? result : null;
-  }, [schedule, analysis]);
+  }, [schedule, analysis, settings]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

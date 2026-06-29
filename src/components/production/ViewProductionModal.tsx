@@ -11,6 +11,7 @@ import type { StoredAnalysis, ProductionBatch } from "@/store/useAppStore";
 import type { DBProductionBatch } from "@/hooks/api/useProduction";
 import { useMemo, useState } from "react";
 import { useProduction } from "@/hooks/api/useProduction";
+import { useTechnicalSettings } from "@/hooks/api/useTechnicalSettings";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -28,6 +29,7 @@ export function ViewProductionModal({ open, onOpenChange, analysis, batch }: Vie
   const [showRuptureResult, setShowRuptureResult] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const { deleteBatch, isDeleting } = useProduction();
+  const { settings } = useTechnicalSettings();
 
   if (!analysis) return null;
   const tipoLabel = TIPOS_ANALISE.find((t) => t.value === analysis.tipo_analise)?.label ?? "—";
@@ -238,6 +240,7 @@ export function ViewProductionModal({ open, onOpenChange, analysis, batch }: Vie
         onOpenChange={setShowRuptureResult}
         schedule={selectedRupture}
         analysis={analysis}
+        settings={settings}
       />
     </Dialog>
   );

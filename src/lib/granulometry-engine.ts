@@ -239,6 +239,22 @@ export function calcTensaoPaver(
 }
 
 /**
+ * Resolve a meta de resistência esperada para a idade do ensaio (1d/3d/7d/28d),
+ * caindo de volta para a meta final do produto quando não houver meta configurada
+ * para aquela idade/tipo (ex.: corpo de prova "cp", que não tem metas por idade).
+ */
+export function getMetaForAge(
+  tipo: "bloco" | "paver" | "cp",
+  idadeDias: number,
+  settings: Partial<Record<string, number>> | null | undefined,
+  metaFinal: number
+): number {
+  if (!settings || tipo === "cp") return metaFinal;
+  const valor = settings[`${tipo}_meta_${idadeDias}d`];
+  return typeof valor === "number" && valor > 0 ? valor : metaFinal;
+}
+
+/**
  * CÁLCULO 7 — Estatísticas de rompimento
  */
 export function calcRuptureStats(
