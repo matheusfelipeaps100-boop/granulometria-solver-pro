@@ -292,6 +292,18 @@ const QualityReportPage = () => {
             </div>
           )}
 
+          {batch.status === "aprovado_com_ressalva" && (
+            <div className="bg-warning/10 border-l-4 border-warning rounded-r-lg p-6 flex items-start gap-4">
+              <AlertTriangle className="h-5 w-5 text-warning mt-0.5 shrink-0" />
+              <div className="space-y-1">
+                <h3 className="font-black text-sm uppercase tracking-wider text-warning">Aprovado com Ressalva</h3>
+                <p className="text-sm font-semibold text-warning/90 leading-relaxed italic">
+                  Este lote foi aprovado, porém 1 ensaio de rompimento (resistência) apresentou resultado fora da conformidade. A ressalva não compromete a liberação do lote, mas indica um ponto de atenção pontual no processo.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Dados Gerais */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8">
             <div className="space-y-1">
