@@ -10,6 +10,7 @@ export interface GranulometryPreset {
   materiais: AnalysisMaterial[];
   dna_selecionado: string | null;
   limites_curva: any[] | null;
+  tipo_analise?: string;
   created_by: string | null;
   created_at: string;
 }
@@ -38,11 +39,13 @@ export function useGranulometryPresets() {
       materiais,
       dna_selecionado,
       limites_curva,
+      tipo_analise,
     }: {
       nome: string;
       materiais: AnalysisMaterial[];
       dna_selecionado?: string;
       limites_curva?: any[];
+      tipo_analise?: string;
     }) => {
       const { data, error } = await supabase
         .from("granulometry_presets")
@@ -52,6 +55,7 @@ export function useGranulometryPresets() {
           materiais,
           dna_selecionado: dna_selecionado ?? null,
           limites_curva: limites_curva ?? null,
+          tipo_analise: tipo_analise ?? "bloco_estrutural",
           created_by: profile?.id,
         }])
         .select()

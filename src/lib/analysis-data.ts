@@ -18,7 +18,7 @@ export interface Product {
 export interface AnalysisFormData {
   id?: string;
   // Step 1 — Identification
-  tipo_analise: "bloco_estrutural" | "bloco_vedacao" | "paver" | "cp" | "";
+  tipo_analise: "bloco_estrutural" | "bloco_vedacao" | "paver" | "cp" | "laje" | "";
   nome: string;
   codigo: string;
   data: string;
@@ -95,7 +95,21 @@ export const TIPOS_ANALISE = [
   { value: "bloco_vedacao", label: "Bloco de Vedação" },
   { value: "paver", label: "Paver" },
   { value: "cp", label: "Corpo de Prova (CP)" },
+  { value: "laje", label: "Laje" },
 ];
+
+// Configuração centralizada da capacidade do misturador por tipo de análise
+export const CONFIG_MISTURADOR: Record<string, { capacidade_kg: number; volume_m3: number }> = {
+  bloco_estrutural: { capacidade_kg: 550,  volume_m3: 0.55 },
+  bloco_vedacao:    { capacidade_kg: 550,  volume_m3: 0.55 },
+  paver:            { capacidade_kg: 550,  volume_m3: 0.55 },
+  cp:               { capacidade_kg: 550,  volume_m3: 0.55 },
+  laje:             { capacidade_kg: 2500, volume_m3: 1.00 },
+};
+
+export function getConfigMisturador(tipo: string) {
+  return CONFIG_MISTURADOR[tipo] ?? CONFIG_MISTURADOR.bloco_estrutural;
+}
 
 // TODO: Load from Supabase using API hook
 export const PRODUTOS_DISPONIVEIS: Product[] = [];

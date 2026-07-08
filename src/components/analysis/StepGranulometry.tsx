@@ -38,6 +38,7 @@ import {
 import {
   PENEIRAS_PADRAO,
   LIMITES_BLOCO_PADRAO,
+  getConfigMisturador,
   type AnalysisFormData,
   type AnalysisMaterial,
 } from "@/lib/analysis-data";
@@ -53,6 +54,8 @@ interface StepGranulometryProps {
 }
 
 export function StepGranulometry({ data, onChange, readOnly }: StepGranulometryProps) {
+  const capacidadeMisturador = getConfigMisturador(data.tipo_analise).capacidade_kg;
+
   const [fonteAtiva, setFonteAtiva] = useState<"bica" | "manual">("bica");
   const [camadaAtiva, setCamadaAtiva] = useState<"base" | "face">("base");
   const [unidadeAtiva, setUnidadeAtiva] = useState<"pct" | "kg">("pct");
@@ -263,13 +266,13 @@ export function StepGranulometry({ data, onChange, readOnly }: StepGranulometryP
   const handleNormalize = useCallback(() => {
     const total = materials.reduce((sum, m) => sum + (m.proporcao_kg ?? 0), 0);
     if (total === 0) return;
-    const scale = 550 / total;
+    const scale = capacidadeMisturador / total;
     const updated = materials.map((m) => ({
       ...m,
       proporcao_kg: Math.round((m.proporcao_kg ?? 0) * scale),
     }));
     onChange({ materiais_selecionados: updated });
-    toast.success("Mistura normalizada para 550 kg!");
+    toast.success(`Mistura normalizada para ${capacidadeMisturador} kg!`);
   }, [materials, onChange]);
 
   const handleOptimize = useCallback(() => {
@@ -316,10 +319,10 @@ export function StepGranulometry({ data, onChange, readOnly }: StepGranulometryP
       if (dev < bestDeviation) { bestDeviation = dev; current = next; }
     }
 
-    // Converte frações para kg (referência 550 kg)
+    // Converte frações para kg (referência capacidadeMisturador)
     const updated = materials.map((m, i) => ({
       ...m,
-      proporcao_kg: Math.round(current[i] * 550),
+      proporcao_kg: Math.round(current[i] * capacidadeMisturador),
     }));
     onChange({ materiais_selecionados: updated });
     toast.success("Traço otimizado (Centro da Faixa)!");
@@ -437,7 +440,12 @@ export function StepGranulometry({ data, onChange, readOnly }: StepGranulometryP
           <Card className="h-full">
             <CardHeader className="pb-2 flex flex-row items-center justify-between gap-2">
               <CardTitle className="text-sm font-black uppercase tracking-wider">
-                TABELA GRANULOMÉTRICA – BLOCOS
+                TABELA GRANULOMÉTRICA –{" "}
+                {data.tipo_analise === "laje"
+                  ? "LAJES"
+                  : data.tipo_analise === "paver" || data.tipo_analise === "cp"
+                  ? "PAVERS"
+                  : "BLOCOS"}
               </CardTitle>
               <div className="flex flex-row gap-2 items-center">
                 <Button
@@ -682,13 +690,13 @@ export function StepGranulometry({ data, onChange, readOnly }: StepGranulometryP
                 <Badge
                   className={cn(
                     "px-3 py-1 text-[11px] uppercase tracking-widest font-black rounded-full flex items-center gap-1.5",
-                    Math.abs(totalKgMistura - 550) < 10
+                    Math.abs(totalKgMistura - capacidadeMisturador) < capacidadeMisturador * 0.02
                       ? "bg-success hover:bg-success/90 text-white"
                       : "bg-warning hover:bg-warning/90 text-white"
                   )}
                 >
                   {totalKgMistura.toFixed(0)} kg
-                  {Math.abs(totalKgMistura - 550) < 10 ? <CheckCircle2 className="w-3.5 h-3.5" /> : <AlertTriangle className="w-3.5 h-3.5" />}
+                  {Math.abs(totalKgMistura - capacidadeMisturador) < capacidadeMisturador * 0.02 ? <CheckCircle2 className="w-3.5 h-3.5" /> : <AlertTriangle className="w-3.5 h-3.5" />}
                 </Badge>
               </div>
             </CardHeader>
@@ -766,7 +774,7 @@ export function StepGranulometry({ data, onChange, readOnly }: StepGranulometryP
                     <div className="px-1">
                       <Slider
                         min={0}
-                        max={550}
+                        max={capacidadeMisturador}
                         step={1}
                         value={[m.proporcao_kg ?? 0]}
                         onValueChange={(vals) => handleProportionChange(i, vals[0])}
@@ -976,6 +984,7 @@ export function StepGranulometry({ data, onChange, readOnly }: StepGranulometryP
                       materiais: data.materiais_selecionados,
                       dna_selecionado: data.dna_selecionado,
                       limites_curva: data.limites_curva,
+                      tipo_analise: data.tipo_analise,
                     }).then(() => {
                       toast.success("Granulometria salva com sucesso!");
                       setIsPresetSaveOpen(false);
@@ -998,6 +1007,7 @@ export function StepGranulometry({ data, onChange, readOnly }: StepGranulometryP
                     materiais: data.materiais_selecionados,
                     dna_selecionado: data.dna_selecionado,
                     limites_curva: data.limites_curva,
+                    tipo_analise: data.tipo_analise,
                   }).then(() => {
                     toast.success("Granulometria salva com sucesso!");
                     setIsPresetSaveOpen(false);

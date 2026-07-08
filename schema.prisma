@@ -52,6 +52,7 @@ enum TipoProduto {
   bloco_vedacao
   paver
   cp
+  laje
 }
 
 enum AnalysisStatus {

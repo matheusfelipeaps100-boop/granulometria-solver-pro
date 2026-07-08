@@ -8,7 +8,7 @@ import { StepGranulometry } from "@/components/analysis/StepGranulometry";
 import { StepDosage } from "@/components/analysis/StepDosage";
 import { StepReview } from "@/components/analysis/StepReview";
 import { StepResult } from "@/components/analysis/StepResult";
-import { createEmptyAnalysis, PENEIRAS_PADRAO, type AnalysisFormData } from "@/lib/analysis-data";
+import { createEmptyAnalysis, PENEIRAS_PADRAO, getConfigMisturador, type AnalysisFormData } from "@/lib/analysis-data";
 import {
   ArrowLeft,
   ArrowRight,
@@ -130,7 +130,7 @@ const NewAnalysisPage = () => {
         return {
           material_id: am.material_id,
           nome: am.materials?.nome || "",
-            proporcao_kg: am.massa_kg ?? am.proporcao_kg ?? am.proporcao_pct * 550,
+            proporcao_kg: am.massa_kg ?? am.proporcao_kg ?? am.proporcao_pct * getConfigMisturador(analysisData.tipo).capacidade_kg,
           proporcao_pct: am.proporcao_pct ?? 0,
           densidade: am.materials?.densidade || 2.65,
           custo_tonelada: am.materials?.custo_tonelada ?? undefined,
@@ -154,7 +154,7 @@ const NewAnalysisPage = () => {
         consumo_alvo_m3: dosage?.consumo_cimento_kg || 137,
         volume_m3: dosage?.volume_batelada_litros
           ? dosage.volume_batelada_litros / 1000
-          : 0.55,
+          : getConfigMisturador(analysisData.tipo).volume_m3,
         densidade_cimento: dosage?.densidade_cimento || 3.15,
         aditivos_ml: dosage?.aditivos_ml || 0,
         materiais_selecionados: materiais,
