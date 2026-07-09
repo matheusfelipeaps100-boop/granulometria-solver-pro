@@ -188,71 +188,93 @@ const SettingsPage = () => {
             <CardHeader>
               <CardTitle className="text-base">Parâmetros de Cálculo</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Volume Batelada Padrão (L)</Label>
-                  <Input 
-                    type="number" 
-                    value={localParams.volume_batelada}
-                    onChange={e => setLocalParams(prev => ({ ...prev, volume_batelada: e.target.value }))}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Densidade Cimento (g/cm³)</Label>
-                  <Input 
-                    type="number" 
-                    step="0.01"
-                    value={localParams.densidade_cimento}
-                    onChange={e => setLocalParams(prev => ({ ...prev, densidade_cimento: e.target.value }))}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Fórmula Tensão — Bloco (Divisor A)</Label>
-                  <Input
-                    type="number"
-                    step="0.0001"
-                    value={localParams.formula_tensao_a}
-                    onChange={e => setLocalParams(prev => ({ ...prev, formula_tensao_a: e.target.value }))}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Fórmula Tensão — Bloco/Paver (Divisor B)</Label>
-                  <Input 
-                    type="number" 
-                    step="0.0001"
-                    value={localParams.formula_tensao_b}
-                    onChange={e => setLocalParams(prev => ({ ...prev, formula_tensao_b: e.target.value }))}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Fórmula Tensão — Piso/Paver</Label>
-                  <Input 
-                    type="number" 
-                    step="0.001"
-                    value={localParams.formula_tensao_paver}
-                    onChange={e => setLocalParams(prev => ({ ...prev, formula_tensao_paver: e.target.value }))}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Fórmula Tensão — Laje (Divisor)</Label>
-                  <Input
-                    type="number"
-                    step="0.001"
-                    value={localParams.formula_tensao_laje}
-                    onChange={e => setLocalParams(prev => ({ ...prev, formula_tensao_laje: e.target.value }))}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Fórmula Tensão — Laje (Multiplicador)</Label>
-                  <Input
-                    type="number"
-                    step="0.001"
-                    value={localParams.formula_tensao_laje_mult}
-                    onChange={e => setLocalParams(prev => ({ ...prev, formula_tensao_laje_mult: e.target.value }))}
-                  />
+            <CardContent className="space-y-6">
+              <div>
+                <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wide mb-3">Geral</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Volume Batelada Padrão (L)</Label>
+                    <Input
+                      type="number"
+                      value={localParams.volume_batelada}
+                      onChange={e => setLocalParams(prev => ({ ...prev, volume_batelada: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Densidade Cimento (g/cm³)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={localParams.densidade_cimento}
+                      onChange={e => setLocalParams(prev => ({ ...prev, densidade_cimento: e.target.value }))}
+                    />
+                  </div>
                 </div>
               </div>
+
+              <div>
+                <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wide mb-3">Bloco</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Bloco — Divisor A</Label>
+                    <Input
+                      type="number"
+                      step="0.0001"
+                      value={localParams.formula_tensao_a}
+                      onChange={e => setLocalParams(prev => ({ ...prev, formula_tensao_a: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Bloco — Divisor B</Label>
+                    <Input
+                      type="number"
+                      step="0.0001"
+                      value={localParams.formula_tensao_b}
+                      onChange={e => setLocalParams(prev => ({ ...prev, formula_tensao_b: e.target.value }))}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wide mb-3">Piso/Paver</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Piso/Paver — Fórmula</Label>
+                    <Input
+                      type="number"
+                      step="0.001"
+                      value={localParams.formula_tensao_paver}
+                      onChange={e => setLocalParams(prev => ({ ...prev, formula_tensao_paver: e.target.value }))}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wide mb-3">Laje</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Laje — Divisor</Label>
+                    <Input
+                      type="number"
+                      step="0.001"
+                      value={localParams.formula_tensao_laje}
+                      onChange={e => setLocalParams(prev => ({ ...prev, formula_tensao_laje: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Laje — Multiplicador</Label>
+                    <Input
+                      type="number"
+                      step="0.001"
+                      value={localParams.formula_tensao_laje_mult}
+                      onChange={e => setLocalParams(prev => ({ ...prev, formula_tensao_laje_mult: e.target.value }))}
+                    />
+                  </div>
+                </div>
+              </div>
+
               <p className="text-xs text-muted-foreground">Alterações afetam cálculos futuros. Análises existentes não são recalculadas.</p>
               <Button onClick={handleSaveParams} disabled={savingSettings}>
                 {savingSettings && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
