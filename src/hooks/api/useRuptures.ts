@@ -90,7 +90,7 @@ export function useRuptures() {
           batch_code,
           produced_at,
           status,
-          analyses (id, nome, codigo, tipo, resistencia_prevista)
+          analyses (id, nome, codigo, produto, tipo, resistencia_prevista)
         )
       `)
       .eq("id", scheduleId)
@@ -407,7 +407,7 @@ export function useScheduleDetail(scheduleId?: string) {
             batch_code,
             produced_at,
             status,
-            analyses (id, nome, codigo, tipo, resistencia_prevista)
+            analyses (id, nome, codigo, produto, tipo, resistencia_prevista)
           )
         `)
         .eq("id", scheduleId)

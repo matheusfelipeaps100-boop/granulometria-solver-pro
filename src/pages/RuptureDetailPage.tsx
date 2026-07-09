@@ -37,6 +37,12 @@ const tipoLabel: Record<TipoAmostra, string> = {
   laje: "Laje",
 };
 
+function normalizeTipoAmostra(tipo: string | null | undefined): TipoAmostra | null {
+  if (tipo === "bloco_estrutural" || tipo === "bloco_vedacao") return "bloco";
+  if (tipo === "paver" || tipo === "cp" || tipo === "laje") return tipo;
+  return null;
+}
+
 const RuptureDetailPage = () => {
   const { scheduleId } = useParams<{ scheduleId: string }>();
   const navigate = useNavigate();
@@ -53,6 +59,11 @@ const RuptureDetailPage = () => {
       analysis: (scheduleData.batch as any)?.analyses
     };
   }, [scheduleData]);
+
+  const tiposVisiveis = useMemo<TipoAmostra[]>(() => {
+    const norm = normalizeTipoAmostra(found?.analysis?.tipo);
+    return norm ? [norm] : [...TIPOS_AMOSTRA];
+  }, [found]);
 
   const [dataReal, setDataReal] = useState(new Date().toISOString().split("T")[0]);
   const [responsavel, setResponsavel] = useState("");
@@ -145,7 +156,7 @@ const RuptureDetailPage = () => {
   // Coletar pares (peso, resistência) para todas as amostras válidas
   const scatterData = useMemo(() => {
     const data: { tipo: string; peso: number; resistencia: number }[] = [];
-    for (const tipo of TIPOS_AMOSTRA) {
+    for (const tipo of tiposVisiveis) {
       samples[tipo].forEach((s) => {
         const peso = parseFloat(s.peso_kg || "");
         const forca = parseFloat(s.forca_kn || "");
@@ -157,7 +168,7 @@ const RuptureDetailPage = () => {
       });
     }
     return data;
-  }, [samples, calcTensaoPorTipo]);
+  }, [samples, calcTensaoPorTipo, tiposVisiveis]);
 
   // Dados para gráfico Peso × Tempo de Ciclo
   // Supondo que cada schedule tem um idade_dias e samples preenchidas
@@ -209,7 +220,7 @@ const RuptureDetailPage = () => {
     const divisorLaje = settings?.formula_tensao_laje;
     const multiplicadorLaje = settings?.formula_tensao_laje_mult;
 
-    for (const tipo of TIPOS_AMOSTRA) {
+    for (const tipo of tiposVisiveis) {
       const meta = getMetaForAge(tipo, idadeDias, settings, metaFinal);
       const forcas = samples[tipo]
         .map((s) => parseFloat(s.forca_kn))
@@ -239,7 +250,7 @@ const RuptureDetailPage = () => {
       }
     }
     return result;
-  }, [samples, found, areas, settings]);
+  }, [samples, found, areas, settings, tiposVisiveis]);
 
   if (!found) {
     return (
@@ -283,7 +294,7 @@ const RuptureDetailPage = () => {
       return;
     }
 
-    const tipoComAmostra = TIPOS_AMOSTRA.find((tipo) =>
+    const tipoComAmostra = tiposVisiveis.find((tipo) =>
       samples[tipo].some((s) => s.forca_kn && parseFloat(s.forca_kn) > 0)
     );
     if (!tipoComAmostra) {
@@ -339,7 +350,7 @@ const RuptureDetailPage = () => {
       return;
     }
 
-    const tipoComAmostra = TIPOS_AMOSTRA.find((tipo) =>
+    const tipoComAmostra = tiposVisiveis.find((tipo) =>
       samples[tipo].some((s) => s.forca_kn && parseFloat(s.forca_kn) > 0)
     );
 
@@ -385,7 +396,7 @@ const RuptureDetailPage = () => {
   };
 
   const handleUpdate = async () => {
-    const tipoComAmostra = TIPOS_AMOSTRA.find((tipo) =>
+    const tipoComAmostra = tiposVisiveis.find((tipo) =>
       samples[tipo].some((s) => s.forca_kn && parseFloat(s.forca_kn) > 0)
     );
     if (!tipoComAmostra) {
@@ -443,7 +454,7 @@ const RuptureDetailPage = () => {
             {isReadOnly ? "Visualização de Rompimento" : isAdmin && isConcluido ? "Edição de Rompimento" : "Lançamento de Rompimento"} — {schedule.idade_dias} dias
           </h1>
           <p className="text-sm text-muted-foreground">
-            {batch.batch_code} · {analysis?.nome ?? "—"}
+            {batch.batch_code} · {analysis?.produto ?? analysis?.nome ?? "—"}
           </p>
         </div>
       </div>
@@ -462,7 +473,7 @@ const RuptureDetailPage = () => {
             </div>
             <div>
               <p className="text-muted-foreground">Produto</p>
-              <p className="font-medium">{analysis?.nome ?? "—"}</p>
+              <p className="font-medium">{analysis?.produto ?? analysis?.nome ?? "—"}</p>
             </div>
             <div>
               <p className="text-muted-foreground">Data Produção</p>
@@ -516,7 +527,7 @@ const RuptureDetailPage = () => {
       </div>
 
       {/* Blocos de amostras por tipo (PRD: bloco, paver, cp) */}
-      {TIPOS_AMOSTRA.map((tipo) => {
+      {tiposVisiveis.map((tipo) => {
         const stats = statsPerTipo[tipo];
         return (
           <Card key={tipo} className="shadow-sm border-l-4 border-l-primary/30">
