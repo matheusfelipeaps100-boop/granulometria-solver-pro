@@ -44,6 +44,7 @@ const SettingsPage = () => {
     formula_tensao_a: "0.0546",
     formula_tensao_b: "98.0665",
     formula_tensao_paver: "1.729",
+    formula_tensao_laje: "78.54",
   });
 
   useEffect(() => {
@@ -54,6 +55,7 @@ const SettingsPage = () => {
         formula_tensao_a: String(settings.formula_tensao_a),
         formula_tensao_b: String(settings.formula_tensao_b),
         formula_tensao_paver: String(settings.formula_tensao_paver),
+        formula_tensao_laje: String(settings.formula_tensao_laje),
       });
     }
   }, [settings]);
@@ -73,8 +75,9 @@ const SettingsPage = () => {
     const fa = parseFloat(localParams.formula_tensao_a);
     const fb = parseFloat(localParams.formula_tensao_b);
     const fp = parseFloat(localParams.formula_tensao_paver);
+    const fl = parseFloat(localParams.formula_tensao_laje);
 
-    if (isNaN(vol) || isNaN(dens) || isNaN(fa) || isNaN(fb) || isNaN(fp)) {
+    if (isNaN(vol) || isNaN(dens) || isNaN(fa) || isNaN(fb) || isNaN(fp) || isNaN(fl)) {
       toast.error("Por favor, preencha valores numéricos válidos.");
       return;
     }
@@ -86,6 +89,7 @@ const SettingsPage = () => {
         formula_tensao_a: fa,
         formula_tensao_b: fb,
         formula_tensao_paver: fp,
+        formula_tensao_laje: fl,
       });
       toast.success("Parâmetros de cálculo salvos com sucesso.");
     } catch (error) {
@@ -224,6 +228,15 @@ const SettingsPage = () => {
                     step="0.001"
                     value={localParams.formula_tensao_paver}
                     onChange={e => setLocalParams(prev => ({ ...prev, formula_tensao_paver: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Fórmula Tensão — Laje (divisor)</Label>
+                  <Input
+                    type="number"
+                    step="0.001"
+                    value={localParams.formula_tensao_laje}
+                    onChange={e => setLocalParams(prev => ({ ...prev, formula_tensao_laje: e.target.value }))}
                   />
                 </div>
               </div>

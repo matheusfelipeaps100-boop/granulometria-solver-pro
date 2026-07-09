@@ -988,7 +988,7 @@ export function StepGranulometry({ data, onChange, readOnly }: StepGranulometryP
                     }).then(() => {
                       toast.success("Granulometria salva com sucesso!");
                       setIsPresetSaveOpen(false);
-                    }).catch(() => toast.error("Erro ao salvar granulometria"));
+                    }).catch((err) => toast.error(err?.message || "Erro ao salvar granulometria"));
                   }
                 }}
                 autoFocus
@@ -1011,7 +1011,7 @@ export function StepGranulometry({ data, onChange, readOnly }: StepGranulometryP
                   }).then(() => {
                     toast.success("Granulometria salva com sucesso!");
                     setIsPresetSaveOpen(false);
-                  }).catch(() => toast.error("Erro ao salvar granulometria"));
+                  }).catch((err) => toast.error(err?.message || "Erro ao salvar granulometria"));
                 }}
               >
                 <Save className="h-3 w-3 mr-1" />

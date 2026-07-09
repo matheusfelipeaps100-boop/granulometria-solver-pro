@@ -17,7 +17,7 @@ import { useRuptures, useScheduleDetail } from "@/hooks/api/useRuptures";
 import { useProfiles } from "@/hooks/api/useProfiles";
 import { useTechnicalSettings } from "@/hooks/api/useTechnicalSettings";
 import { TIPOS_ANALISE } from "@/lib/analysis-data";
-import { calcTensao, calcRuptureStats, AREAS_PADRAO, calcTensaoPaver, calcRuptureStatsPaver, getMetaForAge } from "@/lib/granulometry-engine";
+import { calcTensao, calcRuptureStats, AREAS_PADRAO, calcTensaoPaver, calcRuptureStatsPaver, calcTensaoLaje, calcRuptureStatsLaje, getMetaForAge } from "@/lib/granulometry-engine";
 
 import { cn } from "@/lib/utils";
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LineChart, Line } from "recharts";
@@ -27,13 +27,14 @@ interface SampleInput {
   peso_kg?: string;
 }
 
-const TIPOS_AMOSTRA = ["bloco", "paver", "cp"] as const;
+const TIPOS_AMOSTRA = ["bloco", "paver", "cp", "laje"] as const;
 type TipoAmostra = typeof TIPOS_AMOSTRA[number];
 
 const tipoLabel: Record<TipoAmostra, string> = {
   bloco: "Bloco Estrutural",
   paver: "Paver",
   cp: "Corpo de Prova (CP)",
+  laje: "Laje",
 };
 
 const RuptureDetailPage = () => {
@@ -77,12 +78,18 @@ const RuptureDetailPage = () => {
       { forca_kn: "", peso_kg: "" },
       { forca_kn: "", peso_kg: "" }
     ],
+    laje: [
+      { forca_kn: "", peso_kg: "" },
+      { forca_kn: "", peso_kg: "" },
+      { forca_kn: "", peso_kg: "" }
+    ],
   });
 
   const [areas, setAreas] = useState<Record<TipoAmostra, number>>({
     bloco: AREAS_PADRAO.bloco_14,
     paver: AREAS_PADRAO.paver,
     cp: AREAS_PADRAO.cp_10x20,
+    laje: AREAS_PADRAO.custom,
   });
 
   // Pre-load data if available
@@ -125,6 +132,16 @@ const RuptureDetailPage = () => {
 
   const { settings } = useTechnicalSettings();
 
+  const calcTensaoPorTipo = useCallback((tipo: TipoAmostra, forca_kn: number) => {
+    if (tipo === "paver" && settings?.formula_tensao_paver) {
+      return calcTensaoPaver(forca_kn, settings.formula_tensao_paver, areas[tipo], settings?.formula_tensao_b);
+    }
+    if (tipo === "laje") {
+      return calcTensaoLaje(forca_kn, settings?.formula_tensao_laje);
+    }
+    return calcTensao(forca_kn, areas[tipo], settings?.formula_tensao_b);
+  }, [areas, settings]);
+
   // Coletar pares (peso, resistência) para todas as amostras válidas
   const scatterData = useMemo(() => {
     const data: { tipo: string; peso: number; resistencia: number }[] = [];
@@ -134,18 +151,13 @@ const RuptureDetailPage = () => {
         const forca = parseFloat(s.forca_kn || "");
         if (!isNaN(peso) && peso > 0 && !isNaN(forca) && forca > 0) {
           // Calcular resistência (MPa)
-          let resistencia: number;
-          if (tipo === "paver" && settings?.formula_tensao_paver) {
-            resistencia = calcTensaoPaver(forca, settings.formula_tensao_paver, areas[tipo], settings?.formula_tensao_b);
-          } else {
-            resistencia = calcTensao(forca, areas[tipo], settings?.formula_tensao_b);
-          }
+          const resistencia = calcTensaoPorTipo(tipo, forca);
           data.push({ tipo, peso, resistencia });
         }
       });
     }
     return data;
-  }, [samples, areas, settings]);
+  }, [samples, calcTensaoPorTipo]);
 
   // Dados para gráfico Peso × Tempo de Ciclo
   // Supondo que cada schedule tem um idade_dias e samples preenchidas
@@ -187,12 +199,14 @@ const RuptureDetailPage = () => {
       bloco: null,
       paver: null,
       cp: null,
+      laje: null,
     };
 
     // Usar parâmetros técnicos do banco ou fallbacks do motor
     const divisorA = settings?.formula_tensao_a;
     const divisorB = settings?.formula_tensao_b;
     const multiplicadorPaver = settings?.formula_tensao_paver;
+    const divisorLaje = settings?.formula_tensao_laje;
 
     for (const tipo of TIPOS_AMOSTRA) {
       const meta = getMetaForAge(tipo, idadeDias, settings, metaFinal);
@@ -203,17 +217,20 @@ const RuptureDetailPage = () => {
         if (tipo === "paver" && multiplicadorPaver) {
           // Para paver, usar a fórmula especial: Tensão × multiplicador
           result[tipo] = calcRuptureStatsPaver(
-            forcas, 
-            meta, 
+            forcas,
+            meta,
             multiplicadorPaver,
             areas[tipo] || AREAS_PADRAO.paver,
             divisorB
           );
+        } else if (tipo === "laje") {
+          // Para laje, usar a fórmula especial: (TF ÷ divisor) × 100
+          result[tipo] = calcRuptureStatsLaje(forcas, meta, divisorLaje);
         } else {
           // Para bloco e cp, usar a fórmula padrão: Força ÷ divisor_a ÷ divisor_b
           result[tipo] = calcRuptureStats(
-            forcas, 
-            meta, 
+            forcas,
+            meta,
             areas[tipo] || divisorA, // Usa área específica ou fallback do divisor A
             divisorB
           );
@@ -298,7 +315,7 @@ const RuptureDetailPage = () => {
             numero: idx + 1,
             forca_kn: parseFloat(s.forca_kn),
             peso_kg: s.peso_kg ? parseFloat(s.peso_kg) : undefined,
-            tensao_mpa: calcTensao(parseFloat(s.forca_kn), areas[tipoComAmostra]),
+            tensao_mpa: calcTensaoPorTipo(tipoComAmostra, parseFloat(s.forca_kn)),
             status: "concluido"
           }))
         }
@@ -350,7 +367,7 @@ const RuptureDetailPage = () => {
             numero: idx + 1,
             forca_kn: parseFloat(s.forca_kn),
             peso_kg: s.peso_kg ? parseFloat(s.peso_kg) : undefined,
-            tensao_mpa: calcTensao(parseFloat(s.forca_kn), areas[tipoComAmostra]),
+            tensao_mpa: calcTensaoPorTipo(tipoComAmostra, parseFloat(s.forca_kn)),
             status: "concluido"
           }))
         }
@@ -394,9 +411,7 @@ const RuptureDetailPage = () => {
             numero: idx + 1,
             forca_kn: parseFloat(s.forca_kn),
             peso_kg: s.peso_kg ? parseFloat(s.peso_kg) : null,
-            tensao_mpa: tipoComAmostra === "paver" && settings?.formula_tensao_paver
-              ? calcTensaoPaver(parseFloat(s.forca_kn), settings.formula_tensao_paver, areas[tipoComAmostra], settings?.formula_tensao_b)
-              : calcTensao(parseFloat(s.forca_kn), areas[tipoComAmostra], settings?.formula_tensao_b),
+            tensao_mpa: calcTensaoPorTipo(tipoComAmostra, parseFloat(s.forca_kn)),
             status: "concluido"
           }))
         }
@@ -539,9 +554,7 @@ const RuptureDetailPage = () => {
                 {samples[tipo].map((sample, i) => {
                   const forca = parseFloat(sample.forca_kn);
                   const tensao = !isNaN(forca) && forca > 0
-                    ? tipo === "paver" && settings?.formula_tensao_paver
-                      ? calcTensaoPaver(forca, settings.formula_tensao_paver, areas[tipo], settings?.formula_tensao_b)
-                      : calcTensao(forca, areas[tipo], settings?.formula_tensao_b)
+                    ? calcTensaoPorTipo(tipo, forca)
                     : null;
                   return (
                     <div key={i} className="relative group">

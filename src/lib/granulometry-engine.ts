@@ -239,17 +239,64 @@ export function calcTensaoPaver(
 }
 
 /**
+ * CÁLCULO 6.2 — Tensão de rompimento para Laje
+ * Fórmula: Resultado = (TF ÷ divisor) × 100
+ */
+export function calcTensaoLaje(
+  forca_kn: number,
+  divisor: number = 78.54
+): number {
+  if (forca_kn <= 0) return 0;
+  return Math.round((forca_kn / divisor) * 100 * 10000) / 10000;
+}
+
+/**
+ * CÁLCULO 7.2 — Estatísticas de rompimento para Laje
+ * Usa calcTensaoLaje: Resultado = (TF ÷ divisor) × 100
+ */
+export function calcRuptureStatsLaje(
+  forcas: number[],
+  meta_mpa: number,
+  divisor: number = 78.54
+): RuptureStats {
+  const tensoes = forcas.map((f) => calcTensaoLaje(f, divisor));
+  const media = tensoes.reduce((a, b) => a + b, 0) / tensoes.length;
+  const variance =
+    tensoes.reduce((v, t) => v + Math.pow(t - media, 2), 0) / tensoes.length;
+
+  const desvio_padrao = Math.sqrt(variance);
+  const cv = media > 0 ? (desvio_padrao / media) * 100 : 0;
+
+  return {
+    tensoes,
+    media: Math.round(media * 100) / 100,
+    minimo: Math.min(...tensoes),
+    maximo: Math.max(...tensoes),
+    desvio_padrao: Math.round(desvio_padrao * 100) / 100,
+    coeficiente_variacao: Math.round(cv * 100) / 100,
+    meta_mpa,
+    conforme: meta_mpa > 0 ? media >= meta_mpa : null,
+    status:
+      meta_mpa > 0
+        ? media >= meta_mpa
+          ? "conforme"
+          : "nao_conforme"
+        : "registro",
+  };
+}
+
+/**
  * Resolve a meta de resistência esperada para a idade do ensaio (1d/3d/7d/28d),
  * caindo de volta para a meta final do produto quando não houver meta configurada
  * para aquela idade/tipo (ex.: corpo de prova "cp", que não tem metas por idade).
  */
 export function getMetaForAge(
-  tipo: "bloco" | "paver" | "cp",
+  tipo: "bloco" | "paver" | "cp" | "laje",
   idadeDias: number,
   settings: Partial<Record<string, number>> | null | undefined,
   metaFinal: number
 ): number {
-  if (!settings || tipo === "cp") return metaFinal;
+  if (!settings || tipo === "cp" || tipo === "laje") return metaFinal;
   const valor = settings[`${tipo}_meta_${idadeDias}d`];
   return typeof valor === "number" && valor > 0 ? valor : metaFinal;
 }

@@ -10,6 +10,7 @@ export interface TechnicalSettings {
   formula_tensao_a: number;
   formula_tensao_b: number;
   formula_tensao_paver: number;
+  formula_tensao_laje: number;
   bloco_meta_1d: number;
   bloco_meta_3d: number;
   bloco_meta_7d: number;
