@@ -531,11 +531,14 @@ const RuptureDetailPage = () => {
       {/* Blocos de amostras por tipo (PRD: bloco, paver, cp) */}
       {tiposVisiveis.map((tipo) => {
         const stats = statsPerTipo[tipo];
+        const cardTitle = tipo === "bloco" && found?.analysis?.tipo === "bloco_vedacao"
+          ? "Bloco de Vedação"
+          : tipoLabel[tipo];
         return (
           <Card key={tipo} className="shadow-sm border-l-4 border-l-primary/30">
             <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
               <div className="space-y-1">
-                <CardTitle className="text-base">{tipoLabel[tipo]}</CardTitle>
+                <CardTitle className="text-base">{cardTitle}</CardTitle>
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">
                   Ensaios Técnicos
                 </p>
