@@ -191,11 +191,12 @@ const SettingsPage = () => {
             <CardContent className="space-y-6">
               <div>
                 <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wide mb-3">Geral</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex flex-wrap gap-4">
                   <div className="space-y-2">
                     <Label>Volume Batelada Padrão (L)</Label>
                     <Input
                       type="number"
+                      className="w-32"
                       value={localParams.volume_batelada}
                       onChange={e => setLocalParams(prev => ({ ...prev, volume_batelada: e.target.value }))}
                     />
@@ -205,6 +206,7 @@ const SettingsPage = () => {
                     <Input
                       type="number"
                       step="0.01"
+                      className="w-32"
                       value={localParams.densidade_cimento}
                       onChange={e => setLocalParams(prev => ({ ...prev, densidade_cimento: e.target.value }))}
                     />
@@ -214,12 +216,13 @@ const SettingsPage = () => {
 
               <div>
                 <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wide mb-3">Bloco</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex flex-wrap gap-4">
                   <div className="space-y-2">
                     <Label>Bloco — Divisor A</Label>
                     <Input
                       type="number"
                       step="0.0001"
+                      className="w-32"
                       value={localParams.formula_tensao_a}
                       onChange={e => setLocalParams(prev => ({ ...prev, formula_tensao_a: e.target.value }))}
                     />
@@ -229,6 +232,7 @@ const SettingsPage = () => {
                     <Input
                       type="number"
                       step="0.0001"
+                      className="w-32"
                       value={localParams.formula_tensao_b}
                       onChange={e => setLocalParams(prev => ({ ...prev, formula_tensao_b: e.target.value }))}
                     />
@@ -238,12 +242,13 @@ const SettingsPage = () => {
 
               <div>
                 <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wide mb-3">Piso/Paver</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex flex-wrap gap-4">
                   <div className="space-y-2">
                     <Label>Piso/Paver — Fórmula</Label>
                     <Input
                       type="number"
                       step="0.001"
+                      className="w-32"
                       value={localParams.formula_tensao_paver}
                       onChange={e => setLocalParams(prev => ({ ...prev, formula_tensao_paver: e.target.value }))}
                     />
@@ -253,12 +258,13 @@ const SettingsPage = () => {
 
               <div>
                 <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wide mb-3">Laje</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex flex-wrap gap-4">
                   <div className="space-y-2">
                     <Label>Laje — Divisor</Label>
                     <Input
                       type="number"
                       step="0.001"
+                      className="w-32"
                       value={localParams.formula_tensao_laje}
                       onChange={e => setLocalParams(prev => ({ ...prev, formula_tensao_laje: e.target.value }))}
                     />
@@ -268,6 +274,7 @@ const SettingsPage = () => {
                     <Input
                       type="number"
                       step="0.001"
+                      className="w-32"
                       value={localParams.formula_tensao_laje_mult}
                       onChange={e => setLocalParams(prev => ({ ...prev, formula_tensao_laje_mult: e.target.value }))}
                     />
