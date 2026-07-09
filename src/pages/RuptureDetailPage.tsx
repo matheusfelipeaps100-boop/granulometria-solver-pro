@@ -39,7 +39,9 @@ const tipoLabel: Record<TipoAmostra, string> = {
 
 function normalizeTipoAmostra(tipo: string | null | undefined): TipoAmostra | null {
   if (tipo === "bloco_estrutural" || tipo === "bloco_vedacao") return "bloco";
-  if (tipo === "paver" || tipo === "cp" || tipo === "laje") return tipo;
+  if (tipo === "paver") return "paver";
+  // Ainda não fazemos ensaio de rompimento específico para Laje — tratar como Corpo de Prova (CP)
+  if (tipo === "cp" || tipo === "laje") return "cp";
   return null;
 }
 
