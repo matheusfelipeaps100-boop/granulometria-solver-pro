@@ -45,6 +45,7 @@ const SettingsPage = () => {
     formula_tensao_b: "98.0665",
     formula_tensao_paver: "1.729",
     formula_tensao_laje: "78.54",
+    formula_tensao_laje_mult: "100",
   });
 
   useEffect(() => {
@@ -56,6 +57,7 @@ const SettingsPage = () => {
         formula_tensao_b: String(settings.formula_tensao_b),
         formula_tensao_paver: String(settings.formula_tensao_paver),
         formula_tensao_laje: String(settings.formula_tensao_laje),
+        formula_tensao_laje_mult: String(settings.formula_tensao_laje_mult),
       });
     }
   }, [settings]);
@@ -76,8 +78,9 @@ const SettingsPage = () => {
     const fb = parseFloat(localParams.formula_tensao_b);
     const fp = parseFloat(localParams.formula_tensao_paver);
     const fl = parseFloat(localParams.formula_tensao_laje);
+    const flm = parseFloat(localParams.formula_tensao_laje_mult);
 
-    if (isNaN(vol) || isNaN(dens) || isNaN(fa) || isNaN(fb) || isNaN(fp) || isNaN(fl)) {
+    if (isNaN(vol) || isNaN(dens) || isNaN(fa) || isNaN(fb) || isNaN(fp) || isNaN(fl) || isNaN(flm)) {
       toast.error("Por favor, preencha valores numéricos válidos.");
       return;
     }
@@ -90,6 +93,7 @@ const SettingsPage = () => {
         formula_tensao_b: fb,
         formula_tensao_paver: fp,
         formula_tensao_laje: fl,
+        formula_tensao_laje_mult: flm,
       });
       toast.success("Parâmetros de cálculo salvos com sucesso.");
     } catch (error) {
@@ -204,16 +208,16 @@ const SettingsPage = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Fórmula Tensão — Divisor A</Label>
-                  <Input 
-                    type="number" 
+                  <Label>Fórmula Tensão — Bloco (Divisor A)</Label>
+                  <Input
+                    type="number"
                     step="0.0001"
                     value={localParams.formula_tensao_a}
                     onChange={e => setLocalParams(prev => ({ ...prev, formula_tensao_a: e.target.value }))}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Fórmula Tensão — Divisor B</Label>
+                  <Label>Fórmula Tensão — Bloco/Paver (Divisor B)</Label>
                   <Input 
                     type="number" 
                     step="0.0001"
@@ -231,12 +235,21 @@ const SettingsPage = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Fórmula Tensão — Laje (divisor)</Label>
+                  <Label>Fórmula Tensão — Laje (Divisor)</Label>
                   <Input
                     type="number"
                     step="0.001"
                     value={localParams.formula_tensao_laje}
                     onChange={e => setLocalParams(prev => ({ ...prev, formula_tensao_laje: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Fórmula Tensão — Laje (Multiplicador)</Label>
+                  <Input
+                    type="number"
+                    step="0.001"
+                    value={localParams.formula_tensao_laje_mult}
+                    onChange={e => setLocalParams(prev => ({ ...prev, formula_tensao_laje_mult: e.target.value }))}
                   />
                 </div>
               </div>

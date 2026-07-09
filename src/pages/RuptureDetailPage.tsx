@@ -137,7 +137,7 @@ const RuptureDetailPage = () => {
       return calcTensaoPaver(forca_kn, settings.formula_tensao_paver, areas[tipo], settings?.formula_tensao_b);
     }
     if (tipo === "laje") {
-      return calcTensaoLaje(forca_kn, settings?.formula_tensao_laje);
+      return calcTensaoLaje(forca_kn, settings?.formula_tensao_laje, settings?.formula_tensao_laje_mult);
     }
     return calcTensao(forca_kn, areas[tipo], settings?.formula_tensao_b);
   }, [areas, settings]);
@@ -207,6 +207,7 @@ const RuptureDetailPage = () => {
     const divisorB = settings?.formula_tensao_b;
     const multiplicadorPaver = settings?.formula_tensao_paver;
     const divisorLaje = settings?.formula_tensao_laje;
+    const multiplicadorLaje = settings?.formula_tensao_laje_mult;
 
     for (const tipo of TIPOS_AMOSTRA) {
       const meta = getMetaForAge(tipo, idadeDias, settings, metaFinal);
@@ -224,8 +225,8 @@ const RuptureDetailPage = () => {
             divisorB
           );
         } else if (tipo === "laje") {
-          // Para laje, usar a fórmula especial: (TF ÷ divisor) × 100
-          result[tipo] = calcRuptureStatsLaje(forcas, meta, divisorLaje);
+          // Para laje, usar a fórmula especial: (TF ÷ divisor) × multiplicador
+          result[tipo] = calcRuptureStatsLaje(forcas, meta, divisorLaje, multiplicadorLaje);
         } else {
           // Para bloco e cp, usar a fórmula padrão: Força ÷ divisor_a ÷ divisor_b
           result[tipo] = calcRuptureStats(

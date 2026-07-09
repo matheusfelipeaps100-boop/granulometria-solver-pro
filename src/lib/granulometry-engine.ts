@@ -240,26 +240,28 @@ export function calcTensaoPaver(
 
 /**
  * CÁLCULO 6.2 — Tensão de rompimento para Laje
- * Fórmula: Resultado = (TF ÷ divisor) × 100
+ * Fórmula: Resultado = (TF ÷ divisor) × multiplicador
  */
 export function calcTensaoLaje(
   forca_kn: number,
-  divisor: number = 78.54
+  divisor: number = 78.54,
+  multiplicador: number = 100
 ): number {
   if (forca_kn <= 0) return 0;
-  return Math.round((forca_kn / divisor) * 100 * 10000) / 10000;
+  return Math.round((forca_kn / divisor) * multiplicador * 10000) / 10000;
 }
 
 /**
  * CÁLCULO 7.2 — Estatísticas de rompimento para Laje
- * Usa calcTensaoLaje: Resultado = (TF ÷ divisor) × 100
+ * Usa calcTensaoLaje: Resultado = (TF ÷ divisor) × multiplicador
  */
 export function calcRuptureStatsLaje(
   forcas: number[],
   meta_mpa: number,
-  divisor: number = 78.54
+  divisor: number = 78.54,
+  multiplicador: number = 100
 ): RuptureStats {
-  const tensoes = forcas.map((f) => calcTensaoLaje(f, divisor));
+  const tensoes = forcas.map((f) => calcTensaoLaje(f, divisor, multiplicador));
   const media = tensoes.reduce((a, b) => a + b, 0) / tensoes.length;
   const variance =
     tensoes.reduce((v, t) => v + Math.pow(t - media, 2), 0) / tensoes.length;
