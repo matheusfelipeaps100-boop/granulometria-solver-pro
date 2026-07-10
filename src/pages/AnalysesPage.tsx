@@ -135,7 +135,8 @@ const AnalysesPage = () => {
     const matchSearch =
       !search ||
       a.codigo.toLowerCase().includes(search.toLowerCase()) ||
-      a.nome.toLowerCase().includes(search.toLowerCase());
+      a.nome.toLowerCase().includes(search.toLowerCase()) ||
+      (a.produto ?? "").toLowerCase().includes(search.toLowerCase());
     const matchTipo = filterTipo === "all" || a.tipo === filterTipo;
     const matchStatus = filterStatus === "all" || a.status === filterStatus;
     const rawAnalise = analyses.find((r) => r.id === a.id);
