@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { usePersistedState } from "@/hooks/usePersistedState";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { getDefaultDateFilter, isInDateRange, formatPeriodLabel } from "@/lib/dateFilter";
@@ -39,9 +40,9 @@ const RupturesPage = () => {
   const canCompleteRupture = profile ? hasActionPermission(profile.role, "rupture:complete") : false;
   const canReleaseEarlyPermission = profile ? hasActionPermission(profile.role, "rupture:early_release") : false;
 
-  const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [dateFilter, setDateFilter] = useState<DateFilter>(getDefaultDateFilter());
+  const [search, setSearch] = usePersistedState("ruptures:search", "");
+  const [filterStatus, setFilterStatus] = usePersistedState<string>("ruptures:filterStatus", "all");
+  const [dateFilter, setDateFilter] = usePersistedState<DateFilter>("ruptures:dateFilter", getDefaultDateFilter());
   
   // States of early release modal
   const [releaseModalOpen, setReleaseModalOpen] = useState(false);

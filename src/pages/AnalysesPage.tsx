@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { usePersistedState } from "@/hooks/usePersistedState";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -85,10 +86,10 @@ const AnalysesPage = () => {
     }
   };
 
-  const [search, setSearch] = useState("");
-  const [filterTipo, setFilterTipo] = useState("all");
-  const [filterStatus, setFilterStatus] = useState("all");
-  const [dateFilter, setDateFilter] = useState<DateFilter>(getDefaultDateFilter());
+  const [search, setSearch] = usePersistedState("analyses:search", "");
+  const [filterTipo, setFilterTipo] = usePersistedState("analyses:filterTipo", "all");
+  const [filterStatus, setFilterStatus] = usePersistedState("analyses:filterStatus", "all");
+  const [dateFilter, setDateFilter] = usePersistedState<DateFilter>("analyses:dateFilter", getDefaultDateFilter());
   const [editingNome, setEditingNome] = useState<{ id: string; value: string } | null>(null);
   const [editingData, setEditingData] = useState<{ id: string; value: string } | null>(null);
 

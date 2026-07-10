@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { usePersistedState } from "@/hooks/usePersistedState";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -16,8 +17,8 @@ const ReportsPage = () => {
   const { batches, isLoadingBatches } = useProduction();
   const navigate = useNavigate();
 
-  const [search, setSearch] = useState("");
-  const [dateFilter, setDateFilter] = useState<DateFilter>(getDefaultDateFilter());
+  const [search, setSearch] = usePersistedState("reports:search", "");
+  const [dateFilter, setDateFilter] = usePersistedState<DateFilter>("reports:dateFilter", getDefaultDateFilter());
 
   const allItems = useMemo(() =>
     batches.map((b) => {
