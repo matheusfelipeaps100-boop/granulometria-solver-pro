@@ -109,7 +109,7 @@ const RupturesPage = () => {
       if (search) {
         const q = search.toLowerCase();
         const matchLote = g.batch?.batch_code?.toLowerCase().includes(q);
-        const matchProduto = (g.analysis?.nome ?? "").toLowerCase().includes(q);
+        const matchProduto = ((g.analysis?.produto ?? g.analysis?.nome) ?? "").toLowerCase().includes(q);
         if (!matchLote && !matchProduto) return false;
       }
       if (filterStatus !== "all") {
