@@ -279,9 +279,11 @@ export function StepIdentification({ data, onChange }: StepIdentificationProps) 
           </Label>
           <Input
             value={data.codigo}
-            onChange={(e) => onChange({ codigo: e.target.value })}
+            readOnly
+            disabled
             placeholder="Ex: AN-2026-001"
             className="font-mono font-semibold"
+            title="Gerado automaticamente ao salvar, para evitar códigos duplicados"
           />
         </div>
       </div>

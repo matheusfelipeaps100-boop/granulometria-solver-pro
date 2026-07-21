@@ -141,12 +141,35 @@ export function useAnalyses() {
       if (!orgId) throw new Error("Usuário não tem organização vinculada");
       if (!profile?.id) throw new Error("Usuário não autenticado");
 
+      // Para análises novas (sem id), o código gerado no cliente é apenas um rascunho
+      // (aleatório). Antes de gravar, buscamos o próximo código sequencial real no
+      // banco para o ano/organização, evitando colisão com outra análise já existente.
+      let codigoFinal = formData.codigo;
+      if (!formData.id) {
+        const year = new Date().getFullYear();
+        const { data: existentes, error: seqError } = await supabase
+          .from("analyses")
+          .select("codigo")
+          .eq("organization_id", orgId)
+          .like("codigo", `ANL-${year}-%`);
+
+        if (seqError) throw seqError;
+
+        const maiorSeq = (existentes || []).reduce((max, row) => {
+          const match = /^ANL-\d{4}-(\d+)$/.exec(row.codigo || "");
+          const n = match ? parseInt(match[1], 10) : 0;
+          return n > max ? n : max;
+        }, 0);
+
+        codigoFinal = `ANL-${year}-${String(maiorSeq + 1).padStart(3, "0")}`;
+      }
+
       // 1. Inserir ou Atualizar Análise
       const { data: analysis, error: analysisError } = await supabase
         .from("analyses")
         .upsert([{
           organization_id: orgId,
-          codigo: formData.codigo,
+          codigo: codigoFinal,
           nome: formData.nome,
           tipo: formData.tipo_analise, // Map this correctly for the table
           produto: formData.produto_nome || null,

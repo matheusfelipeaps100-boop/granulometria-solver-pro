@@ -193,13 +193,9 @@ const NewAnalysisPage = () => {
 
   const handleSaveDraft = useCallback(async () => {
     try {
-      if (!formData.id) {
-        await createAnalysis({ formData, status: "rascunho", currentStep });
-      } else {
-        await createAnalysis({ formData, status: "rascunho", currentStep });
-      }
+      const result = await createAnalysis({ formData, status: "rascunho", currentStep });
       toast.success("Rascunho salvo com sucesso", {
-        description: `${formData.codigo} — Etapa ${currentStep} de 5`,
+        description: `${result.codigo} — Etapa ${currentStep} de 5`,
       });
       // clearDraft(); // Removido para não perder o rascunho em andamento
       navigate("/analyses");
