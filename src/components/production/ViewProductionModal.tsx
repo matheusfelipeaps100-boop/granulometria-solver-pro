@@ -12,7 +12,11 @@ import type { DBProductionBatch } from "@/hooks/api/useProduction";
 import { useMemo, useState } from "react";
 import { useProduction } from "@/hooks/api/useProduction";
 import { useTechnicalSettings } from "@/hooks/api/useTechnicalSettings";
+import { useAuth } from "@/hooks/useAuth";
+import { hasActionPermission } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Pencil, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ViewRuptureResultModal } from "../rupture/ViewRuptureResultModal";
@@ -28,8 +32,32 @@ export function ViewProductionModal({ open, onOpenChange, analysis, batch }: Vie
   const [selectedRupture, setSelectedRupture] = useState<any | null>(null);
   const [showRuptureResult, setShowRuptureResult] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const { deleteBatch, isDeleting } = useProduction();
+  const [isEditingCode, setIsEditingCode] = useState(false);
+  const [editedCode, setEditedCode] = useState("");
+  const { deleteBatch, updateBatchCode, isDeleting, isUpdatingBatchCode } = useProduction();
   const { settings } = useTechnicalSettings();
+  const { profile } = useAuth();
+  const canEditBatchCode = profile?.role ? hasActionPermission(profile.role, "batch:edit_code") : false;
+
+  const handleSaveBatchCode = async () => {
+    if (!batch) return;
+    const trimmed = editedCode.trim();
+    if (!trimmed) {
+      toast.error("O código do lote não pode ficar vazio.");
+      return;
+    }
+    if (trimmed === batch.batch_code) {
+      setIsEditingCode(false);
+      return;
+    }
+    try {
+      await updateBatchCode({ id: batch.id, batch_code: trimmed });
+      toast.success("Código do lote atualizado com sucesso!");
+      setIsEditingCode(false);
+    } catch (err: any) {
+      toast.error("Erro ao atualizar código do lote", { description: err?.message });
+    }
+  };
 
   if (!analysis) return null;
   const tipoLabel = TIPOS_ANALISE.find((t) => t.value === analysis.tipo_analise)?.label ?? "—";
@@ -117,7 +145,55 @@ export function ViewProductionModal({ open, onOpenChange, analysis, batch }: Vie
             <div className="rounded-md border p-4 space-y-2 text-sm">
               <h4 className="font-semibold text-foreground">Lote de Produção</h4>
               <div className="grid grid-cols-2 gap-2">
-                <div><span className="text-muted-foreground">Lote:</span> <strong>{batch.batch_code}</strong></div>
+                <div className="col-span-2 flex items-center gap-2">
+                  <span className="text-muted-foreground">Lote:</span>
+                  {isEditingCode ? (
+                    <>
+                      <Input
+                        value={editedCode}
+                        onChange={(e) => setEditedCode(e.target.value)}
+                        className="h-7 w-40 text-sm"
+                        autoFocus
+                        disabled={isUpdatingBatchCode}
+                      />
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7"
+                        onClick={handleSaveBatchCode}
+                        disabled={isUpdatingBatchCode}
+                      >
+                        <Check className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7"
+                        onClick={() => setIsEditingCode(false)}
+                        disabled={isUpdatingBatchCode}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <strong>{batch.batch_code}</strong>
+                      {canEditBatchCode && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6"
+                          onClick={() => {
+                            setEditedCode(batch.batch_code);
+                            setIsEditingCode(true);
+                          }}
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </>
+                  )}
+                </div>
                 <div><span className="text-muted-foreground">Operador:</span> {batch.operador_nome}</div>
                 <div><span className="text-muted-foreground">Máquina:</span> {batch.maquina}</div>
                 <div><span className="text-muted-foreground">Volume:</span> {batch.volume_produzido} L</div>

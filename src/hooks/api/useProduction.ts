@@ -122,6 +122,29 @@ export function useProduction() {
     },
   });
 
+  const updateBatchCodeMutation = useMutation({
+    mutationFn: async ({ id, batch_code }: { id: string; batch_code: string }) => {
+      const { data, error } = await supabase
+        .from("production_batches")
+        .update({ batch_code })
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) {
+        if (error.code === "23505") {
+          throw new Error("Já existe um lote com esse código.");
+        }
+        throw error;
+      }
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["production_batches", orgId] });
+      queryClient.invalidateQueries({ queryKey: ["rupture_schedules", orgId] });
+    },
+  });
+
   const deleteBatchMutation = useMutation({
     mutationFn: async (batchId: string) => {
       const { error } = await supabase
@@ -141,7 +164,9 @@ export function useProduction() {
     isLoadingBatches,
     createBatch: createBatchMutation.mutateAsync,
     deleteBatch: deleteBatchMutation.mutateAsync,
+    updateBatchCode: updateBatchCodeMutation.mutateAsync,
     isCreating: createBatchMutation.isPending,
     isDeleting: deleteBatchMutation.isPending,
+    isUpdatingBatchCode: updateBatchCodeMutation.isPending,
   };
 }

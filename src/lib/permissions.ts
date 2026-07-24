@@ -26,6 +26,7 @@ export const ACTION_PERMISSIONS: Record<string, UserRole[]> = {
   // Apenas ADMIN e PRODUCAO podem criar lotes de produção
   "batch:create": ["ADMIN", "PRODUCAO"],
   "batch:view": ["ADMIN", "PRODUCAO", "VENDAS", "GERENTE", "LABORATORIO"],
+  "batch:edit_code": ["ADMIN"],
 
   // Apenas ADMIN e LABORATORIO podem gerenciar rompimentos
   "rupture:complete": ["ADMIN", "LABORATORIO"],
