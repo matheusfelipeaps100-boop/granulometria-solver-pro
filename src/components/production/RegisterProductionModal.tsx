@@ -32,7 +32,10 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
   const [batchCode, setBatchCode] = useState(generateBatchCode);
   const [operador, setOperador] = useState("");
   const [maquina, setMaquina] = useState("");
-  const [dataProducao, setDataProducao] = useState(new Date().toISOString().slice(0, 16));
+  const toLocalDateTimeInput = (date: Date) =>
+    new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+
+  const [dataProducao, setDataProducao] = useState(toLocalDateTimeInput(new Date()));
   const [observacoes, setObservacoes] = useState("");
   const [aguaKg, setAguaKg] = useState<string>("");
   const [aditivoMl, setAditivoMl] = useState<string>("");
@@ -40,9 +43,9 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
   // Sincroniza data/hora com o momento de liberação da análise quando o modal abre
   useEffect(() => {
     if (analysis?.liberado_em) {
-      setDataProducao(new Date(analysis.liberado_em).toISOString().slice(0, 16));
+      setDataProducao(toLocalDateTimeInput(new Date(analysis.liberado_em)));
     } else {
-      setDataProducao(new Date().toISOString().slice(0, 16));
+      setDataProducao(toLocalDateTimeInput(new Date()));
     }
   }, [analysis?.id]);
 
@@ -107,7 +110,7 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
         maquina,
         volume_produzido: Math.round((analysis.formData.volume_m3 || 0.55) * 1000),
         notas: observacoes,
-        produced_at: dataProducao,
+        produced_at: new Date(dataProducao).toISOString(),
       });
 
       onOpenChange(false);

@@ -34,10 +34,28 @@ export function ViewProductionModal({ open, onOpenChange, analysis, batch }: Vie
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [isEditingCode, setIsEditingCode] = useState(false);
   const [editedCode, setEditedCode] = useState("");
-  const { deleteBatch, updateBatchCode, isDeleting, isUpdatingBatchCode } = useProduction();
+  const [isEditingDate, setIsEditingDate] = useState(false);
+  const [editedDate, setEditedDate] = useState("");
+  const { deleteBatch, updateBatchCode, updateBatchDate, isDeleting, isUpdatingBatchCode, isUpdatingBatchDate } = useProduction();
   const { settings } = useTechnicalSettings();
   const { profile } = useAuth();
   const canEditBatchCode = profile?.role ? hasActionPermission(profile.role, "batch:edit_code") : false;
+
+  const handleSaveBatchDate = async () => {
+    if (!batch || !editedDate) return;
+    const newIso = new Date(editedDate).toISOString();
+    if (newIso === new Date(batch.produced_at).toISOString()) {
+      setIsEditingDate(false);
+      return;
+    }
+    try {
+      await updateBatchDate({ id: batch.id, produced_at: newIso });
+      toast.success("Data de produção atualizada com sucesso!");
+      setIsEditingDate(false);
+    } catch (err: any) {
+      toast.error("Erro ao atualizar data de produção", { description: err?.message });
+    }
+  };
 
   const handleSaveBatchCode = async () => {
     if (!batch) return;
@@ -186,6 +204,58 @@ export function ViewProductionModal({ open, onOpenChange, analysis, batch }: Vie
                           onClick={() => {
                             setEditedCode(batch.batch_code);
                             setIsEditingCode(true);
+                          }}
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </>
+                  )}
+                </div>
+                <div className="col-span-2 flex items-center gap-2">
+                  <span className="text-muted-foreground">Data Produção:</span>
+                  {isEditingDate ? (
+                    <>
+                      <Input
+                        type="datetime-local"
+                        value={editedDate}
+                        onChange={(e) => setEditedDate(e.target.value)}
+                        className="h-7 w-48 text-sm"
+                        autoFocus
+                        disabled={isUpdatingBatchDate}
+                      />
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7"
+                        onClick={handleSaveBatchDate}
+                        disabled={isUpdatingBatchDate}
+                      >
+                        <Check className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7"
+                        onClick={() => setIsEditingDate(false)}
+                        disabled={isUpdatingBatchDate}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <strong>{new Date(batch.produced_at).toLocaleString("pt-BR")}</strong>
+                      {canEditBatchCode && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6"
+                          onClick={() => {
+                            const d = new Date(batch.produced_at);
+                            const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+                            setEditedDate(local.toISOString().slice(0, 16));
+                            setIsEditingDate(true);
                           }}
                         >
                           <Pencil className="h-3 w-3" />

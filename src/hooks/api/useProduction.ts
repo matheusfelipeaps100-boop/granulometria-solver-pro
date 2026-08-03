@@ -145,6 +145,24 @@ export function useProduction() {
     },
   });
 
+  const updateBatchDateMutation = useMutation({
+    mutationFn: async ({ id, produced_at }: { id: string; produced_at: string }) => {
+      const { data, error } = await supabase
+        .from("production_batches")
+        .update({ produced_at })
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["production_batches", orgId] });
+      queryClient.invalidateQueries({ queryKey: ["rupture_schedules", orgId] });
+    },
+  });
+
   const deleteBatchMutation = useMutation({
     mutationFn: async (batchId: string) => {
       const { error } = await supabase
@@ -165,8 +183,10 @@ export function useProduction() {
     createBatch: createBatchMutation.mutateAsync,
     deleteBatch: deleteBatchMutation.mutateAsync,
     updateBatchCode: updateBatchCodeMutation.mutateAsync,
+    updateBatchDate: updateBatchDateMutation.mutateAsync,
     isCreating: createBatchMutation.isPending,
     isDeleting: deleteBatchMutation.isPending,
     isUpdatingBatchCode: updateBatchCodeMutation.isPending,
+    isUpdatingBatchDate: updateBatchDateMutation.isPending,
   };
 }
