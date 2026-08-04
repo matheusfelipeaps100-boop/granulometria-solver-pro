@@ -77,7 +77,11 @@ const RupturesPage = () => {
       batched[bId].schedules.push({ ...s, status });
     });
 
-    return Object.values(batched);
+    return Object.values(batched).sort((a: any, b: any) => {
+      const dateA = a.batch?.produced_at ?? "";
+      const dateB = b.batch?.produced_at ?? "";
+      return dateB.localeCompare(dateA);
+    });
   }, [schedules, today]);
 
   // All schedules flat (for stats)
