@@ -87,18 +87,20 @@ export const LIMITES_BLOCO_PADRAO: Array<{ sieve_id: number; limite_min: number;
 ];
 
 // Limites normativos padrão para Lajes Protendidas — curva de máxima
-// compacidade para concreto seco de extrusão (espelho do seed
-// 017_seed_laje_curve.sql). Independente da curva de vibroprensados acima.
+// compacidade para concreto seco de extrusão/vibroacabadora (espelho do seed
+// 017_seed_laje_curve.sql, DNA "ABNT – Laje Protendida (Extrusão)").
+// Independente da curva de vibroprensados acima.
 // Usados como fallback quando o banco não retorna standard_curve_items.
 export const LIMITES_LAJE_PADRAO: Array<{ sieve_id: number; limite_min: number; limite_max: number }> = [
-  { sieve_id: 2,  limite_min: 0.00, limite_max: 0.13 },
-  { sieve_id: 3,  limite_min: 0.10, limite_max: 0.26 },
-  { sieve_id: 4,  limite_min: 0.20, limite_max: 0.36 },
-  { sieve_id: 5,  limite_min: 0.34, limite_max: 0.50 },
-  { sieve_id: 6,  limite_min: 0.50, limite_max: 0.66 },
-  { sieve_id: 7,  limite_min: 0.66, limite_max: 0.82 },
-  { sieve_id: 8,  limite_min: 0.80, limite_max: 0.96 },
-  { sieve_id: 9,  limite_min: 0.88, limite_max: 1.00 },
+  { sieve_id: 1,  limite_min: 0.00, limite_max: 0.00 },
+  { sieve_id: 2,  limite_min: 0.04, limite_max: 0.06 },
+  { sieve_id: 3,  limite_min: 0.16, limite_max: 0.20 },
+  { sieve_id: 4,  limite_min: 0.26, limite_max: 0.30 },
+  { sieve_id: 5,  limite_min: 0.40, limite_max: 0.44 },
+  { sieve_id: 6,  limite_min: 0.56, limite_max: 0.60 },
+  { sieve_id: 7,  limite_min: 0.72, limite_max: 0.76 },
+  { sieve_id: 8,  limite_min: 0.86, limite_max: 0.90 },
+  { sieve_id: 9,  limite_min: 0.94, limite_max: 0.98 },
   { sieve_id: 10, limite_min: 1.00, limite_max: 1.00 },
 ];
 
