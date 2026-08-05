@@ -20,7 +20,7 @@ export type StatusType =
   | "aguardando_rompimentos"
   | "aprovado_sem_ensaio";
 
-const statusConfig: Record<StatusType, { label: string; className: string }> = {
+export const statusConfig: Record<StatusType, { label: string; className: string }> = {
   rascunho: { label: "Rascunho", className: "bg-muted text-muted-foreground" },
   em_analise: { label: "Em Análise", className: "bg-info/15 text-info border-info/30" },
   aprovado: { label: "Aprovado", className: "bg-success/15 text-success border-success/30" },
