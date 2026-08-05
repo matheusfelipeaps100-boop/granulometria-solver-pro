@@ -5,10 +5,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Separator } from "@/components/ui/separator";
-import { useMemo } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 import {
   ArrowLeft,
   Printer,
@@ -20,8 +21,12 @@ import {
   Beaker,
   AlertTriangle,
   RefreshCw,
+  MessageCircle,
 } from "lucide-react";
 import { TIPOS_ANALISE, getLimitesPadrao } from "@/lib/analysis-data";
+import { generateElementPDF } from "@/lib/pdf-generator";
+import { useQualityReportStorage } from "@/hooks/useQualityReportStorage";
+import { statusConfig } from "@/components/StatusBadge";
 import {
   calcRuptureStats,
   calcCombinedCurve,
@@ -117,6 +122,10 @@ const QualityReportPage = () => {
   const identity = useAppStore((s) => s.identity);
   const { data, isLoading, isError, authLoading } = useBatchReport(batchId);
   const { curves: dbCurves } = useStandardCurves();
+  const { profile } = useAuth();
+  const { uploadReportPDF } = useQualityReportStorage();
+  const reportRef = useRef<HTMLDivElement>(null);
+  const [isSendingWhatsapp, setIsSendingWhatsapp] = useState(false);
 
   const batch = data?.batch as any;
   const analysis = batch?.analyses as any;
@@ -242,18 +251,69 @@ const QualityReportPage = () => {
 
   const analysisTypeMeta = TIPOS_ANALISE.find((t) => t.value === analysis.tipo);
 
+  const handleSendWhatsapp = async () => {
+    if (!reportRef.current || !profile?.organization_id) return;
+    setIsSendingWhatsapp(true);
+    try {
+      const blob = await generateElementPDF(reportRef.current);
+      const filename = `${batch.batch_code}.pdf`;
+      const publicUrl = await uploadReportPDF(batch.id, profile.organization_id, blob, filename);
+      if (!publicUrl) {
+        toast.error("Não foi possível gerar o link do laudo para envio.");
+        return;
+      }
+
+      const statusLabel = statusConfig[batch.status as keyof typeof statusConfig]?.label ?? batch.status;
+      const dataProducao = batch.produced_at.split("T")[0].split("-").reverse().join("/");
+      const mediaFinal = statsBySchedule[statsBySchedule.length - 1]?.results?.[0]?.stats.media;
+
+      const linhas = [
+        `*Laudo Técnico — ${identity.nome || "Granulometria Solver Pro"}*`,
+        `Produto: ${analysisTypeMeta?.label || analysis.tipo}`,
+        `Lote: ${batch.batch_code}`,
+        `Status: ${statusLabel}`,
+        `Data de Produção: ${dataProducao}`,
+        `Resistência Prevista: ${analysis.resistencia_prevista ?? "—"} MPa`,
+        mediaFinal ? `Resistência Atingida: ${mediaFinal.toFixed(2)} MPa` : null,
+        "",
+        `PDF do laudo: ${publicUrl}`,
+      ].filter(Boolean);
+
+      window.open(`https://wa.me/?text=${encodeURIComponent(linhas.join("\n"))}`, "_blank");
+    } catch (err) {
+      toast.error("Erro ao gerar o laudo para envio via WhatsApp.");
+    } finally {
+      setIsSendingWhatsapp(false);
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in pb-10 print:p-0">
       <div className="flex items-center justify-between print:hidden">
         <Button variant="ghost" size="sm" onClick={() => navigate("/reports")} className="gap-2">
           <ArrowLeft className="h-4 w-4" /> Relatórios
         </Button>
-        <Button onClick={() => window.print()} className="gap-2">
-          <Printer className="h-4 w-4" /> Imprimir Relatório
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={handleSendWhatsapp}
+            disabled={isSendingWhatsapp}
+            className="gap-2"
+          >
+            {isSendingWhatsapp ? (
+              <RefreshCw className="h-4 w-4 animate-spin" />
+            ) : (
+              <MessageCircle className="h-4 w-4" />
+            )}
+            Enviar via WhatsApp
+          </Button>
+          <Button onClick={() => window.print()} className="gap-2">
+            <Printer className="h-4 w-4" /> Imprimir Relatório
+          </Button>
+        </div>
       </div>
 
-      <Card className="max-w-[1000px] mx-auto shadow-xl border-t-8 border-t-primary rounded-xl print:shadow-none print:border-none print:max-w-full">
+      <Card ref={reportRef} className="max-w-[1000px] mx-auto shadow-xl border-t-8 border-t-primary rounded-xl print:shadow-none print:border-none print:max-w-full">
         <CardContent className="p-10 space-y-10">
           {/* Header */}
           <div className="flex justify-between items-start">

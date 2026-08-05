@@ -271,3 +271,34 @@ export function generateAnalysisPDF(data: AnalysisFormData, options?: PDFOptions
   // Download
   doc.save(`${data.codigo}_relatorio.pdf`);
 }
+
+/**
+ * Gera um PDF capturando fielmente um elemento DOM já renderizado
+ * (usado no Laudo Técnico do lote, que tem layout/print styling próprios
+ * em QualityReportPage — evita duplicar campos em um template separado).
+ * Retorna o Blob para upload (ex.: Supabase Storage) em vez de forçar
+ * download direto.
+ */
+export function generateElementPDF(element: HTMLElement): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const doc = new jsPDF("p", "mm", "a4");
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 8;
+
+    doc.html(element, {
+      x: margin,
+      y: margin,
+      width: pageWidth - margin * 2,
+      windowWidth: element.scrollWidth,
+      autoPaging: "text",
+      html2canvas: { useCORS: true, backgroundColor: "#ffffff" },
+      callback: (result) => {
+        try {
+          resolve(result.output("blob"));
+        } catch (err) {
+          reject(err);
+        }
+      },
+    });
+  });
+}
