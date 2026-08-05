@@ -8,7 +8,7 @@ import type { SieveData } from "./granulometry-engine";
 export interface Product {
   id: string;
   nome: string;
-  tipo_produto: "bloco_estrutural" | "bloco_vedacao" | "paver" | "cp";
+  tipo_produto: "bloco_estrutural" | "bloco_vedacao" | "paver" | "cp" | "laje";
   dimensoes: string;
   resistencia_referencia: number;
   ativo: boolean;
@@ -85,6 +85,34 @@ export const LIMITES_BLOCO_PADRAO: Array<{ sieve_id: number; limite_min: number;
   { sieve_id: 9,  limite_min: 0.85, limite_max: 0.97 },
   { sieve_id: 10, limite_min: 1.00, limite_max: 1.00 },
 ];
+
+// Limites normativos padrão para Lajes Protendidas — curva de máxima
+// compacidade para concreto seco de extrusão/vibroacabadora (espelho do seed
+// 017_seed_laje_curve.sql, DNA "ABNT – Laje Protendida (Extrusão)").
+// Independente da curva de vibroprensados acima.
+// Usados como fallback quando o banco não retorna standard_curve_items.
+export const LIMITES_LAJE_PADRAO: Array<{ sieve_id: number; limite_min: number; limite_max: number }> = [
+  { sieve_id: 1,  limite_min: 0.00, limite_max: 0.00 },
+  { sieve_id: 2,  limite_min: 0.04, limite_max: 0.06 },
+  { sieve_id: 3,  limite_min: 0.16, limite_max: 0.20 },
+  { sieve_id: 4,  limite_min: 0.26, limite_max: 0.30 },
+  { sieve_id: 5,  limite_min: 0.40, limite_max: 0.44 },
+  { sieve_id: 6,  limite_min: 0.56, limite_max: 0.60 },
+  { sieve_id: 7,  limite_min: 0.72, limite_max: 0.76 },
+  { sieve_id: 8,  limite_min: 0.86, limite_max: 0.90 },
+  { sieve_id: 9,  limite_min: 0.94, limite_max: 0.98 },
+  { sieve_id: 10, limite_min: 1.00, limite_max: 1.00 },
+];
+
+// Seleciona a curva de referência (fallback local) de acordo com o tipo de
+// produto/análise. Vibroprensados (bloco_estrutural, bloco_vedacao, paver,
+// cp, etc.) usam a curva atual; Lajes Protendidas usam a curva própria.
+// Ponto único de decisão — novas famílias de produto (tubos, postes,
+// vigotas, pilares, estacas...) só precisam de uma nova entrada aqui.
+export function getLimitesPadrao(tipo?: string): Array<{ sieve_id: number; limite_min: number; limite_max: number }> {
+  if (tipo === "laje") return LIMITES_LAJE_PADRAO;
+  return LIMITES_BLOCO_PADRAO;
+}
 
 // TODO: Load from Supabase using useProfiles() hook
 export const ANALISTAS = [];

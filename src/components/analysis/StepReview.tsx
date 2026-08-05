@@ -10,6 +10,7 @@ import {
   TIPOS_ANALISE,
   ANALISTAS,
   PENEIRAS_PADRAO,
+  getLimitesPadrao,
   type AnalysisFormData,
 } from "@/lib/analysis-data";
 import { useStandardCurves } from "@/hooks/api/useStandardCurves";
@@ -67,7 +68,10 @@ export function StepReview({ data, onApprove, onChange, readOnly = false }: Step
 
   const tipoLabel = TIPOS_ANALISE.find((t) => t.value === data.tipo_analise)?.label ?? "—";
   const dna = useMemo(() => {
-    const curve = dbCurves.find((c) => c.id === data.dna_selecionado) ?? dbCurves[0];
+    const curve =
+      dbCurves.find((c) => c.id === data.dna_selecionado) ??
+      dbCurves.find((c) => c.tipo_produto === data.tipo_analise && c.standard_curve_items?.length) ??
+      dbCurves[0];
     if (!curve) return undefined;
     return {
       id: curve.id,
@@ -78,12 +82,14 @@ export function StepReview({ data, onApprove, onChange, readOnly = false }: Step
         limite_max: item.limite_max,
       })),
     };
-  }, [dbCurves, data.dna_selecionado]);
+  }, [dbCurves, data.dna_selecionado, data.tipo_analise]);
+
+  const limites = dna?.limites?.length ? dna.limites : getLimitesPadrao(data.tipo_analise);
 
   const curveResults = useMemo(() => {
     if (data.materiais_selecionados.length === 0) return [];
-    return calcCombinedCurve(data.materiais_selecionados, dna?.limites);
-  }, [data.materiais_selecionados, dna]);
+    return calcCombinedCurve(data.materiais_selecionados, limites);
+  }, [data.materiais_selecionados, limites]);
 
   const curvaStatus = useMemo(() => calcCurvaStatus(curveResults), [curveResults]);
 

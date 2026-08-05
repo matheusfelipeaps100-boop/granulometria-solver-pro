@@ -37,7 +37,7 @@ import {
 } from "@/lib/granulometry-engine";
 import {
   PENEIRAS_PADRAO,
-  LIMITES_BLOCO_PADRAO,
+  getLimitesPadrao,
   getConfigMisturador,
   type AnalysisFormData,
   type AnalysisMaterial,
@@ -129,13 +129,19 @@ export function StepGranulometry({ data, onChange, readOnly }: StepGranulometryP
     }));
   }, [materials, totalKgMistura]);
 
-  const dna = dnasDisponiveis.find((d) => d.id === data.dna_selecionado) || dnasDisponiveis[0];
-  // Cascata: DB → form → normativo hardcoded (garante que limites nunca ficam vazios)
+  // Seleção automática do DNA: prioriza o salvo na análise; senão, o DNA
+  // do banco cujo tipo bate com o tipo de análise (garante que Lajes usam a
+  // curva de Laje, e vibroprensados continuam usando a curva atual).
+  const dna =
+    dnasDisponiveis.find((d) => d.id === data.dna_selecionado) ??
+    dnasDisponiveis.find((d) => d.tipo === data.tipo_analise && d.limites.length) ??
+    dnasDisponiveis[0];
+  // Cascata: DB → form → normativo hardcoded por tipo (garante que limites nunca ficam vazios)
   const limits = dna?.limites?.length
     ? dna.limites
     : data.limites_curva?.length
       ? data.limites_curva
-      : LIMITES_BLOCO_PADRAO;
+      : getLimitesPadrao(data.tipo_analise);
 
   // Persiste limites no form quando o DNA é auto-selecionado com dados do banco
   useEffect(() => {
