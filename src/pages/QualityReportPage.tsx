@@ -21,7 +21,7 @@ import {
   AlertTriangle,
   RefreshCw,
 } from "lucide-react";
-import { TIPOS_ANALISE, LIMITES_BLOCO_PADRAO } from "@/lib/analysis-data";
+import { TIPOS_ANALISE, getLimitesPadrao } from "@/lib/analysis-data";
 import {
   calcRuptureStats,
   calcCombinedCurve,
@@ -186,8 +186,8 @@ const QualityReportPage = () => {
         limite_max: item.limite_max,
       }));
     }
-    // Fallback: limites normativos padrão, igual ao StepGranulometry
-    return LIMITES_BLOCO_PADRAO;
+    // Fallback: limites normativos padrão por tipo, igual ao StepGranulometry
+    return getLimitesPadrao(tipoAnalise);
   }, [analysis, dbCurves]);
 
   const combinedCurve = useMemo(() => {

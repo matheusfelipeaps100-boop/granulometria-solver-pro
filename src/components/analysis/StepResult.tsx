@@ -20,6 +20,7 @@ import {
   TIPOS_ANALISE,
   ANALISTAS,
   PENEIRAS_PADRAO,
+  getLimitesPadrao,
   type AnalysisFormData,
 } from "@/lib/analysis-data";
 import { useStandardCurves } from "@/hooks/api/useStandardCurves";
@@ -68,7 +69,10 @@ export function StepResult({ data }: StepResultProps) {
   }, [dbMaterials]);
 
   const dna = useMemo(() => {
-    const curve = dbCurves.find((c) => c.id === data.dna_selecionado) ?? dbCurves[0];
+    const curve =
+      dbCurves.find((c) => c.id === data.dna_selecionado) ??
+      dbCurves.find((c) => c.tipo_produto === data.tipo_analise && c.standard_curve_items?.length) ??
+      dbCurves[0];
     if (!curve) return undefined;
     return {
       id: curve.id,
@@ -79,7 +83,9 @@ export function StepResult({ data }: StepResultProps) {
         limite_max: item.limite_max,
       })),
     };
-  }, [dbCurves, data.dna_selecionado]);
+  }, [dbCurves, data.dna_selecionado, data.tipo_analise]);
+
+  const limitesDna = dna?.limites?.length ? dna.limites : getLimitesPadrao(data.tipo_analise);
   const tipoLabel = TIPOS_ANALISE.find((t) => t.value === data.tipo_analise)?.label ?? "—";
   const analistaLabel = (data.analista || ANALISTAS.find((a) => a.id === data.analista)?.nome) ?? "—";
 
@@ -106,8 +112,8 @@ export function StepResult({ data }: StepResultProps) {
       m.gradations?.some(g => g.massa_retida > 0)
     );
     if (!temDados) return [];
-    return calcCombinedCurve(materiaisComProporcao, dna?.limites);
-  }, [materiaisComProporcao, dna]);
+    return calcCombinedCurve(materiaisComProporcao, limitesDna);
+  }, [materiaisComProporcao, limitesDna]);
 
   const totalKgMateriais = useMemo(
     () => data.materiais_selecionados.reduce((s, m) => s + (m.proporcao_kg ?? 0), 0),
@@ -221,8 +227,8 @@ export function StepResult({ data }: StepResultProps) {
   const handleExportPDF = async () => {
     setGeneratingPdf(true);
     try {
-      generateAnalysisPDF(data, { limitesDna: dna?.limites, dnaNome: dna?.nome });
-      await generateAnalysisExcel(data, { limitesDna: dna?.limites });
+      generateAnalysisPDF(data, { limitesDna, dnaNome: dna?.nome });
+      await generateAnalysisExcel(data, { limitesDna });
       toast.success("Relatório exportado com sucesso!", {
         description: `Arquivos ${data.codigo}_relatorio.pdf e .xlsx baixados`,
       });

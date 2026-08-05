@@ -25,6 +25,7 @@ const TIPOS_PRODUTO = [
   { value: "bloco_vedacao", label: "Bloco de Vedação" },
   { value: "paver", label: "Paver" },
   { value: "cp", label: "Corpo de Prova (CP)" },
+  { value: "laje", label: "Laje Protendida" },
 ];
 
 export function ProductTypeModal({ open, onOpenChange, editId }: Props) {
