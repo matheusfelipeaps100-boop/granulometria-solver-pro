@@ -284,14 +284,17 @@ export async function generateElementPDF(element: HTMLElement): Promise<Blob> {
   // Captura o elemento como imagem (fielmente igual ao que aparece na tela,
   // incluindo gráficos SVG do recharts) e depois fatia em páginas A4.
   const canvas = await html2canvas(element, {
-    scale: 2,
+    scale: 1.5,
     useCORS: true,
     backgroundColor: "#ffffff",
     windowWidth: element.scrollWidth,
     windowHeight: element.scrollHeight,
   });
 
-  const imgData = canvas.toDataURL("image/png");
+  // JPEG com compressão: um PNG de página inteira em alta resolução passa
+  // facilmente de 10MB e é rejeitado pelo Storage/upload; JPEG 0.85 fica
+  // na casa de 1-2MB mantendo boa legibilidade.
+  const imgData = canvas.toDataURL("image/jpeg", 0.85);
 
   const doc = new jsPDF("p", "mm", "a4");
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -303,13 +306,13 @@ export async function generateElementPDF(element: HTMLElement): Promise<Blob> {
   let heightLeft = imgHeight;
   let position = 0;
 
-  doc.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+  doc.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
   heightLeft -= pageHeight;
 
   while (heightLeft > 0) {
     position -= pageHeight;
     doc.addPage();
-    doc.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+    doc.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
     heightLeft -= pageHeight;
   }
 
