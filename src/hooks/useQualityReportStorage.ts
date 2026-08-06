@@ -23,8 +23,10 @@ export function useQualityReportStorage() {
     try {
       setUploadProgress({ isLoading: true, progress: 0, error: null });
 
-      // Crear ruta: org/{organizationId}/batches/{batchId}/reports/{filename}
-      const filePath = `org/${organizationId}/batches/${batchId}/reports/${filename}`;
+      // Caminho: {organizationId}/batches/{batchId}/reports/{filename}
+      // O primeiro segmento precisa ser o organization_id para bater com a
+      // policy de RLS do bucket (storage.foldername(name))[1] = organization_id.
+      const filePath = `${organizationId}/batches/${batchId}/reports/${filename}`;
 
       // Upload to Supabase Storage
       const { data, error } = await supabase.storage
