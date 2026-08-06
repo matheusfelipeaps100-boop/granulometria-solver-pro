@@ -4,6 +4,7 @@
 // =============================================================================
 
 import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 import { calcCombinedCurve, calcDosage } from "./granulometry-engine";
 import {
   PENEIRAS_PADRAO,
@@ -279,26 +280,38 @@ export function generateAnalysisPDF(data: AnalysisFormData, options?: PDFOptions
  * Retorna o Blob para upload (ex.: Supabase Storage) em vez de forçar
  * download direto.
  */
-export function generateElementPDF(element: HTMLElement): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    const doc = new jsPDF("p", "mm", "a4");
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const margin = 8;
-
-    doc.html(element, {
-      x: margin,
-      y: margin,
-      width: pageWidth - margin * 2,
-      windowWidth: element.scrollWidth,
-      autoPaging: "text",
-      html2canvas: { useCORS: true, backgroundColor: "#ffffff" },
-      callback: (result) => {
-        try {
-          resolve(result.output("blob"));
-        } catch (err) {
-          reject(err);
-        }
-      },
-    });
+export async function generateElementPDF(element: HTMLElement): Promise<Blob> {
+  // Captura o elemento como imagem (fielmente igual ao que aparece na tela,
+  // incluindo gráficos SVG do recharts) e depois fatia em páginas A4.
+  const canvas = await html2canvas(element, {
+    scale: 2,
+    useCORS: true,
+    backgroundColor: "#ffffff",
+    windowWidth: element.scrollWidth,
+    windowHeight: element.scrollHeight,
   });
+
+  const imgData = canvas.toDataURL("image/png");
+
+  const doc = new jsPDF("p", "mm", "a4");
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+
+  const imgWidth = pageWidth;
+  const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+  let heightLeft = imgHeight;
+  let position = 0;
+
+  doc.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+  heightLeft -= pageHeight;
+
+  while (heightLeft > 0) {
+    position -= pageHeight;
+    doc.addPage();
+    doc.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+  }
+
+  return doc.output("blob");
 }
