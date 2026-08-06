@@ -32,7 +32,7 @@ export function useQualityReportStorage() {
       const { data, error } = await supabase.storage
         .from("quality-reports")
         .upload(filePath, pdfBlob, {
-          cacheControl: "3600",
+          cacheControl: "60",
           upsert: true,
         });
 
@@ -45,7 +45,12 @@ export function useQualityReportStorage() {
         .from("quality-reports")
         .getPublicUrl(filePath);
 
-      const pdfUrl = publicUrlData?.publicUrl;
+      // Cache-buster: o caminho é sempre o mesmo (upsert por lote), então sem
+      // isso o CDN pode continuar servindo uma versão antiga do PDF por um
+      // tempo mesmo após reenviar um laudo atualizado.
+      const pdfUrl = publicUrlData?.publicUrl
+        ? `${publicUrlData.publicUrl}?v=${Date.now()}`
+        : undefined;
 
       setUploadProgress({ isLoading: false, progress: 100, error: null });
 
