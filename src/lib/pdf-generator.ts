@@ -291,29 +291,66 @@ export async function generateElementPDF(element: HTMLElement): Promise<Blob> {
     windowHeight: element.scrollHeight,
   });
 
-  // JPEG com compressão: um PNG de página inteira em alta resolução passa
-  // facilmente de 10MB e é rejeitado pelo Storage/upload; JPEG 0.85 fica
-  // na casa de 1-2MB mantendo boa legibilidade.
-  const imgData = canvas.toDataURL("image/jpeg", 0.85);
-
   const doc = new jsPDF("p", "mm", "a4");
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
 
-  const imgWidth = pageWidth;
-  const imgHeight = (canvas.height * imgWidth) / canvas.width;
+  // px de canvas por px CSS do elemento — usado pra converter as posições
+  // dos blocos "não quebráveis" (medidas em CSS px) para o espaço do canvas.
+  const pxScale = canvas.width / element.scrollWidth;
+  const mmPerCanvasPx = pageWidth / canvas.width;
+  const pageHeightPx = pageHeight / mmPerCanvasPx;
 
-  let heightLeft = imgHeight;
-  let position = 0;
+  // Blocos que não podem ser cortados no meio (tabela de dosagem, cards de
+  // rompimento, cabeçalho, rodapé — marcados com data-pdf-avoid-break — e
+  // linhas de tabela, que sempre devem ficar inteiras numa mesma página).
+  const rootRect = element.getBoundingClientRect();
+  const noBreakZones = Array.from(
+    element.querySelectorAll<HTMLElement>("[data-pdf-avoid-break], tr")
+  )
+    .map((el) => {
+      const r = el.getBoundingClientRect();
+      return {
+        top: (r.top - rootRect.top) * pxScale,
+        bottom: (r.bottom - rootRect.top) * pxScale,
+      };
+    })
+    // Ignora blocos maiores que uma página inteira: não têm como caber
+    // sem quebrar, então deixamos o corte normal acontecer neles.
+    .filter((z) => z.bottom - z.top < pageHeightPx * 0.92)
+    .sort((a, b) => a.top - b.top);
 
-  doc.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
-  heightLeft -= pageHeight;
+  let cursor = 0;
+  let firstPage = true;
 
-  while (heightLeft > 0) {
-    position -= pageHeight;
-    doc.addPage();
-    doc.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
-    heightLeft -= pageHeight;
+  while (cursor < canvas.height - 0.5) {
+    let cut = Math.min(cursor + pageHeightPx, canvas.height);
+
+    if (cut < canvas.height) {
+      const straddling = noBreakZones.find((z) => z.top >= cursor && z.top < cut && z.bottom > cut);
+      if (straddling && straddling.top > cursor) {
+        cut = straddling.top;
+      }
+    }
+
+    const sliceHeightPx = Math.max(1, Math.round(cut - cursor));
+    const sliceCanvas = document.createElement("canvas");
+    sliceCanvas.width = canvas.width;
+    sliceCanvas.height = sliceHeightPx;
+    const ctx = sliceCanvas.getContext("2d");
+    ctx?.drawImage(canvas, 0, cursor, canvas.width, sliceHeightPx, 0, 0, canvas.width, sliceHeightPx);
+
+    // JPEG com compressão: um PNG de página inteira em alta resolução passa
+    // facilmente de vários MB e é rejeitado pelo Storage/upload; JPEG 0.85
+    // fica bem menor mantendo boa legibilidade.
+    const sliceData = sliceCanvas.toDataURL("image/jpeg", 0.85);
+    const sliceHeightMm = sliceHeightPx * mmPerCanvasPx;
+
+    if (!firstPage) doc.addPage();
+    doc.addImage(sliceData, "JPEG", 0, 0, pageWidth, sliceHeightMm);
+
+    firstPage = false;
+    cursor = cut;
   }
 
   return doc.output("blob");

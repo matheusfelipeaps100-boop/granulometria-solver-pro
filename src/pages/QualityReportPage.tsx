@@ -316,7 +316,7 @@ const QualityReportPage = () => {
       <Card ref={reportRef} className="max-w-[1000px] mx-auto shadow-xl border-t-8 border-t-primary rounded-xl print:shadow-none print:border-none print:max-w-full">
         <CardContent className="p-10 space-y-10">
           {/* Header */}
-          <div className="flex justify-between items-start">
+          <div className="flex justify-between items-start" data-pdf-avoid-break>
             <div className="space-y-1">
               <h1 className="text-3xl font-black uppercase tracking-tighter text-foreground flex items-center gap-2">
                 <FlaskConical className="h-8 w-8 text-primary" />
@@ -341,7 +341,7 @@ const QualityReportPage = () => {
           <Separator className="opacity-50" />
 
           {batch.status === "liberado_antecipado" && (
-            <div className="bg-amber-500/10 border-l-4 border-amber-500 rounded-r-lg p-6 flex items-start gap-4">
+            <div className="bg-amber-500/10 border-l-4 border-amber-500 rounded-r-lg p-6 flex items-start gap-4" data-pdf-avoid-break>
               <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
               <div className="space-y-1">
                 <h3 className="font-black text-sm uppercase tracking-wider text-amber-700">Aprovação Técnica Excepcional</h3>
@@ -353,7 +353,7 @@ const QualityReportPage = () => {
           )}
 
           {batch.status === "aprovado_com_ressalva" && (
-            <div className="bg-warning/10 border-l-4 border-warning rounded-r-lg p-6 flex items-start gap-4">
+            <div className="bg-warning/10 border-l-4 border-warning rounded-r-lg p-6 flex items-start gap-4" data-pdf-avoid-break>
               <AlertTriangle className="h-5 w-5 text-warning mt-0.5 shrink-0" />
               <div className="space-y-1">
                 <h3 className="font-black text-sm uppercase tracking-wider text-warning">Aprovado com Ressalva</h3>
@@ -365,7 +365,7 @@ const QualityReportPage = () => {
           )}
 
           {/* Dados Gerais */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-8">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-8" data-pdf-avoid-break>
             <div className="space-y-1">
               <p className="text-[10px] uppercase font-black text-muted-foreground">Produto / Análise</p>
               <p className="text-sm font-bold">{analysisTypeMeta?.label || analysis.tipo}</p>
@@ -381,7 +381,7 @@ const QualityReportPage = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10" data-pdf-avoid-break>
             {/* Granulometria */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -436,7 +436,7 @@ const QualityReportPage = () => {
           {/* Composição e Dosagem */}
           {materialsDetail.length > 0 && dosagem && (
             <div className="space-y-6">
-              <h2 className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
+              <h2 className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2" data-pdf-avoid-break>
                 <Beaker className="h-3 w-3" /> Matrizes de Composição e Dosagem
               </h2>
               <div className="rounded-lg border overflow-hidden">
@@ -490,7 +490,7 @@ const QualityReportPage = () => {
             {statsBySchedule.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {statsBySchedule.map((s: any, idx: number) => (
-                  <div key={idx} className="border rounded-lg overflow-hidden bg-muted/5">
+                  <div key={idx} className="border rounded-lg overflow-hidden bg-muted/5" data-pdf-avoid-break>
                     <div className="bg-muted px-4 py-2 flex justify-between items-center border-b">
                       <span className="text-[10px] font-black uppercase flex items-center gap-2 italic">
                         <CheckCircle2 className="h-3 w-3 text-emerald-500" /> Rompimento {s.idade}d
@@ -530,7 +530,7 @@ const QualityReportPage = () => {
           </div>
 
           {/* Footer */}
-          <div className="pt-10 flex justify-between items-end border-t border-dashed">
+          <div className="pt-10 flex justify-between items-end border-t border-dashed" data-pdf-avoid-break>
             <div className="space-y-1.5 text-[8px] text-muted-foreground max-w-[450px] leading-relaxed">
               <p className="font-black text-[9px] opacity-80">DECLARAÇÃO TÉCNICA E RESPONSABILIDADE:</p>
               <p>Os resultados apresentados neste Laudo Técnico foram obtidos através de ensaios laboratoriais seguindo rigorosamente as Normas Brasileiras Regulamentadoras (NBR). A amostragem foi realizada de acordo com o plano de controle de qualidade da unidade executora.</p>
