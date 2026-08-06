@@ -269,7 +269,7 @@ const QualityReportPage = () => {
 
       const linhas = [
         `*Laudo Técnico — ${identity.nome || "Granulometria Solver Pro"}*`,
-        `Produto: ${analysisTypeMeta?.label || analysis.tipo}`,
+        `Produto: ${analysis.nome || analysisTypeMeta?.label || analysis.tipo}`,
         `Lote: ${batch.batch_code}`,
         `Status: ${statusLabel}`,
         `Data de Produção: ${dataProducao}`,
@@ -368,7 +368,8 @@ const QualityReportPage = () => {
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-8" data-pdf-avoid-break>
             <div className="space-y-1">
               <p className="text-[10px] uppercase font-black text-muted-foreground">Produto / Análise</p>
-              <p className="text-sm font-bold">{analysisTypeMeta?.label || analysis.tipo}</p>
+              <p className="text-sm font-bold">{analysis.nome || analysisTypeMeta?.label || analysis.tipo}</p>
+              <p className="text-[10px] text-muted-foreground">{analysisTypeMeta?.label || analysis.tipo}</p>
               <p className="text-[9px] font-mono opacity-60 italic">{analysis.codigo}</p>
             </div>
             <div className="space-y-1">
