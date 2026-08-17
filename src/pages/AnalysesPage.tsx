@@ -145,9 +145,9 @@ const AnalysesPage = () => {
       return matchSearch && matchTipo && matchStatus && matchDate;
     })
     .sort((a, b) => {
-      const dateCompare = (a.data_analise || "9999-99-99").localeCompare(b.data_analise || "9999-99-99");
+      const dateCompare = (b.data_analise || "0000-00-00").localeCompare(a.data_analise || "0000-00-00");
       if (dateCompare !== 0) return dateCompare;
-      return a.nome.localeCompare(b.nome, "pt-BR");
+      return b.nome.localeCompare(a.nome, "pt-BR");
     });
 
   const hasDraft = currentStep > 1 || !!formData.tipo_analise || !!formData.nome;
