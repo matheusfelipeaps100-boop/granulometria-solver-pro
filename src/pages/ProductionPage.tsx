@@ -29,7 +29,13 @@ const ProductionPage = () => {
   const [statusFilter, setStatusFilter] = useState("");
   const [dateFilter, setDateFilter] = useState<DateFilter>(getDefaultDateFilter());
 
-  const releasedAnalyses = analyses.filter((a) => a.status === "liberado_producao");
+  const releasedAnalyses = analyses
+    .filter((a) => a.status === "liberado_producao")
+    .sort((a, b) => {
+      const dateCompare = (a.data_analise || "9999-99-99").localeCompare(b.data_analise || "9999-99-99");
+      if (dateCompare !== 0) return dateCompare;
+      return (a.nome || "").localeCompare(b.nome || "", "pt-BR");
+    });
 
   // Opções de status possíveis (valores reais do banco)
   const statusOptions = [
@@ -40,12 +46,20 @@ const ProductionPage = () => {
   ];
 
   // Filtragem dos lotes
-  const filteredBatches = batches.filter((batch) => {
-    const matchesBatch = batchFilter ? batch.batch_code?.toLowerCase().includes(batchFilter.toLowerCase()) : true;
-    const matchesStatus = statusFilter ? batch.status === statusFilter : true;
-    const matchesDate = isInDateRange(batch.produced_at, dateFilter);
-    return matchesBatch && matchesStatus && matchesDate;
-  });
+  const filteredBatches = batches
+    .filter((batch) => {
+      const matchesBatch = batchFilter ? batch.batch_code?.toLowerCase().includes(batchFilter.toLowerCase()) : true;
+      const matchesStatus = statusFilter ? batch.status === statusFilter : true;
+      const matchesDate = isInDateRange(batch.produced_at, dateFilter);
+      return matchesBatch && matchesStatus && matchesDate;
+    })
+    .sort((a, b) => {
+      const dateCompare = (a.produced_at || "9999-99-99").localeCompare(b.produced_at || "9999-99-99");
+      if (dateCompare !== 0) return dateCompare;
+      const nomeA = analyses.find((an) => an.id === a.analysis_id)?.nome || "";
+      const nomeB = analyses.find((an) => an.id === b.analysis_id)?.nome || "";
+      return nomeA.localeCompare(nomeB, "pt-BR");
+    });
 
   const canRegister = profile ? hasActionPermission(profile.role, "batch:create") : false;
 
