@@ -131,18 +131,24 @@ const AnalysesPage = () => {
     }));
   }, [analyses, profile?.id]);
 
-  const filtered = allAnalyses.filter((a) => {
-    const matchSearch =
-      !search ||
-      a.codigo.toLowerCase().includes(search.toLowerCase()) ||
-      a.nome.toLowerCase().includes(search.toLowerCase()) ||
-      (a.produto ?? "").toLowerCase().includes(search.toLowerCase());
-    const matchTipo = filterTipo === "all" || a.tipo === filterTipo;
-    const matchStatus = filterStatus === "all" || a.status === filterStatus;
-    const rawAnalise = analyses.find((r) => r.id === a.id);
-    const matchDate = isInDateRange(rawAnalise?.data_analise ?? null, dateFilter);
-    return matchSearch && matchTipo && matchStatus && matchDate;
-  });
+  const filtered = allAnalyses
+    .filter((a) => {
+      const matchSearch =
+        !search ||
+        a.codigo.toLowerCase().includes(search.toLowerCase()) ||
+        a.nome.toLowerCase().includes(search.toLowerCase()) ||
+        (a.produto ?? "").toLowerCase().includes(search.toLowerCase());
+      const matchTipo = filterTipo === "all" || a.tipo === filterTipo;
+      const matchStatus = filterStatus === "all" || a.status === filterStatus;
+      const rawAnalise = analyses.find((r) => r.id === a.id);
+      const matchDate = isInDateRange(rawAnalise?.data_analise ?? null, dateFilter);
+      return matchSearch && matchTipo && matchStatus && matchDate;
+    })
+    .sort((a, b) => {
+      const dateCompare = (a.data_analise || "9999-99-99").localeCompare(b.data_analise || "9999-99-99");
+      if (dateCompare !== 0) return dateCompare;
+      return a.nome.localeCompare(b.nome, "pt-BR");
+    });
 
   const hasDraft = currentStep > 1 || !!formData.tipo_analise || !!formData.nome;
 
