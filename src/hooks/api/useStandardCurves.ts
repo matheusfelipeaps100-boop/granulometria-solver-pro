@@ -11,6 +11,10 @@ export interface StandardCurve {
   descricao: string | null;
   ativo: boolean;
   is_system: boolean;
+  // Dimensão máxima do agregado permitida pelo projeto (mm) — usada na
+  // verificação de compatibilidade do otimizador de Laje Protendida.
+  // Não é um limite normativo; é informada manualmente pelo usuário.
+  dimensao_maxima_permitida_mm?: number | null;
   standard_curve_items?: StandardCurveItem[];
   created_at: string;
 }

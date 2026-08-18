@@ -12,7 +12,7 @@ import {
   ResponsiveContainer,
   ComposedChart,
 } from "recharts";
-import { PENEIRAS_PADRAO } from "@/lib/analysis-data";
+import { PENEIRAS_PADRAO, type TipoDosagem } from "@/lib/analysis-data";
 import type { GradationResult } from "@/lib/granulometry-engine";
 import { AlertTriangle } from "lucide-react";
 
@@ -20,9 +20,24 @@ interface GranulometryChartProps {
   curveResults: GradationResult[];
   hasLimits: boolean;
   compact?: boolean;
+  // Modelo granulométrico usado — muda o rótulo exibido para deixar claro
+  // que Laje Protendida usa um modelo próprio, não a curva de vibroprensados.
+  tipoDosagem?: TipoDosagem;
 }
 
-export function GranulometryChart({ curveResults, hasLimits, compact = false }: GranulometryChartProps) {
+const TITULO_POR_TIPO: Record<TipoDosagem, string> = {
+  VIBROPRESSADO: "Curva Granulométrica Combinada",
+  LAJE_PROTENDIDA: "Curva Combinada — Concreto Estrutural Protendido",
+};
+
+const AVISO_POR_TIPO: Record<TipoDosagem, string> = {
+  VIBROPRESSADO:
+    "O Solver ajusta as proporções para a curva ficar dentro da faixa (centro da zona normativa).",
+  LAJE_PROTENDIDA:
+    "O Solver busca uma composição compatível com a faixa carregada e sem domínio de finos. As faixas de busca são parâmetros internos do algoritmo, não exigência normativa da ABNT — a composição ideal depende do estudo de dosagem do projeto.",
+};
+
+export function GranulometryChart({ curveResults, hasLimits, compact = false, tipoDosagem = "VIBROPRESSADO" }: GranulometryChartProps) {
   const chartData = useMemo(() => {
     return curveResults.map((r) => {
       const limiteMin = r.limite_min != null ? Math.round(r.limite_min * 10000) / 100 : undefined;
@@ -193,8 +208,7 @@ export function GranulometryChart({ curveResults, hasLimits, compact = false }: 
         <div className="flex items-start gap-2 mt-3 p-2.5 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50">
           <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
           <p className="text-xs text-amber-700 dark:text-amber-400">
-            O Solver ajusta as proporções para a curva ficar dentro da faixa
-            (centro da zona normativa).
+            {AVISO_POR_TIPO[tipoDosagem]}
           </p>
         </div>
       )}
@@ -208,7 +222,7 @@ export function GranulometryChart({ curveResults, hasLimits, compact = false }: 
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base font-bold">
-            Curva Granulométrica Combinada
+            {TITULO_POR_TIPO[tipoDosagem]}
           </CardTitle>
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
             <div className="flex items-center gap-1.5">
