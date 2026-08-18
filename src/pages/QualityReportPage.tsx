@@ -23,7 +23,7 @@ import {
   RefreshCw,
   MessageCircle,
 } from "lucide-react";
-import { TIPOS_ANALISE, getLimitesPadrao } from "@/lib/analysis-data";
+import { TIPOS_ANALISE, getLimitesPadrao, getTipoDosagem } from "@/lib/analysis-data";
 import { generateElementPDF } from "@/lib/pdf-generator";
 import { useQualityReportStorage } from "@/hooks/useQualityReportStorage";
 import { statusConfig } from "@/components/StatusBadge";
@@ -387,7 +387,10 @@ const QualityReportPage = () => {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
-                  <BarChart3 className="h-3 w-3" /> Estudo Granulométrico (DNA)
+                  <BarChart3 className="h-3 w-3" />
+                  {getTipoDosagem(analysis.tipo) === "LAJE_PROTENDIDA"
+                    ? "Curva Combinada — Concreto Estrutural Protendido"
+                    : "Estudo Granulométrico (DNA)"}
                 </h2>
                 <div className="flex gap-2">
                   <Badge className={cn("font-black text-[9px] px-3 py-1", curveStatus.status === "conforme" ? "bg-emerald-500 hover:bg-emerald-600" : "bg-amber-500 hover:bg-amber-600")}>
@@ -397,7 +400,7 @@ const QualityReportPage = () => {
               </div>
               {combinedCurve.length > 0 ? (
                 <div className="relative h-[250px] w-full bg-muted/5 rounded-lg border p-2">
-                  <GranulometryChart curveResults={combinedCurve} hasLimits={limitesDNA.length > 0} compact={true} />
+                  <GranulometryChart curveResults={combinedCurve} hasLimits={limitesDNA.length > 0} tipoDosagem={getTipoDosagem(analysis.tipo)} compact={true} />
                 </div>
               ) : (
                 <div className="h-[250px] flex items-center justify-center bg-muted/10 rounded-lg border text-muted-foreground text-sm italic">

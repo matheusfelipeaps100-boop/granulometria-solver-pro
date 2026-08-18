@@ -41,6 +41,9 @@ export interface AnalysisFormData {
   custo_cimento_ton: number;
   custo_aditivo_lt: number;
   limites_curva?: Array<{ sieve_id: number; limite_min: number; limite_max: number }>;
+  // Override manual da dimensão máxima do agregado permitida pelo projeto (mm),
+  // usado no modelo LAJE_PROTENDIDA. Quando ausente, cai para o valor do DNA.
+  dimensao_maxima_permitida_mm?: number;
 }
 
 export interface AnalysisMaterial {
@@ -138,6 +141,55 @@ export const CONFIG_MISTURADOR: Record<string, { capacidade_kg: number; volume_m
 export function getConfigMisturador(tipo: string) {
   return CONFIG_MISTURADOR[tipo] ?? CONFIG_MISTURADOR.bloco_estrutural;
 }
+
+// =============================================================================
+// Modelo de dosagem/otimização — separa a família de produto usada para
+// ESCOLHER o algoritmo de otimização granulométrica.
+//
+// VIBROPRESSADO   → concreto seco de blocos/pavers/CP (algoritmo atual,
+//                    busca o centro da faixa sem restrição de papel do agregado).
+// LAJE_PROTENDIDA → concreto estrutural de lajes/vigotas protendidas
+//                    (algoritmo próprio, ver src/lib/laje-optimizer.ts).
+//
+// Estrutura extensível: para adicionar CONCRETO_ESTRUTURAL ou
+// LAJE_ALVEOLAR_PROTENDIDA no futuro, basta ampliar o union type e o mapa
+// abaixo — nenhum código consumidor precisa de novos if/else.
+// =============================================================================
+export type TipoDosagem = "VIBROPRESSADO" | "LAJE_PROTENDIDA";
+
+const TIPO_ANALISE_TO_DOSAGEM: Record<string, TipoDosagem> = {
+  bloco_estrutural: "VIBROPRESSADO",
+  bloco_vedacao: "VIBROPRESSADO",
+  paver: "VIBROPRESSADO",
+  cp: "VIBROPRESSADO",
+  laje: "LAJE_PROTENDIDA",
+};
+
+export function getTipoDosagem(tipoAnalise?: string): TipoDosagem {
+  return TIPO_ANALISE_TO_DOSAGEM[tipoAnalise ?? ""] ?? "VIBROPRESSADO";
+}
+
+// Limiares de ALERTA da composição de agregados para Laje Protendida.
+// IMPORTANTE: não são exigência normativa da ABNT — são parâmetros internos
+// de controle do algoritmo/UI, configuráveis, para sinalizar composições
+// tecnicamente suspeitas (excesso de finos, pouca areia, pouco graúdo).
+export const LAJE_ALERT_THRESHOLDS = {
+  poDePedraMaxPct: 0.50,
+  areiaMinPct: 0.20,
+  agregadoGraudoMinPct: 0.40,
+} as const;
+
+// Ponto de partida da BUSCA do otimizador de Laje Protendida.
+// IMPORTANTE: não são limites normativos da ABNT — apenas restringem o
+// espaço de busca inicial do algoritmo para impedir que ele encontre
+// soluções ricas em finos (como o modelo de vibroprensados faz). O
+// algoritmo pode se afastar dessas faixas conforme as curvas reais dos
+// materiais cadastrados e o resultado da pontuação (score).
+export const LAJE_SEARCH_SEED = {
+  areiaPct: { min: 0.30, max: 0.40 },
+  graudoPct: { min: 0.55, max: 0.65 },
+  poDePedraPct: { min: 0.00, max: 0.15 },
+} as const;
 
 // TODO: Load from Supabase using API hook
 export const PRODUTOS_DISPONIVEIS: Product[] = [];

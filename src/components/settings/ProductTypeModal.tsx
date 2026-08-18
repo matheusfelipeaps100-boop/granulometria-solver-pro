@@ -41,6 +41,7 @@ export function ProductTypeModal({ open, onOpenChange, editId }: Props) {
     modulo_finura: 0,
     descricao: "",
     ativo: true,
+    dimensao_maxima_permitida_mm: 0,
   });
 
   const [limits, setLimits] = useState<Record<number, { min: number; max: number }>>({});
@@ -56,6 +57,7 @@ export function ProductTypeModal({ open, onOpenChange, editId }: Props) {
           modulo_finura: curve.modulo_finura || 0,
           descricao: curve.descricao || "",
           ativo: curve.ativo,
+          dimensao_maxima_permitida_mm: curve.dimensao_maxima_permitida_mm || 0,
         });
 
         const newLimits: Record<number, { min: number; max: number }> = {};
@@ -72,6 +74,7 @@ export function ProductTypeModal({ open, onOpenChange, editId }: Props) {
         modulo_finura: 0,
         descricao: "",
         ativo: true,
+        dimensao_maxima_permitida_mm: 0,
       });
       setLimits({});
     }
@@ -141,12 +144,31 @@ export function ProductTypeModal({ open, onOpenChange, editId }: Props) {
 
           <div className="space-y-2">
             <Label>Resistência Alvo (MPa)</Label>
-            <Input 
-              type="number" 
-              value={form.resistencia_alvo} 
+            <Input
+              type="number"
+              value={form.resistencia_alvo}
               onChange={e => setForm(f => ({ ...f, resistencia_alvo: parseFloat(e.target.value) || 0 }))}
             />
           </div>
+
+          {form.tipo_produto === "laje" && (
+            <div className="space-y-2 col-span-2">
+              <Label>Dimensão Máxima do Agregado Permitida (mm)</Label>
+              <Input
+                type="number"
+                step="0.1"
+                min="0"
+                value={form.dimensao_maxima_permitida_mm || ""}
+                onChange={e => setForm(f => ({ ...f, dimensao_maxima_permitida_mm: parseFloat(e.target.value) || 0 }))}
+                placeholder="Ex: 9.5"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Definida pelo projeto (menor dimensão da seção, espaçamento entre cordoalhas, cobrimento etc.).
+                Não é um limite normativo fixo — é usada apenas para checar a compatibilidade do agregado graúdo
+                na otimização de traço de Laje Protendida.
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="mt-4">

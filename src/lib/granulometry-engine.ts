@@ -183,6 +183,69 @@ export function calcCombinedCurve(
 }
 
 /**
+ * CÁLCULO 4.1 — Otimizador de traço para VIBROPRENSADOS (blocos, pavers, CP)
+ *
+ * Extraído sem alteração de lógica de StepGranulometry.tsx (handleOptimize):
+ * busca Monte Carlo (2000 amostras aleatórias) seguida de hill-climbing (500
+ * passos) minimizando o desvio somado ao centro da faixa carregada. Não
+ * aplica nenhuma restrição de participação por papel do agregado (areia/
+ * brita/pó) — por isso NÃO deve ser usado para Laje Protendida, onde o
+ * mesmo critério gera composições dominadas por finos. Ver
+ * src/lib/laje-optimizer.ts para o algoritmo específico de laje.
+ */
+export function otimizarCurvaVibroprensado(
+  materials: MaterialInput[],
+  limits: Array<{ sieve_id: number; limite_min: number; limite_max: number }>
+): number[] {
+  const toFracs = (mats: MaterialInput[]) => {
+    const total = mats.reduce((s, m) => s + (m.proporcao_pct ?? 0), 0) || 1;
+    return mats.map((m) => (m.proporcao_pct ?? 0) / total);
+  };
+
+  let bestFracs = toFracs(materials);
+
+  const getDeviation = (fracs: number[]) => {
+    const testMaterials = materials.map((m, i) => ({ ...m, proporcao_pct: fracs[i] }));
+    const res = calcCombinedCurve(testMaterials, limits);
+    return res.reduce((sum, r) => sum + (r.desvio_absoluto || 0), 0);
+  };
+
+  let bestDeviation = getDeviation(bestFracs);
+
+  // Monte Carlo
+  for (let i = 0; i < 2000; i++) {
+    const rand = materials.map(() => Math.random());
+    const randSum = rand.reduce((a, b) => a + b, 0);
+    const fracs = rand.map((p) => p / randSum);
+    const dev = getDeviation(fracs);
+    if (dev < bestDeviation) {
+      bestDeviation = dev;
+      bestFracs = fracs;
+    }
+  }
+
+  // Hill climbing
+  let current = [...bestFracs];
+  for (let step = 0; step < 500; step++) {
+    const idx1 = Math.floor(Math.random() * materials.length);
+    const idx2 = Math.floor(Math.random() * materials.length);
+    if (idx1 === idx2) continue;
+    const delta = Math.random() * 0.05 - 0.025;
+    const next = [...current];
+    next[idx1] += delta;
+    next[idx2] -= delta;
+    if (next[idx1] < 0 || next[idx2] < 0) continue;
+    const dev = getDeviation(next);
+    if (dev < bestDeviation) {
+      bestDeviation = dev;
+      current = next;
+    }
+  }
+
+  return current;
+}
+
+/**
  * CÁLCULO 5 — Status da curva combinada
  */
 export function calcCurvaStatus(results: GradationResult[]): CurvaStatus {

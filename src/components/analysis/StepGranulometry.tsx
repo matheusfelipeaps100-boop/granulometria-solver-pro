@@ -34,11 +34,18 @@ import {
   calcCombinedCurve,
   calcCurvaStatus,
   calcModuloFinura,
+  otimizarCurvaVibroprensado,
 } from "@/lib/granulometry-engine";
+import {
+  otimizarCurvaLajeProtendida,
+  classificarPapelAgregado,
+  gerarAlertasComposicaoLaje,
+} from "@/lib/laje-optimizer";
 import {
   PENEIRAS_PADRAO,
   getLimitesPadrao,
   getConfigMisturador,
+  getTipoDosagem,
   type AnalysisFormData,
   type AnalysisMaterial,
 } from "@/lib/analysis-data";
@@ -55,6 +62,7 @@ interface StepGranulometryProps {
 
 export function StepGranulometry({ data, onChange, readOnly }: StepGranulometryProps) {
   const capacidadeMisturador = getConfigMisturador(data.tipo_analise).capacidade_kg;
+  const tipoDosagem = getTipoDosagem(data.tipo_analise);
 
   const [fonteAtiva, setFonteAtiva] = useState<"bica" | "manual">("bica");
   const [camadaAtiva, setCamadaAtiva] = useState<"base" | "face">("base");
@@ -88,6 +96,7 @@ export function StepGranulometry({ data, onChange, readOnly }: StepGranulometryP
       tipo: c.tipo_produto,
       resistencia: c.resistencia_alvo ? `${c.resistencia_alvo} MPa` : "",
       mf: c.modulo_finura ? String(c.modulo_finura) : "",
+      dimensaoMaximaPermitidaMm: c.dimensao_maxima_permitida_mm ?? undefined,
       limites: (c.standard_curve_items ?? []).map(item => ({
         sieve_id: item.sieve_id,
         limite_min: item.limite_min,
@@ -142,6 +151,10 @@ export function StepGranulometry({ data, onChange, readOnly }: StepGranulometryP
     : data.limites_curva?.length
       ? data.limites_curva
       : getLimitesPadrao(data.tipo_analise);
+
+  // Dimensão máxima do agregado permitida pelo projeto: override manual na
+  // análise → valor do DNA carregado → indefinido (não checa se ausente).
+  const dimensaoMaximaPermitidaMm = data.dimensao_maxima_permitida_mm ?? dna?.dimensaoMaximaPermitidaMm ?? undefined;
 
   // Persiste limites no form quando o DNA é auto-selecionado com dados do banco
   useEffect(() => {
@@ -281,49 +294,18 @@ export function StepGranulometry({ data, onChange, readOnly }: StepGranulometryP
     toast.success(`Mistura normalizada para ${capacidadeMisturador} kg!`);
   }, [materials, onChange]);
 
+  // Otimizador de VIBROPRENSADOS (blocos, pavers, CP) — comportamento
+  // preservado integralmente, apenas delegando ao motor puro extraído em
+  // granulometry-engine.ts. NÃO usar para Laje Protendida.
   const handleOptimize = useCallback(() => {
     if (!limits || materials.length === 0) return;
 
-    // Otimizador trabalha em frações (0-1) e converte para kg ao final
-    const toFracs = (mats: typeof materials) => {
-      const total = mats.reduce((s, m) => s + (m.proporcao_kg ?? 0), 0) || 1;
-      return mats.map(m => (m.proporcao_kg ?? 0) / total);
-    };
-
-    let bestFracs = toFracs(materials);
-    let bestDeviation = Infinity;
-
-    const getDeviation = (fracs: number[]) => {
-      const testMaterials = materials.map((m, i) => ({ ...m, proporcao_pct: fracs[i] }));
-      const res = calcCombinedCurve(testMaterials, limits);
-      return res.reduce((sum, r) => sum + (r.desvio_absoluto || 0), 0);
-    };
-
-    bestDeviation = getDeviation(bestFracs);
-
-    // Monte Carlo
-    for (let i = 0; i < 2000; i++) {
-      const rand = materials.map(() => Math.random());
-      const randSum = rand.reduce((a, b) => a + b, 0);
-      const fracs = rand.map(p => p / randSum);
-      const dev = getDeviation(fracs);
-      if (dev < bestDeviation) { bestDeviation = dev; bestFracs = fracs; }
-    }
-
-    // Hill climbing
-    let current = [...bestFracs];
-    for (let step = 0; step < 500; step++) {
-      const idx1 = Math.floor(Math.random() * materials.length);
-      const idx2 = Math.floor(Math.random() * materials.length);
-      if (idx1 === idx2) continue;
-      const delta = (Math.random() * 0.05) - 0.025;
-      const next = [...current];
-      next[idx1] += delta;
-      next[idx2] -= delta;
-      if (next[idx1] < 0 || next[idx2] < 0) continue;
-      const dev = getDeviation(next);
-      if (dev < bestDeviation) { bestDeviation = dev; current = next; }
-    }
+    const testMaterials = materials.map(m => ({
+      material_id: m.material_id,
+      proporcao_pct: (m.proporcao_kg ?? 0),
+      gradations: m.gradations,
+    }));
+    const current = otimizarCurvaVibroprensado(testMaterials, limits);
 
     // Converte frações para kg (referência capacidadeMisturador)
     const updated = materials.map((m, i) => ({
@@ -332,7 +314,52 @@ export function StepGranulometry({ data, onChange, readOnly }: StepGranulometryP
     }));
     onChange({ materiais_selecionados: updated });
     toast.success("Traço otimizado (Centro da Faixa)!");
-  }, [materials, limits, onChange]);
+  }, [materials, limits, onChange, capacidadeMisturador]);
+
+  // Otimizador de LAJE PROTENDIDA — algoritmo independente (ver
+  // src/lib/laje-optimizer.ts), busca uma composição que evita domínio de
+  // pó de pedra e verifica dimensão máxima do agregado graúdo vs. peça.
+  const handleOptimizeLaje = useCallback(() => {
+    if (!limits || materials.length === 0) return;
+
+    const testMaterials = materials.map(m => ({
+      material_id: m.material_id,
+      proporcao_pct: (m.proporcao_kg ?? 0),
+      gradations: m.gradations,
+    }));
+
+    const res = otimizarCurvaLajeProtendida({
+      materials: testMaterials,
+      limits,
+      dimensaoMaximaPermitidaMm,
+    });
+
+    if (!res.ok) {
+      toast.error("Dados insuficientes para otimização granulométrica.");
+      return;
+    }
+
+    const updated = materials.map((m, i) => ({
+      ...m,
+      proporcao_kg: Math.round(res.result.fracs[i] * capacidadeMisturador),
+    }));
+    onChange({ materiais_selecionados: updated });
+    toast.success("Traço otimizado (Laje Protendida)!");
+    res.result.alertas.forEach((msg) => toast.warning(msg));
+  }, [materials, limits, onChange, capacidadeMisturador, dimensaoMaximaPermitidaMm]);
+
+  // Alertas de composição da mistura ATUAL para Laje Protendida — calculados
+  // independente de rodar o otimizador, também refletem edição manual.
+  const alertasLaje = useMemo(() => {
+    if (tipoDosagem !== "LAJE_PROTENDIDA" || materials.length === 0) return [];
+    const testMaterials = materialsWithPct.map(m => ({
+      material_id: m.material_id,
+      proporcao_pct: m.proporcao_pct,
+      gradations: m.gradations,
+    }));
+    const papeis = testMaterials.map(m => classificarPapelAgregado(m.gradations));
+    return gerarAlertasComposicaoLaje(testMaterials, papeis);
+  }, [tipoDosagem, materials, materialsWithPct]);
 
   // Status config
   const statusConfig = {
@@ -801,12 +828,30 @@ export function StepGranulometry({ data, onChange, readOnly }: StepGranulometryP
                   <Database className="w-4 h-4 text-muted-foreground" /> NORMALIZAR MISTURA (100%)
                 </Button>
                 <Button
-                  onClick={handleOptimize}
+                  onClick={tipoDosagem === "LAJE_PROTENDIDA" ? handleOptimizeLaje : handleOptimize}
                   className="bg-destructive hover:bg-destructive/90 text-white text-[11px] font-black tracking-widest uppercase gap-2 h-10 px-6 rounded-full shadow-lg shadow-destructive/20"
                 >
-                  <Dna className="w-4 h-4" /> OTIMIZAR TRAÇO (CENTRO DA FAIXA)
+                  <Dna className="w-4 h-4" />
+                  {tipoDosagem === "LAJE_PROTENDIDA" ? "OTIMIZAR TRAÇO (LAJE PROTENDIDA)" : "OTIMIZAR TRAÇO (CENTRO DA FAIXA)"}
                 </Button>
               </div>
+
+              {/* Alertas de composição — específicos do modelo Laje Protendida.
+                  Não são exigência normativa, apenas parâmetros internos de
+                  controle para sinalizar composições tecnicamente suspeitas. */}
+              {alertasLaje.length > 0 && (
+                <div className="mt-4 flex flex-col gap-2">
+                  {alertasLaje.map((msg, i) => (
+                    <div
+                      key={i}
+                      className="flex items-start gap-2 p-2.5 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50"
+                    >
+                      <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                      <p className="text-xs text-amber-700 dark:text-amber-400">{msg}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -818,7 +863,9 @@ export function StepGranulometry({ data, onChange, readOnly }: StepGranulometryP
               <div>
                 <div className="flex items-start justify-between mb-2">
                   <div className="space-y-0.5">
-                    <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Curva Combinada</p>
+                    <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+                      {tipoDosagem === "LAJE_PROTENDIDA" ? "Curva Combinada — Concreto Estrutural Protendido" : "Curva Combinada"}
+                    </p>
                     <p className="text-4xl font-black text-destructive leading-none tracking-tighter">
                       {mfCombinado.toFixed(2)}
                     </p>
@@ -872,7 +919,7 @@ export function StepGranulometry({ data, onChange, readOnly }: StepGranulometryP
                 {/* Gráfico */}
                 <div className="mt-2 border rounded-xl overflow-hidden bg-white/50 relative h-[320px]">
                   <div className="absolute inset-0 pt-4 pb-2">
-                    <GranulometryChart curveResults={curveResults} hasLimits={!!(limits?.length)} compact />
+                    <GranulometryChart curveResults={curveResults} hasLimits={!!(limits?.length)} tipoDosagem={tipoDosagem} compact />
                   </div>
                 </div>
               </div>
