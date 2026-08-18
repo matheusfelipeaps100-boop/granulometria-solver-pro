@@ -20,6 +20,7 @@ import SettingsPage from "./pages/SettingsPage";
 import QualityReportPage from "./pages/QualityReportPage";
 import CostReportPage from "./pages/CostReportPage";
 import GranulometriaPage from "./pages/GranulometriaPage";
+import DosageStudyPage from "./pages/DosageStudyPage";
 import UnauthorizedPage from "./pages/UnauthorizedPage";
 import LoginPage from "./pages/LoginPage";
 import NotFound from "./pages/NotFound";
@@ -98,6 +99,11 @@ const App = () => (
             <Route path="/granulometria" element={
               <ProtectedRoute allowedRoles={["ADMIN", "LABORATORIO", "GERENTE"]}>
                 <GranulometriaPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/dosagem/estudo" element={
+              <ProtectedRoute allowedRoles={["ADMIN", "LABORATORIO", "GERENTE"]}>
+                <DosageStudyPage />
               </ProtectedRoute>
             } />
             <Route path="/settings" element={
