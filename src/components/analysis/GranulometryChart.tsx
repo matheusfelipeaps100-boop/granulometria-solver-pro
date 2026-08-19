@@ -28,7 +28,25 @@ interface GranulometryChartProps {
 const TITULO_POR_TIPO: Record<TipoDosagem, string> = {
   VIBROPRESSADO: "Curva Granulométrica Combinada",
   LAJE_PROTENDIDA: "Curva Combinada — Concreto Estrutural Protendido",
-  WET_CASTING_PROTENDIDO: "Curva Combinada — Concreto Estrutural Protendido",
+  // % passante (não % retido acumulado, diferente de VIBROPRESSADO/LAJE_PROTENDIDA
+  // acima) — mais adequado para comparar visualmente a curva. Ver StepGranulometry.tsx
+  // (curveResultsParaGrafico), que converte os dados antes de chegar aqui.
+  WET_CASTING_PROTENDIDO: "Curva Combinada (% Passante) — Laje Protendida",
+};
+
+// Legenda da faixa azul: "Zona Normativa" é enganoso para Laje Protendida —
+// não é faixa da ABNT, é a faixa de estudo ±5pp em volta do traço real de
+// referência. Isolado por tipoDosagem, não afeta o rótulo de VIBROPRESSADO.
+const LEGENDA_FAIXA_POR_TIPO: Record<TipoDosagem, string> = {
+  VIBROPRESSADO: "Zona Normativa",
+  LAJE_PROTENDIDA: "Zona Normativa",
+  WET_CASTING_PROTENDIDO: "Faixa de Estudo (±5pp)",
+};
+
+const LEGENDA_ALVO_POR_TIPO: Record<TipoDosagem, string> = {
+  VIBROPRESSADO: "DNA Alvo",
+  LAJE_PROTENDIDA: "DNA Alvo",
+  WET_CASTING_PROTENDIDO: "Curva de Referência",
 };
 
 const AVISO_POR_TIPO: Record<TipoDosagem, string> = {
@@ -37,7 +55,7 @@ const AVISO_POR_TIPO: Record<TipoDosagem, string> = {
   LAJE_PROTENDIDA:
     "O Solver busca uma composição compatível com a faixa carregada e sem domínio de finos. As faixas de busca são parâmetros internos do algoritmo, não exigência normativa da ABNT — a composição ideal depende do estudo de dosagem do projeto.",
   WET_CASTING_PROTENDIDO:
-    "O Solver busca uma composição compatível com a faixa carregada e sem domínio de finos. As faixas de busca são parâmetros internos do algoritmo, não exigência normativa da ABNT — a composição ideal (cimento, água, aditivo) depende do Estudo de Dosagem do produto.",
+    "Curva de referência baseada no único traço real de fábrica em produção e funcionando (Concreart), com faixa de estudo de ±5 pontos percentuais. Não é uma faixa normativa da ABNT nem estatisticamente validada — é uma referência inicial baseada num traço real aprovado.",
 };
 
 export function GranulometryChart({ curveResults, hasLimits, compact = false, tipoDosagem = "VIBROPRESSADO" }: GranulometryChartProps) {
@@ -73,7 +91,7 @@ export function GranulometryChart({ curveResults, hasLimits, compact = false, ti
 
           const nameMap: Record<string, string> = {
             acumulado: "Curva de Estudo",
-            dnAlvo: "DNA Alvo",
+            dnAlvo: LEGENDA_ALVO_POR_TIPO[tipoDosagem],
           };
           const colorMap: Record<string, string> = {
             acumulado: "text-destructive",
@@ -230,11 +248,11 @@ export function GranulometryChart({ curveResults, hasLimits, compact = false, ti
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
             <div className="flex items-center gap-1.5">
               <span className="w-4 h-2.5 rounded-sm bg-blue-100 border border-blue-300" />
-              Zona Normativa
+              {LEGENDA_FAIXA_POR_TIPO[tipoDosagem]}
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-4 h-0.5 border-t-2 border-dashed border-amber-500" />
-              DNA Alvo
+              {LEGENDA_ALVO_POR_TIPO[tipoDosagem]}
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-4 h-0.5 bg-destructive rounded-full" />
