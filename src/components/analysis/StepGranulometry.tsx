@@ -142,10 +142,18 @@ export function StepGranulometry({ data, onChange, readOnly }: StepGranulometryP
   // Seleção automática do DNA: prioriza o salvo na análise; senão, o DNA
   // do banco cujo tipo bate com o tipo de análise (garante que Lajes usam a
   // curva de Laje, e vibroprensados continuam usando a curva atual).
+  //
+  // Exclusivo para LAJE: não existe nenhuma curva "laje" cadastrada em
+  // standard_curves hoje — sem este caso especial, o terceiro fallback
+  // (dnasDisponiveis[0]) pegava silenciosamente a curva de Bloco
+  // Estrutural (primeira do banco) para analisar laje, ignorando
+  // LIMITES_LAJE_PADRAO por completo. Para qualquer outro tipo
+  // (bloco_estrutural, bloco_vedacao, paver, cp), o fallback
+  // dnasDisponiveis[0] permanece idêntico ao de sempre.
   const dna =
     dnasDisponiveis.find((d) => d.id === data.dna_selecionado) ??
     dnasDisponiveis.find((d) => d.tipo === data.tipo_analise && d.limites.length) ??
-    dnasDisponiveis[0];
+    (data.tipo_analise === "laje" ? undefined : dnasDisponiveis[0]);
   // Cascata: DB → form → normativo hardcoded por tipo (garante que limites nunca ficam vazios)
   const limits = dna?.limites?.length
     ? dna.limites
