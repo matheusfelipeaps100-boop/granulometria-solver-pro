@@ -37,7 +37,7 @@ import {
 } from "recharts";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { cn, calcularCustoMaterial } from "@/lib/utils";
+import { cn, calcularCustoMaterial, calcularCustoTracoCompleto } from "@/lib/utils";
 import { useAnalysisDraftStore } from "@/store/useAnalysisDraftStore";
 import { useMaterials } from "@/hooks/api/useMaterials";
 
@@ -55,18 +55,6 @@ export function StepResult({ data }: StepResultProps) {
   // Busca preços atuais do banco — evita depender do snapshot do store
   const { materials: dbMaterials } = useMaterials();
   const { curves: dbCurves } = useStandardCurves();
-  // Busca preço, unidade e densidade dos materiais
-  const precosAtuais = useMemo(() => {
-    const map = new Map();
-    dbMaterials.forEach((m) => {
-      map.set(m.id, {
-        custo_valor: m.custo_valor ?? m.custo_tonelada ?? 0,
-        custo_unidade: m.custo_unidade || (m.custo_tonelada != null ? 'tonelada' : 'tonelada'),
-        densidade: m.densidade ?? 2.65,
-      });
-    });
-    return map;
-  }, [dbMaterials]);
 
   const dna = useMemo(() => {
     const curve =
@@ -162,68 +150,6 @@ export function StepResult({ data }: StepResultProps) {
       : undefined,
   }));
 
-  // Calcula o "retorno" estimado para cada material (contribuição % na curva)
-
-  // Calcula Custo Financeiro
-  const financeiro = useMemo(() => {
-    if (!dosageResult) return null;
-
-
-    // Função para converter o custo para R$/kg
-    function getCustoPorKg(materialId) {
-      const info = precosAtuais.get(materialId);
-      if (!info) return 0;
-      const { custo_valor, custo_unidade, densidade } = info;
-      if (!custo_valor || !custo_unidade) return 0;
-      switch (custo_unidade) {
-        case 'tonelada':
-          return custo_valor / 1000;
-        case 'kg':
-          return custo_valor;
-        case 'm3':
-          // densidade em kg/m³
-          return densidade > 0 ? custo_valor / densidade : 0;
-        case 'saco':
-          // Considera 50kg por saco (ajuste conforme necessário)
-          return custo_valor / 50;
-        case 'unidade':
-          // Considera 1 unidade = 1kg (ajuste conforme necessário)
-          return custo_valor / 1;
-        default:
-          return custo_valor / 1000;
-      }
-    }
-
-    const agregadosBatelada = data.materiais_selecionados.reduce((sum, m, i) => {
-      const kg = dosageResult.materiais_batelada[i]?.kg || 0;
-      const priceKg = getCustoPorKg(m.material_id);
-      return sum + (kg * priceKg);
-    }, 0);
-
-    const cimentoBatelada = dosageResult.consumo_cimento_batelada * ((data.custo_cimento_ton || 0) / 1000);
-    const aditivoBatelada = (data.aditivos_ml || 0) * ((data.custo_aditivo_lt || 0) / 1000);
-
-    const totalBatelada = agregadosBatelada + cimentoBatelada + aditivoBatelada;
-    const vol = data.volume_m3 > 0 ? data.volume_m3 : 1;
-    const totalM3 = totalBatelada / vol;
-
-    // Valores por m³ (consumo real de projeto)
-    const agregadosM3 = agregadosBatelada / vol;
-    const cimentoM3 = cimentoBatelada / vol;
-    const aditivoM3 = aditivoBatelada / vol;
-
-    return {
-      agregadosBatelada,
-      cimentoBatelada,
-      aditivoBatelada,
-      totalBatelada,
-      totalM3,
-      agregadosM3,
-      cimentoM3,
-      aditivoM3,
-    };
-  }, [dosageResult, data, precosAtuais]);
-
   const handleExportPDF = async () => {
     setGeneratingPdf(true);
     try {
@@ -265,7 +191,7 @@ export function StepResult({ data }: StepResultProps) {
       </div>
 
       {/* Resumo de Custos do Traço */}
-      {financeiro && (
+      {dosageResult && (
         <Card className="border-none shadow-sm overflow-hidden">
           <div className="bg-success/10 p-0">
             <div className="px-4 pt-3 pb-1 flex items-center gap-2">
@@ -351,47 +277,11 @@ export function StepResult({ data }: StepResultProps) {
                     <TableCell className="font-black uppercase text-sm">TOTAL</TableCell>
                     <TableCell className="text-right text-base font-black" colSpan={2}>
                       {(() => {
-                        // Soma todos os custos
-                        let total = 0;
-                        // Cimento
-                        const cimentoDb = dbMaterials.find((m) => m.tipo === 'cimento' || m.nome.toLowerCase().includes('cimento'));
-                        const cimento_valor = cimentoDb?.custo_valor ?? cimentoDb?.custo_tonelada ?? data.custo_cimento_ton ?? 0;
-                        const cimento_unidade = cimentoDb?.custo_unidade || (cimentoDb?.custo_tonelada != null ? 'tonelada' : 'tonelada');
-                        const cimento_densidade = cimentoDb?.densidade || 3.15;
-                        total += calcularCustoMaterial({
-                          custo_valor: cimento_valor,
-                          custo_unidade: cimento_unidade,
-                          quantidade: data.consumo_alvo_m3,
-                          densidade: cimento_densidade,
-                        });
-                        // Agregados
-                        dosageResult.materiais_batelada.forEach((m, i) => {
-                          const material = data.materiais_selecionados[i];
-                          const dbMat = dbMaterials.find((mat) => mat.id === material.material_id);
-                          const custo_valor = dbMat?.custo_valor ?? dbMat?.custo_tonelada ?? 0;
-                          const custo_unidade = dbMat?.custo_unidade || (dbMat?.custo_tonelada != null ? 'tonelada' : 'tonelada');
-                          const densidade = material.densidade || dbMat?.densidade || 2.65;
-                          const quantidade = m.kg ?? 0;
-                          total += calcularCustoMaterial({ custo_valor, custo_unidade, quantidade, densidade });
-                        });
-                        // Aditivo
-                        if (data.aditivos_ml > 0) {
-                          const aditivoDb = dbMaterials.find((m) => m.tipo === 'aditivo' || m.nome.toLowerCase().includes('aditivo'));
-                          const aditivo_valor = aditivoDb?.custo_valor ?? 0;
-                          const aditivo_unidade = aditivoDb?.custo_unidade || 'litro';
-                          let custoAditivo = 0;
-                          if (aditivo_valor && data.aditivos_ml) {
-                            if (aditivo_unidade === 'litro') {
-                              custoAditivo = aditivo_valor * (data.aditivos_ml / 1000);
-                            } else if (aditivo_unidade === 'kg') {
-                              custoAditivo = aditivo_valor * (data.aditivos_ml / 1000);
-                            } else {
-                              custoAditivo = aditivo_valor * (data.aditivos_ml / 1000);
-                            }
-                          }
-                          total += custoAditivo;
-                        }
-                        return `R$ ${total.toFixed(2)}`;
+                        // Reaproveita calcularCustoTracoCompleto (utils.ts) — mesma lógica
+                        // já usada por StepDosage.tsx — em vez de somar cimento/agregados/
+                        // aditivo de novo aqui (evita duas fontes de verdade para o total).
+                        const { totalBatelada } = calcularCustoTracoCompleto({ formData: data, dbMaterials });
+                        return `R$ ${totalBatelada.toFixed(2)}`;
                       })()}
                     </TableCell>
                   </TableRow>

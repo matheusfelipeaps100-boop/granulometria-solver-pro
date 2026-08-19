@@ -10,6 +10,8 @@ export interface Material {
   densidade: number | null;
   mf: number | string | null;
   custo_tonelada: number | null;
+  custo_valor: number | null;
+  custo_unidade: string | null;
   ativo: boolean;
   created_at: string;
 }

@@ -28,6 +28,7 @@ interface GranulometryChartProps {
 const TITULO_POR_TIPO: Record<TipoDosagem, string> = {
   VIBROPRESSADO: "Curva Granulométrica Combinada",
   LAJE_PROTENDIDA: "Curva Combinada — Concreto Estrutural Protendido",
+  WET_CASTING_PROTENDIDO: "Curva Combinada — Concreto Estrutural Protendido",
 };
 
 const AVISO_POR_TIPO: Record<TipoDosagem, string> = {
@@ -35,6 +36,8 @@ const AVISO_POR_TIPO: Record<TipoDosagem, string> = {
     "O Solver ajusta as proporções para a curva ficar dentro da faixa (centro da zona normativa).",
   LAJE_PROTENDIDA:
     "O Solver busca uma composição compatível com a faixa carregada e sem domínio de finos. As faixas de busca são parâmetros internos do algoritmo, não exigência normativa da ABNT — a composição ideal depende do estudo de dosagem do projeto.",
+  WET_CASTING_PROTENDIDO:
+    "O Solver busca uma composição compatível com a faixa carregada e sem domínio de finos. As faixas de busca são parâmetros internos do algoritmo, não exigência normativa da ABNT — a composição ideal (cimento, água, aditivo) depende do Estudo de Dosagem do produto.",
 };
 
 export function GranulometryChart({ curveResults, hasLimits, compact = false, tipoDosagem = "VIBROPRESSADO" }: GranulometryChartProps) {

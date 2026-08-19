@@ -351,7 +351,7 @@ export function StepGranulometry({ data, onChange, readOnly }: StepGranulometryP
   // Alertas de composição da mistura ATUAL para Laje Protendida — calculados
   // independente de rodar o otimizador, também refletem edição manual.
   const alertasLaje = useMemo(() => {
-    if (tipoDosagem !== "LAJE_PROTENDIDA" || materials.length === 0) return [];
+    if (tipoDosagem !== "WET_CASTING_PROTENDIDO" || materials.length === 0) return [];
     const testMaterials = materialsWithPct.map(m => ({
       material_id: m.material_id,
       proporcao_pct: m.proporcao_pct,
@@ -828,11 +828,11 @@ export function StepGranulometry({ data, onChange, readOnly }: StepGranulometryP
                   <Database className="w-4 h-4 text-muted-foreground" /> NORMALIZAR MISTURA (100%)
                 </Button>
                 <Button
-                  onClick={tipoDosagem === "LAJE_PROTENDIDA" ? handleOptimizeLaje : handleOptimize}
+                  onClick={tipoDosagem === "WET_CASTING_PROTENDIDO" ? handleOptimizeLaje : handleOptimize}
                   className="bg-destructive hover:bg-destructive/90 text-white text-[11px] font-black tracking-widest uppercase gap-2 h-10 px-6 rounded-full shadow-lg shadow-destructive/20"
                 >
                   <Dna className="w-4 h-4" />
-                  {tipoDosagem === "LAJE_PROTENDIDA" ? "OTIMIZAR TRAÇO (LAJE PROTENDIDA)" : "OTIMIZAR TRAÇO (CENTRO DA FAIXA)"}
+                  {tipoDosagem === "WET_CASTING_PROTENDIDO" ? "OTIMIZAR TRAÇO (LAJE PROTENDIDA)" : "OTIMIZAR TRAÇO (CENTRO DA FAIXA)"}
                 </Button>
               </div>
 
@@ -864,7 +864,7 @@ export function StepGranulometry({ data, onChange, readOnly }: StepGranulometryP
                 <div className="flex items-start justify-between mb-2">
                   <div className="space-y-0.5">
                     <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
-                      {tipoDosagem === "LAJE_PROTENDIDA" ? "Curva Combinada — Concreto Estrutural Protendido" : "Curva Combinada"}
+                      {tipoDosagem === "WET_CASTING_PROTENDIDO" ? "Curva Combinada — Concreto Estrutural Protendido" : "Curva Combinada"}
                     </p>
                     <p className="text-4xl font-black text-destructive leading-none tracking-tighter">
                       {mfCombinado.toFixed(2)}
