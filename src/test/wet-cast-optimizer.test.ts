@@ -12,9 +12,12 @@ import {
   gerarTracosCandidatos,
   registrarResultadoReal,
   scoreTracoWetCast,
+  regiaoBuscaPorPapel,
+  otimizarComposicaoWetCasting,
   META_RESISTENCIA_24H_MPA,
   type WetCastExperiment,
 } from "@/lib/wet-cast-optimizer";
+import { LIMITES_LAJE_PADRAO } from "@/lib/analysis-data";
 import type { SieveData } from "@/lib/granulometry-engine";
 
 // Peneiras padrão do sistema (sieve_id → abertura_mm) — mesmo padrão de laje-optimizer.test.ts
@@ -299,5 +302,73 @@ describe("registrarResultadoReal", () => {
     });
     const atualizado = registrarResultadoReal(candidato, 18);
     expect(atualizado.status).toBe("REPROVADO");
+  });
+});
+
+describe("regiaoBuscaPorPapel", () => {
+  it("calibra min/max por papel a partir dos experimentos reais elegíveis", () => {
+    const region = regiaoBuscaPorPapel([experimentoA, experimentoB]);
+    expect("ok" in region).toBe(false);
+    if (!("ok" in region)) {
+      expect(region.graudoPct.min).toBeGreaterThan(0);
+      expect(region.areiaPct.min).toBeGreaterThanOrEqual(0);
+    }
+  });
+  it("com experimento excluído da calibragem, ainda calibra pelo(s) restante(s)", () => {
+    const excluido = makeExperimento({ codigo: "C", usar_na_calibragem: false });
+    const region = regiaoBuscaPorPapel([experimentoA, excluido]);
+    expect("ok" in region).toBe(false);
+  });
+  it("sem nenhum experimento elegível, retorna DADOS_INSUFICIENTES", () => {
+    const excluidoA = { ...experimentoA, usar_na_calibragem: false };
+    const excluidoB = { ...experimentoB, usar_na_calibragem: false };
+    const region = regiaoBuscaPorPapel([excluidoA, excluidoB]);
+    expect("ok" in region && region.ok === false).toBe(true);
+  });
+});
+
+describe("otimizarComposicaoWetCasting", () => {
+  const testMaterials = experimentoA.materiais.map((m) => ({
+    material_id: m.material_id,
+    proporcao_pct: m.proporcao_kg,
+    gradations: m.gradations,
+  }));
+
+  it("otimiza a composição de agregados dentro da faixa carregada", () => {
+    const resultado = otimizarComposicaoWetCasting({
+      materials: testMaterials,
+      limits: LIMITES_LAJE_PADRAO,
+      experimentosReais: [experimentoA, experimentoB],
+      iteracoesMonteCarlo: 200,
+      passosHillClimbing: 50,
+    });
+    expect(resultado.ok).toBe(true);
+    if (resultado.ok) {
+      const soma = resultado.result.fracs.reduce((a, b) => a + b, 0);
+      expect(soma).toBeCloseTo(1, 4);
+      expect(resultado.result.fracs.every((f) => f >= 0)).toBe(true);
+    }
+  });
+
+  it("sem materiais, retorna DADOS_INSUFICIENTES", () => {
+    const resultado = otimizarComposicaoWetCasting({
+      materials: [],
+      limits: LIMITES_LAJE_PADRAO,
+      experimentosReais: [experimentoA, experimentoB],
+    });
+    expect(resultado.ok).toBe(false);
+  });
+
+  it("sem experimento real elegível para calibrar a região, retorna DADOS_INSUFICIENTES", () => {
+    const semElegiveis = [
+      { ...experimentoA, usar_na_calibragem: false },
+      { ...experimentoB, usar_na_calibragem: false },
+    ];
+    const resultado = otimizarComposicaoWetCasting({
+      materials: testMaterials,
+      limits: LIMITES_LAJE_PADRAO,
+      experimentosReais: semElegiveis,
+    });
+    expect(resultado.ok).toBe(false);
   });
 });
