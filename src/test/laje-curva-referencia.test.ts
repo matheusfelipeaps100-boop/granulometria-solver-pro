@@ -90,14 +90,12 @@ describe("getLimitesPadrao('laje') — isolamento de bloco/paver", () => {
   });
 });
 
-// Peneiras onde a faixa ±5pp é "clampada" em 0%/100% (0,15mm e Fundo — a
-// referência do usuário já é assimétrica ali: ex. Fundo passante
-// referência=0%, inferior=0%, superior=5%) — o centro da faixa não fica
-// exatamente igual à referência nessas duas, por construção; nas demais 7
-// peneiras, sim.
-const SIEVE_IDS_CLAMPADOS = [9, 10];
+// Peneiras onde a faixa ±15pp é "clampada" em 0%/100% (9,5mm, 0,15mm e
+// Fundo) — o centro da faixa não fica exatamente igual à referência
+// nessas três, por construção; nas demais 6 peneiras, sim.
+const SIEVE_IDS_CLAMPADOS = [2, 9, 10];
 
-describe("LIMITES_LAJE_PADRAO — curva de referência ±5pp (traço real Concreart)", () => {
+describe("LIMITES_LAJE_PADRAO — curva de referência ±15pp (traço real Concreart)", () => {
   it("o centro da faixa (média min/max) é exatamente a curva de referência nas peneiras não clampadas", () => {
     for (const limite of LIMITES_LAJE_PADRAO) {
       if (limite.sieve_id === 1 || SIEVE_IDS_CLAMPADOS.includes(limite.sieve_id)) continue;
@@ -106,11 +104,11 @@ describe("LIMITES_LAJE_PADRAO — curva de referência ±5pp (traço real Concre
     }
   });
 
-  it("a faixa tem exatamente ±5 pontos percentuais (exceto onde clampado em 0%/100%)", () => {
+  it("a faixa tem exatamente ±15 pontos percentuais (exceto onde clampado em 0%/100%)", () => {
     for (const limite of LIMITES_LAJE_PADRAO) {
       if (limite.sieve_id === 1) continue;
       const largura = limite.limite_max - limite.limite_min;
-      expect(largura).toBeLessThanOrEqual(0.1 + 1e-9);
+      expect(largura).toBeLessThanOrEqual(0.3 + 1e-9);
     }
   });
 });
@@ -130,7 +128,7 @@ describe("Traço exato 812/963/85 reproduz a curva de referência da laje", () =
     });
   });
 
-  it("desvio do centro é ~0 nas peneiras não clampadas (9,5mm a 0,3mm)", () => {
+  it("desvio do centro é ~0 nas peneiras não clampadas (6,3mm a 0,3mm)", () => {
     curva
       .filter((r) => !SIEVE_IDS_CLAMPADOS.includes(r.sieve_id))
       .forEach((r) => {
