@@ -154,12 +154,23 @@ export function StepGranulometry({ data, onChange, readOnly }: StepGranulometryP
     dnasDisponiveis.find((d) => d.id === data.dna_selecionado) ??
     dnasDisponiveis.find((d) => d.tipo === data.tipo_analise && d.limites.length) ??
     (data.tipo_analise === "laje" ? undefined : dnasDisponiveis[0]);
-  // Cascata: DB → form → normativo hardcoded por tipo (garante que limites nunca ficam vazios)
-  const limits = dna?.limites?.length
-    ? dna.limites
-    : data.limites_curva?.length
-      ? data.limites_curva
-      : getLimitesPadrao(data.tipo_analise);
+  // Cascata: DB → form → normativo hardcoded por tipo (garante que limites nunca ficam vazios).
+  //
+  // Exclusivo para LAJE: a faixa é sempre a mesma referência fixa
+  // (LIMITES_LAJE_PADRAO), independente do preset carregado em "CARREGAR"
+  // — cada preset de granulometria salvo carrega seu próprio
+  // `limites_curva` (às vezes desatualizado/errado, ex.: capturado de uma
+  // faixa de bloco por engano), e usar isso mudaria a faixa de estudo a
+  // cada traço testado, quando o pedido é uma única referência fixa para
+  // todos os traços de laje. Para bloco/paver/cp a cascata original (DB →
+  // preset salvo na análise → fallback normativo) continua idêntica.
+  const limits = data.tipo_analise === "laje"
+    ? getLimitesPadrao("laje")
+    : dna?.limites?.length
+      ? dna.limites
+      : data.limites_curva?.length
+        ? data.limites_curva
+        : getLimitesPadrao(data.tipo_analise);
 
   // Dimensão máxima do agregado permitida pelo projeto: override manual na
   // análise → valor do DNA carregado → indefinido (não checa se ausente).
