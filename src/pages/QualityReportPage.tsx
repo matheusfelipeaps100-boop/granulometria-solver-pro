@@ -388,7 +388,7 @@ const QualityReportPage = () => {
               <div className="flex items-center justify-between">
                 <h2 className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
                   <BarChart3 className="h-3 w-3" />
-                  {getTipoDosagem(analysis.tipo) === "LAJE_PROTENDIDA"
+                  {getTipoDosagem(analysis.tipo) === "WET_CASTING_PROTENDIDO"
                     ? "Curva Combinada — Concreto Estrutural Protendido"
                     : "Estudo Granulométrico (DNA)"}
                 </h2>

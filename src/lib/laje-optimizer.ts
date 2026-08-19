@@ -2,6 +2,16 @@
 // OTIMIZADOR GRANULOMÉTRICO — LAJE PROTENDIDA / CONCRETO ESTRUTURAL
 // =============================================================================
 //
+// ⚠️ DEPRECADO COMO CAMINHO ATIVO DA UI (mantido no código e testável).
+// Este módulo foi escrito assumindo que "Laje" era concreto seco de
+// extrusão/vibroacabadora. Na prática o processo real de fabricação é
+// Wet Casting (concreto fresco/plástico moldado), com meta de 25 MPa em
+// 24h. O caminho ativo para tipo_analise = "laje" agora é
+// src/lib/wet-cast-optimizer.ts (TipoDosagem "WET_CASTING_PROTENDIDO").
+// Este arquivo é preservado apenas por compatibilidade/histórico — não
+// receber novas features aqui.
+// =============================================================================
+//
 // Módulo isolado do motor de vibroprensados (granulometry-engine.ts →
 // otimizarCurvaVibroprensado) para não arriscar regressão em bloco/paver/CP.
 //

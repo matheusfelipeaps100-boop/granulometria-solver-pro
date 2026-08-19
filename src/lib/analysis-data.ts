@@ -146,23 +146,30 @@ export function getConfigMisturador(tipo: string) {
 // Modelo de dosagem/otimização — separa a família de produto usada para
 // ESCOLHER o algoritmo de otimização granulométrica.
 //
-// VIBROPRESSADO   → concreto seco de blocos/pavers/CP (algoritmo atual,
-//                    busca o centro da faixa sem restrição de papel do agregado).
-// LAJE_PROTENDIDA → concreto estrutural de lajes/vigotas protendidas
-//                    (algoritmo próprio, ver src/lib/laje-optimizer.ts).
+// VIBROPRESSADO         → concreto seco de blocos/pavers/CP (algoritmo atual,
+//                          busca o centro da faixa sem restrição de papel do agregado).
+// LAJE_PROTENDIDA        → (DEPRECADO como caminho ativo) modelo antigo que
+//                          assumia laje protendida como concreto seco de
+//                          extrusão/vibroacabadora (ver src/lib/laje-optimizer.ts).
+//                          O processo real é Wet Casting — preservado no código
+//                          e testável, mas não é mais usado pela UI para "laje".
+// WET_CASTING_PROTENDIDO → concreto estrutural fresco/plástico moldado de
+//                          lajes/vigotas/painéis protendidos, meta 25 MPa em
+//                          24h (algoritmo próprio, ver src/lib/wet-cast-optimizer.ts).
+//                          Caminho ativo para tipo_analise = "laje".
 //
-// Estrutura extensível: para adicionar CONCRETO_ESTRUTURAL ou
-// LAJE_ALVEOLAR_PROTENDIDA no futuro, basta ampliar o union type e o mapa
-// abaixo — nenhum código consumidor precisa de novos if/else.
+// Estrutura extensível: para adicionar novas famílias no futuro, basta
+// ampliar o union type e o mapa abaixo — nenhum código consumidor precisa
+// de novos if/else.
 // =============================================================================
-export type TipoDosagem = "VIBROPRESSADO" | "LAJE_PROTENDIDA";
+export type TipoDosagem = "VIBROPRESSADO" | "LAJE_PROTENDIDA" | "WET_CASTING_PROTENDIDO";
 
 const TIPO_ANALISE_TO_DOSAGEM: Record<string, TipoDosagem> = {
   bloco_estrutural: "VIBROPRESSADO",
   bloco_vedacao: "VIBROPRESSADO",
   paver: "VIBROPRESSADO",
   cp: "VIBROPRESSADO",
-  laje: "LAJE_PROTENDIDA",
+  laje: "WET_CASTING_PROTENDIDO", // era LAJE_PROTENDIDA — processo real é Wet Casting
 };
 
 export function getTipoDosagem(tipoAnalise?: string): TipoDosagem {
