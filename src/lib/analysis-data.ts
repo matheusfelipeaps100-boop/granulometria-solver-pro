@@ -100,30 +100,32 @@ export const LIMITES_BLOCO_PADRAO: Array<{ sieve_id: number; limite_min: number;
 // usada por calcCombinedCurve/calcCurvaStatus) do ÚNICO traço real conhecido
 // de uma fábrica em produção e funcionando: Concreart — Areia Barranco 812kg,
 // Brita 0 963kg, Pó de Pedra 85kg (MF 3,77), com uma faixa de estudo de
-// ±5 pontos percentuais ao redor dela, para permitir comparação visual e de
-// compatibilidade contra esse traço de referência. Substituiu, nesta sessão,
-// a curva anterior que assumia extrusão/vibroacabadora (a fabricação real é
-// Wet Casting — ver src/lib/wet-cast-optimizer.ts).
+// ±15 pontos percentuais ao redor dela (ajustado nesta sessão a pedido do
+// usuário — a faixa de ±5pp inicial ficou visualmente estreita demais),
+// para permitir comparação visual e de compatibilidade contra esse traço
+// de referência. Substituiu, nesta sessão, a curva anterior que assumia
+// extrusão/vibroacabadora (a fabricação real é Wet Casting — ver
+// src/lib/wet-cast-optimizer.ts).
 //
-// limite_min/limite_max abaixo = faixa de estudo ∓ 5 pontos percentuais ao
-// redor da curva de referência, arredondados aos limites [0%, 100%]. Nas 7
-// peneiras sem "clamp" (9,5mm a 0,3mm), o centro exato (avg(min,max)) já
-// coincide com a curva de referência abaixo. Nas 2 peneiras onde o clamp em
-// 0%/100% quebra essa simetria (0,15mm e Fundo), o centro deixa de bater
-// com a referência exata — por isso a curva de referência é guardada à
-// parte, fixa, em CURVA_REFERENCIA_LAJE (não é recalculada como avg(min,max)
-// em nenhum lugar do gráfico/compatibilidade de laje).
+// limite_min/limite_max abaixo = faixa de estudo ∓ 15 pontos percentuais ao
+// redor da curva de referência, arredondados aos limites [0%, 100%]. Nas 6
+// peneiras sem "clamp" (6,3mm a 0,6mm), o centro exato (avg(min,max)) já
+// coincide com a curva de referência abaixo. Nas 3 peneiras onde o clamp em
+// 0%/100% quebra essa simetria (9,5mm, 0,15mm e Fundo), o centro deixa de
+// bater com a referência exata — por isso a curva de referência é guardada
+// à parte, fixa, em CURVA_REFERENCIA_LAJE (não é recalculada como
+// avg(min,max) em nenhum lugar do gráfico/compatibilidade de laje).
 export const LIMITES_LAJE_PADRAO: Array<{ sieve_id: number; limite_min: number; limite_max: number }> = [
   { sieve_id: 1,  limite_min: 0.000, limite_max: 0.000 },
-  { sieve_id: 2,  limite_min: 0.086, limite_max: 0.186 }, // 9,5 mm
-  { sieve_id: 3,  limite_min: 0.330, limite_max: 0.430 }, // 6,3 mm
-  { sieve_id: 4,  limite_min: 0.406, limite_max: 0.506 }, // 4,8 mm
-  { sieve_id: 5,  limite_min: 0.476, limite_max: 0.576 }, // 2,4 mm
-  { sieve_id: 6,  limite_min: 0.488, limite_max: 0.588 }, // 1,2 mm
-  { sieve_id: 7,  limite_min: 0.495, limite_max: 0.595 }, // 0,6 mm
-  { sieve_id: 8,  limite_min: 0.698, limite_max: 0.798 }, // 0,3 mm
-  { sieve_id: 9,  limite_min: 0.906, limite_max: 1.000 }, // 0,15 mm
-  { sieve_id: 10, limite_min: 0.950, limite_max: 1.000 }, // Fundo
+  { sieve_id: 2,  limite_min: 0.000, limite_max: 0.286 }, // 9,5 mm
+  { sieve_id: 3,  limite_min: 0.230, limite_max: 0.530 }, // 6,3 mm
+  { sieve_id: 4,  limite_min: 0.306, limite_max: 0.606 }, // 4,8 mm
+  { sieve_id: 5,  limite_min: 0.376, limite_max: 0.676 }, // 2,4 mm
+  { sieve_id: 6,  limite_min: 0.388, limite_max: 0.688 }, // 1,2 mm
+  { sieve_id: 7,  limite_min: 0.395, limite_max: 0.695 }, // 0,6 mm
+  { sieve_id: 8,  limite_min: 0.598, limite_max: 0.898 }, // 0,3 mm
+  { sieve_id: 9,  limite_min: 0.806, limite_max: 1.000 }, // 0,15 mm
+  { sieve_id: 10, limite_min: 0.850, limite_max: 1.000 }, // Fundo
 ];
 
 // Curva de referência FIXA da Laje Protendida — os 9 pontos reais do traço
