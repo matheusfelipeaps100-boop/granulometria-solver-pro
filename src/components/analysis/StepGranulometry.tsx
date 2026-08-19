@@ -174,6 +174,25 @@ export function StepGranulometry({ data, onChange, readOnly }: StepGranulometryP
     [curveResults]
   );
 
+  // Exclusivo para LAJE PROTENDIDA: o gráfico da laje mostra % PASSANTE (mais
+  // adequado para comparação visual da curva), não % acumulado retido. Não
+  // afeta bloco/paver (que continuam recebendo `curveResults` original em
+  // % retido) nem a tabela de digitação/compatibilidade acima, que seguem
+  // usando `curveResults` (retido) normalmente — é só uma transformação de
+  // exibição para o componente de gráfico, calculada aqui e isolada por
+  // tipoDosagem. limite_min/limite_max são invertidos e trocados de posição
+  // porque, ao converter retido→passante, o que era limite mínimo em retido
+  // vira o limite máximo em passante (e vice-versa).
+  const curveResultsParaGrafico = useMemo(() => {
+    if (tipoDosagem !== "WET_CASTING_PROTENDIDO") return curveResults;
+    return curveResults.map((r) => ({
+      ...r,
+      pct_acumulado: 1 - r.pct_acumulado,
+      limite_min: r.limite_max != null ? 1 - r.limite_max : undefined,
+      limite_max: r.limite_min != null ? 1 - r.limite_min : undefined,
+    }));
+  }, [curveResults, tipoDosagem]);
+
   // MF por material
   const mfPerMaterial = useMemo(
     () => materials.map((m) => ({
@@ -922,7 +941,7 @@ export function StepGranulometry({ data, onChange, readOnly }: StepGranulometryP
                 {/* Gráfico */}
                 <div className="mt-2 border rounded-xl overflow-hidden bg-white/50 relative h-[320px]">
                   <div className="absolute inset-0 pt-4 pb-2">
-                    <GranulometryChart curveResults={curveResults} hasLimits={!!(limits?.length)} tipoDosagem={tipoDosagem} compact />
+                    <GranulometryChart curveResults={curveResultsParaGrafico} hasLimits={!!(limits?.length)} tipoDosagem={tipoDosagem} compact />
                   </div>
                 </div>
               </div>

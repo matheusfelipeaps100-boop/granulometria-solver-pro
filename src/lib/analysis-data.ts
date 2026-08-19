@@ -89,22 +89,38 @@ export const LIMITES_BLOCO_PADRAO: Array<{ sieve_id: number; limite_min: number;
   { sieve_id: 10, limite_min: 1.00, limite_max: 1.00 },
 ];
 
-// Limites normativos padrão para Lajes Protendidas — curva de máxima
-// compacidade para concreto seco de extrusão/vibroacabadora (espelho do seed
-// 017_seed_laje_curve.sql, DNA "ABNT – Laje Protendida (Extrusão)").
-// Independente da curva de vibroprensados acima.
-// Usados como fallback quando o banco não retorna standard_curve_items.
+// =============================================================================
+// CURVA DE REFERÊNCIA — LAJE PROTENDIDA (WET CASTING)
+// =============================================================================
+// Independente da curva de vibroprensados acima (LIMITES_BLOCO_PADRAO) —
+// bloco/paver/CP não usam nem são afetados por esta constante.
+//
+// Não é uma faixa normativa ABNT nem estatisticamente validada. É a curva
+// (em % retida acumulada — mesma convenção interna de limite_min/limite_max
+// usada por calcCombinedCurve/calcCurvaStatus) do ÚNICO traço real conhecido
+// de uma fábrica em produção e funcionando: Concreart — Areia Barranco 812kg,
+// Brita 0 963kg, Pó de Pedra 85kg (MF 3,77), com uma faixa de estudo de
+// ±5 pontos percentuais ao redor dela, para permitir comparação visual e de
+// compatibilidade contra esse traço de referência. Substituiu, nesta sessão,
+// a curva anterior que assumia extrusão/vibroacabadora (a fabricação real é
+// Wet Casting — ver src/lib/wet-cast-optimizer.ts).
+//
+// limite_min/limite_max abaixo = curva de referência ∓ 5 pontos percentuais,
+// arredondados aos limites [0%, 100%]. O centro exato (avg(min,max)) é a
+// própria curva de referência da Concreart:
+//   9,5mm 13,6% · 6,3mm 38,0% · 4,8mm 45,6% · 2,4mm 52,6% · 1,2mm 53,8% ·
+//   0,6mm 54,5% · 0,3mm 74,8% · 0,15mm 95,6% · Fundo 100,0%
 export const LIMITES_LAJE_PADRAO: Array<{ sieve_id: number; limite_min: number; limite_max: number }> = [
-  { sieve_id: 1,  limite_min: 0.00, limite_max: 0.00 },
-  { sieve_id: 2,  limite_min: 0.04, limite_max: 0.06 },
-  { sieve_id: 3,  limite_min: 0.16, limite_max: 0.20 },
-  { sieve_id: 4,  limite_min: 0.26, limite_max: 0.30 },
-  { sieve_id: 5,  limite_min: 0.40, limite_max: 0.44 },
-  { sieve_id: 6,  limite_min: 0.56, limite_max: 0.60 },
-  { sieve_id: 7,  limite_min: 0.72, limite_max: 0.76 },
-  { sieve_id: 8,  limite_min: 0.86, limite_max: 0.90 },
-  { sieve_id: 9,  limite_min: 0.94, limite_max: 0.98 },
-  { sieve_id: 10, limite_min: 1.00, limite_max: 1.00 },
+  { sieve_id: 1,  limite_min: 0.000, limite_max: 0.000 },
+  { sieve_id: 2,  limite_min: 0.086, limite_max: 0.186 }, // 9,5 mm
+  { sieve_id: 3,  limite_min: 0.330, limite_max: 0.430 }, // 6,3 mm
+  { sieve_id: 4,  limite_min: 0.406, limite_max: 0.506 }, // 4,8 mm
+  { sieve_id: 5,  limite_min: 0.476, limite_max: 0.576 }, // 2,4 mm
+  { sieve_id: 6,  limite_min: 0.488, limite_max: 0.588 }, // 1,2 mm
+  { sieve_id: 7,  limite_min: 0.495, limite_max: 0.595 }, // 0,6 mm
+  { sieve_id: 8,  limite_min: 0.698, limite_max: 0.798 }, // 0,3 mm
+  { sieve_id: 9,  limite_min: 0.906, limite_max: 1.000 }, // 0,15 mm
+  { sieve_id: 10, limite_min: 0.950, limite_max: 1.000 }, // Fundo
 ];
 
 // Seleciona a curva de referência (fallback local) de acordo com o tipo de
