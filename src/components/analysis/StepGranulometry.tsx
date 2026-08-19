@@ -37,10 +37,18 @@ import {
   otimizarCurvaVibroprensado,
 } from "@/lib/granulometry-engine";
 import {
-  otimizarCurvaLajeProtendida,
   classificarPapelAgregado,
   gerarAlertasComposicaoLaje,
 } from "@/lib/laje-optimizer";
+import {
+  otimizarComposicaoWetCasting,
+  experimentosParaCalibragem,
+  estimarResistencia24h,
+  verificarExtrapolacao,
+  kgCimentoPorM3,
+  META_RESISTENCIA_24H_MPA,
+  type WetCastExperiment,
+} from "@/lib/wet-cast-optimizer";
 import {
   PENEIRAS_PADRAO,
   getLimitesPadrao,
@@ -51,6 +59,7 @@ import {
 } from "@/lib/analysis-data";
 import { useMaterials } from "@/hooks/api/useMaterials";
 import { useStandardCurves } from "@/hooks/api/useStandardCurves";
+import { useDosageExperiments } from "@/hooks/api/useDosageExperiments";
 import { Database, Dna, AlertTriangle, CheckCircle2, AlertCircle, Trash2, Plus, Save, FolderOpen } from "lucide-react";
 import { useGranulometryPresets } from "@/hooks/api/useGranulometryPresets";
 
@@ -63,6 +72,10 @@ interface StepGranulometryProps {
 export function StepGranulometry({ data, onChange, readOnly }: StepGranulometryProps) {
   const capacidadeMisturador = getConfigMisturador(data.tipo_analise).capacidade_kg;
   const tipoDosagem = getTipoDosagem(data.tipo_analise);
+  // Experimentos reais de Wet Casting (Concreart, Lajeforro, ...) — calibram
+  // tanto a região de busca do otimizador de agregados (otimizarComposicaoWetCasting)
+  // quanto a estimativa de resistência exibida abaixo, para tipo "laje".
+  const { experimentosReais } = useDosageExperiments();
 
   const [fonteAtiva, setFonteAtiva] = useState<"bica" | "manual">("bica");
   const [camadaAtiva, setCamadaAtiva] = useState<"base" | "face">("base");
@@ -316,9 +329,9 @@ export function StepGranulometry({ data, onChange, readOnly }: StepGranulometryP
     toast.success("Traço otimizado (Centro da Faixa)!");
   }, [materials, limits, onChange, capacidadeMisturador]);
 
-  // Otimizador de LAJE PROTENDIDA — algoritmo independente (ver
-  // src/lib/laje-optimizer.ts), busca uma composição que evita domínio de
-  // pó de pedra e verifica dimensão máxima do agregado graúdo vs. peça.
+  // Otimizador de LAJE PROTENDIDA (WET CASTING) — src/lib/wet-cast-optimizer.ts,
+  // calibrado pelos experimentos reais elegíveis (Concreart/Lajeforro/...),
+  // não mais pelas faixas fixas de extrusão de laje-optimizer.ts (deprecado).
   const handleOptimizeLaje = useCallback(() => {
     if (!limits || materials.length === 0) return;
 
@@ -328,14 +341,15 @@ export function StepGranulometry({ data, onChange, readOnly }: StepGranulometryP
       gradations: m.gradations,
     }));
 
-    const res = otimizarCurvaLajeProtendida({
+    const res = otimizarComposicaoWetCasting({
       materials: testMaterials,
       limits,
+      experimentosReais,
       dimensaoMaximaPermitidaMm,
     });
 
     if (!res.ok) {
-      toast.error("Dados insuficientes para otimização granulométrica.");
+      toast.error(res.detalhe);
       return;
     }
 
@@ -344,9 +358,9 @@ export function StepGranulometry({ data, onChange, readOnly }: StepGranulometryP
       proporcao_kg: Math.round(res.result.fracs[i] * capacidadeMisturador),
     }));
     onChange({ materiais_selecionados: updated });
-    toast.success("Traço otimizado (Laje Protendida)!");
+    toast.success("Traço otimizado (Laje Protendida — Wet Casting)!");
     res.result.alertas.forEach((msg) => toast.warning(msg));
-  }, [materials, limits, onChange, capacidadeMisturador, dimensaoMaximaPermitidaMm]);
+  }, [materials, limits, onChange, capacidadeMisturador, dimensaoMaximaPermitidaMm, experimentosReais]);
 
   // Alertas de composição da mistura ATUAL para Laje Protendida — calculados
   // independente de rodar o otimizador, também refletem edição manual.
@@ -360,6 +374,44 @@ export function StepGranulometry({ data, onChange, readOnly }: StepGranulometryP
     const papeis = testMaterials.map(m => classificarPapelAgregado(m.gradations));
     return gerarAlertasComposicaoLaje(testMaterials, papeis);
   }, [tipoDosagem, materials, materialsWithPct]);
+
+  // Resistência estimada aos 24h para a composição ATUAL (cimento/água/aditivo
+  // já definidos no formulário — mesmo default/editável na etapa de Dosagem —
+  // + agregados desta etapa), calibrada pelos experimentos reais elegíveis.
+  // Nunca é "a resistência" — sempre rotulada como estimativa não validada,
+  // e ausente quando não há pontos reais suficientes para calibrar.
+  const resistenciaEstimada = useMemo(() => {
+    if (tipoDosagem !== "WET_CASTING_PROTENDIDO" || materials.length === 0) return null;
+    const elegiveis = experimentosParaCalibragem(experimentosReais);
+    if (elegiveis.length < 2) return null;
+
+    const candidatoAtual: WetCastExperiment = {
+      codigo: data.codigo || "ATUAL",
+      origem: "CANDIDATO_GERADO",
+      status: "SIMULACAO",
+      cimento_kg: data.consumo_alvo_m3 || 0,
+      agua_kg: (data.consumo_alvo_m3 || 0) * (data.relacao_ac || 0),
+      aditivo_kg: (data.aditivos_ml || 0) / 1000,
+      densidade_cimento: data.densidade_cimento || 3.15,
+      materiais: materialsWithPct.map((m) => ({
+        material_id: m.material_id,
+        proporcao_kg: m.proporcao_kg ?? 0,
+        densidade: m.densidade,
+        gradations: m.gradations,
+      })),
+    };
+    if (candidatoAtual.cimento_kg <= 0) return null;
+
+    const pontosCalibragem = elegiveis.map((e) => ({
+      kgCimentoPorM3: kgCimentoPorM3(e),
+      resistencia_mpa: e.resultado_resistencia_mpa as number,
+    }));
+    const est = estimarResistencia24h(kgCimentoPorM3(candidatoAtual), pontosCalibragem);
+    if ("ok" in est) return null;
+
+    const extrap = verificarExtrapolacao(candidatoAtual, elegiveis);
+    return { ...est, ...extrap };
+  }, [tipoDosagem, materials, materialsWithPct, experimentosReais, data.codigo, data.consumo_alvo_m3, data.relacao_ac, data.aditivos_ml, data.densidade_cimento]);
 
   // Status config
   const statusConfig = {
@@ -850,6 +902,53 @@ export function StepGranulometry({ data, onChange, readOnly }: StepGranulometryP
                       <p className="text-xs text-amber-700 dark:text-amber-400">{msg}</p>
                     </div>
                   ))}
+                </div>
+              )}
+
+              {/* Resistência estimada aos 24h — calibrada pelos experimentos reais
+                  (ver Estudo de Dosagem). Nunca "a resistência", sempre estimativa
+                  não validada; ausente quando não há calibragem suficiente. */}
+              {tipoDosagem === "WET_CASTING_PROTENDIDO" && (
+                <div className="mt-4">
+                  {resistenciaEstimada ? (
+                    <div
+                      className={cn(
+                        "flex items-start gap-2 p-2.5 rounded-md border",
+                        resistenciaEstimada.resistencia_estimada_mpa >= META_RESISTENCIA_24H_MPA
+                          ? "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/50"
+                          : "bg-destructive/5 border-destructive/20"
+                      )}
+                    >
+                      {resistenciaEstimada.resistencia_estimada_mpa >= META_RESISTENCIA_24H_MPA ? (
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600 mt-0.5 shrink-0" />
+                      ) : (
+                        <AlertCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+                      )}
+                      <div className="text-xs">
+                        <p className="font-bold">
+                          Resistência estimada aos 24h: {resistenciaEstimada.resistencia_estimada_mpa.toFixed(1)} MPa{" "}
+                          <span className="font-normal uppercase text-[9px] text-amber-700">(não validada — confiança baixa)</span>
+                        </p>
+                        <p className="text-muted-foreground">
+                          Meta: {'>'} {META_RESISTENCIA_24H_MPA} MPa. Calibrada pelos experimentos reais elegíveis
+                          (Estudo de Dosagem). Cimento/água/aditivo considerados: os valores atuais da etapa de Dosagem.
+                        </p>
+                        {resistenciaEstimada.extrapolacao && (
+                          <p className="text-amber-700 mt-1">
+                            ⚠ Extrapolação: {resistenciaEstimada.motivo}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-start gap-2 p-2.5 rounded-md bg-muted/30 border border-muted-foreground/20">
+                      <AlertTriangle className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                      <p className="text-xs text-muted-foreground">
+                        Resistência estimada indisponível: é necessário ao menos 2 experimentos reais elegíveis
+                        para calibragem no Estudo de Dosagem (excluindo os marcados com causa conhecida).
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>

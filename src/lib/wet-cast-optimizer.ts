@@ -32,6 +32,7 @@ import { calcularCustoMaterial } from "./utils";
 import {
   classificarPapelAgregado,
   dimensaoMaximaCaracteristica,
+  LAJE_SCORE_WEIGHTS,
   type PapelAgregado,
 } from "./laje-optimizer";
 
@@ -354,6 +355,248 @@ export function verificarDadosSuficientes(
     };
   }
   return null;
+}
+
+// =============================================================================
+// OTIMIZAÇÃO DA COMPOSIÇÃO DE AGREGADOS (wizard de análise — StepGranulometry)
+// =============================================================================
+// Diferente de gerarTracosCandidatos (que gera o traço completo — cimento,
+// água, aditivo e agregados — para o Estudo de Dosagem), esta seção resolve
+// o mesmo problema que laje-optimizer.ts resolvia para o wizard de análise
+// (ajustar a composição de AGREGADOS dentro da faixa/DNA carregado), mas
+// calibrando a região de busca pelos experimentos reais elegíveis (Concreart/
+// Lajeforro etc.) em vez das faixas fixas LAJE_SEARCH_SEED (que assumiam
+// extrusão). Estrutura de Monte Carlo + hill climbing intencionalmente
+// próxima de otimizarCurvaLajeProtendida — laje-optimizer.ts é mantido
+// congelado/deprecado (ver seu cabeçalho), então essa lógica calibrada por
+// dados reais vive aqui, não lá.
+
+export interface RegiaoPorPapel {
+  areiaPct: { min: number; max: number };
+  graudoPct: { min: number; max: number };
+  poDePedraPct: { min: number; max: number };
+}
+
+/**
+ * Região de busca por papel de agregado (graúdo/areia/pó de pedra),
+ * calibrada pelo min/max observado nos experimentos reais elegíveis para
+ * calibragem. Com 1 único experimento elegível, min = max (a busca fica
+ * concentrada nesse único ponto real conhecido — não inventa faixa).
+ */
+export function regiaoBuscaPorPapel(experimentosReais: WetCastExperiment[]): RegiaoPorPapel | WetCastDataError {
+  const elegiveis = experimentosParaCalibragem(experimentosReais);
+  if (elegiveis.length === 0) {
+    return {
+      ok: false,
+      motivo: "DADOS_INSUFICIENTES",
+      detalhe: "Nenhum experimento real elegível para calibrar a região de busca de agregados.",
+    };
+  }
+  const fracsPorPapel = (papel: PapelAgregado) =>
+    elegiveis.map((e) => frac(e.materiais, e.materiais.map((m) => classificarPapelAgregado(m.gradations)), papel));
+  const rangeOf = (arr: number[]) => ({ min: Math.min(...arr), max: Math.max(...arr) });
+  return {
+    areiaPct: rangeOf(fracsPorPapel("areia")),
+    graudoPct: rangeOf(fracsPorPapel("graudo")),
+    poDePedraPct: rangeOf(fracsPorPapel("po_de_pedra")),
+  };
+}
+
+/**
+ * Pontuação de uma composição de agregados (menor = melhor) — mesma
+ * estrutura de scoreCurvaLajeProtendida (laje-optimizer.ts: desvio à faixa,
+ * penalidade por papel, descontinuidade, dimensão incompatível), mas as
+ * faixas-alvo por papel vêm da região calibrada pelos experimentos reais
+ * (region), não de LAJE_SEARCH_SEED.
+ */
+export function scoreComposicaoWetCasting(
+  materials: MaterialInput[],
+  limits: Array<{ sieve_id: number; limite_min: number; limite_max: number }>,
+  papeis: PapelAgregado[],
+  region: RegiaoPorPapel,
+  dimensaoMaximaPermitidaMm?: number,
+  dimensoesMaximasMateriais?: number[]
+): number {
+  const curve = calcCombinedCurve(materials, limits);
+
+  const comFaixa = curve.filter((r) => r.limite_min !== undefined);
+  const desvioMedioFaixa =
+    comFaixa.length > 0
+      ? (comFaixa.reduce((s, r) => s + (r.desvio_absoluto ?? 0), 0) / comFaixa.length) * 100
+      : 0;
+
+  const totalProp = materials.reduce((s, m) => s + m.proporcao_pct, 0) || 1;
+  const fracPorPapel = (papel: PapelAgregado) =>
+    materials.reduce((s, m, i) => s + (papeis[i] === papel ? m.proporcao_pct : 0), 0) / totalProp;
+
+  const fracPo = fracPorPapel("po_de_pedra");
+  const fracAreia = fracPorPapel("areia");
+  const fracGraudo = fracPorPapel("graudo");
+
+  const distanciaFaixa = (v: number, min: number, max: number) => (v < min ? min - v : v > max ? v - max : 0);
+
+  let penalidadePo = distanciaFaixa(fracPo, region.poDePedraPct.min, region.poDePedraPct.max) * 100;
+  if (fracPo > WET_CAST_ALERT_THRESHOLDS.poDePedraMaxPct) penalidadePo *= 2;
+
+  let penalidadeAreia = distanciaFaixa(fracAreia, region.areiaPct.min, region.areiaPct.max) * 100;
+  if (fracAreia < WET_CAST_ALERT_THRESHOLDS.areiaMinPct) penalidadeAreia *= 2;
+
+  let penalidadeGraudo = distanciaFaixa(fracGraudo, region.graudoPct.min, region.graudoPct.max) * 100;
+  if (fracGraudo < WET_CAST_ALERT_THRESHOLDS.graudoMinPct) penalidadeGraudo *= 2;
+
+  let penalidadeDescontinuidade = 0;
+  for (let i = 0; i < curve.length; i++) {
+    if (curve[i].pct_combinado === 0) {
+      const antes = curve.slice(0, i).some((r) => r.pct_combinado > 0);
+      const depois = curve.slice(i + 1).some((r) => r.pct_combinado > 0);
+      if (antes && depois) penalidadeDescontinuidade += 10;
+    }
+  }
+
+  let penalidadeDimensao = 0;
+  if (dimensaoMaximaPermitidaMm && dimensoesMaximasMateriais) {
+    materials.forEach((m, i) => {
+      if (papeis[i] === "graudo" && dimensoesMaximasMateriais[i] > dimensaoMaximaPermitidaMm) {
+        penalidadeDimensao += 50;
+      }
+    });
+  }
+
+  return (
+    LAJE_SCORE_WEIGHTS.desvioFaixa * desvioMedioFaixa +
+    LAJE_SCORE_WEIGHTS.poDePedra * penalidadePo +
+    LAJE_SCORE_WEIGHTS.areia * penalidadeAreia +
+    LAJE_SCORE_WEIGHTS.graudo * penalidadeGraudo +
+    LAJE_SCORE_WEIGHTS.descontinuidade * penalidadeDescontinuidade +
+    LAJE_SCORE_WEIGHTS.dimensaoIncompativel * penalidadeDimensao
+  );
+}
+
+export interface OtimizarComposicaoInput {
+  materials: MaterialInput[];
+  limits: Array<{ sieve_id: number; limite_min: number; limite_max: number }>;
+  experimentosReais: WetCastExperiment[];
+  dimensaoMaximaPermitidaMm?: number;
+  iteracoesMonteCarlo?: number;
+  passosHillClimbing?: number;
+}
+
+export interface OtimizarComposicaoResult {
+  fracs: number[]; // proporcao_pct final por material, mesma ordem da entrada
+  score: number;
+  alertas: string[];
+}
+
+/**
+ * Otimizador de composição de AGREGADOS para o wizard de análise (Laje/Wet
+ * Casting) — substitui otimizarCurvaLajeProtendida (extrusão) para este
+ * produto: busca Monte Carlo + hill climbing na região calibrada pelos
+ * experimentos reais elegíveis (regiaoBuscaPorPapel), não em faixas fixas.
+ */
+export function otimizarComposicaoWetCasting(
+  input: OtimizarComposicaoInput
+): { ok: true; result: OtimizarComposicaoResult } | WetCastDataError {
+  const { materials, limits, experimentosReais, dimensaoMaximaPermitidaMm } = input;
+  const iteracoesMonteCarlo = input.iteracoesMonteCarlo ?? 2000;
+  const passosHillClimbing = input.passosHillClimbing ?? 500;
+
+  if (materials.length === 0) {
+    return { ok: false, motivo: "DADOS_INSUFICIENTES", detalhe: "Nenhum material selecionado." };
+  }
+  if (!limits || limits.length === 0) {
+    return {
+      ok: false,
+      motivo: "DADOS_INSUFICIENTES",
+      detalhe: "Nenhuma faixa/DNA de Laje Protendida (Wet Casting) carregado para comparação.",
+    };
+  }
+  const semGranulometria = materials.filter((m) => m.gradations.reduce((s, g) => s + g.massa_retida, 0) === 0);
+  if (semGranulometria.length > 0) {
+    return {
+      ok: false,
+      motivo: "DADOS_INSUFICIENTES",
+      detalhe: `Material(is) sem granulometria cadastrada: ${semGranulometria.map((m) => m.material_id).join(", ")}.`,
+    };
+  }
+
+  const region = regiaoBuscaPorPapel(experimentosReais);
+  if ("ok" in region) return region;
+
+  const papeis = materials.map((m) => classificarPapelAgregado(m.gradations));
+  const dimensoesMaximas = materials.map((m) => dimensaoMaximaCaracteristica(m.gradations));
+
+  if (dimensaoMaximaPermitidaMm) {
+    const algumGraudoSemDimensao = materials.some((m, i) => papeis[i] === "graudo" && dimensoesMaximas[i] === 0);
+    if (algumGraudoSemDimensao) {
+      return {
+        ok: false,
+        motivo: "DADOS_INSUFICIENTES",
+        detalhe: "Não é possível verificar a dimensão máxima do agregado graúdo sem granulometria completa.",
+      };
+    }
+  }
+
+  const score = (fracs: number[]) => {
+    const testMaterials = materials.map((m, i) => ({ ...m, proporcao_pct: fracs[i] }));
+    return scoreComposicaoWetCasting(testMaterials, limits, papeis, region, dimensaoMaximaPermitidaMm, dimensoesMaximas);
+  };
+
+  const rangePorPapel = (papel: PapelAgregado) => {
+    if (papel === "areia") return region.areiaPct;
+    if (papel === "graudo") return region.graudoPct;
+    if (papel === "po_de_pedra") return region.poDePedraPct;
+    return { min: 0, max: 1 };
+  };
+
+  const amostraEnviesada = (): number[] => {
+    const raw = materials.map((_, i) => {
+      const { min, max } = rangePorPapel(papeis[i]);
+      return min + Math.random() * (max - min || 0.01);
+    });
+    const sum = raw.reduce((a, b) => a + b, 0) || 1;
+    return raw.map((v) => v / sum);
+  };
+
+  const toFracs = (mats: MaterialInput[]) => {
+    const total = mats.reduce((s, m) => s + (m.proporcao_pct ?? 0), 0) || 1;
+    return mats.map((m) => (m.proporcao_pct ?? 0) / total);
+  };
+
+  let bestFracs = toFracs(materials);
+  let bestScore = score(bestFracs);
+
+  for (let i = 0; i < iteracoesMonteCarlo; i++) {
+    const fracs = amostraEnviesada();
+    const s = score(fracs);
+    if (s < bestScore) {
+      bestScore = s;
+      bestFracs = fracs;
+    }
+  }
+
+  let current = [...bestFracs];
+  for (let step = 0; step < passosHillClimbing; step++) {
+    const idx1 = Math.floor(Math.random() * materials.length);
+    const idx2 = Math.floor(Math.random() * materials.length);
+    if (idx1 === idx2) continue;
+    const delta = Math.random() * 0.05 - 0.025;
+    const next = [...current];
+    next[idx1] += delta;
+    next[idx2] -= delta;
+    if (next[idx1] < 0 || next[idx2] < 0) continue;
+    const s = score(next);
+    if (s < bestScore) {
+      bestScore = s;
+      current = next;
+    }
+  }
+
+  const finalMaterials = materials.map((m, i) => ({ ...m, proporcao_pct: current[i] }));
+  const alertas = gerarAlertasComposicaoWetCast(
+    finalMaterials.map((m, i) => ({ material_id: m.material_id, proporcao_kg: m.proporcao_pct, gradations: m.gradations }))
+  );
+
+  return { ok: true, result: { fracs: current, score: bestScore, alertas } };
 }
 
 // ── Score de um candidato ──
