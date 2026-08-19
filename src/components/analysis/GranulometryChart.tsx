@@ -17,7 +17,14 @@ import type { GradationResult } from "@/lib/granulometry-engine";
 import { AlertTriangle } from "lucide-react";
 
 interface GranulometryChartProps {
-  curveResults: GradationResult[];
+  // `referencia` é opcional e aditivo: quando presente, o gráfico usa esse
+  // valor como curva central em vez de avg(limite_min, limite_max) — usado
+  // exclusivamente por Laje Protendida (StepGranulometry.tsx), cuja faixa
+  // de estudo fica assimétrica em peneiras clampadas a 0%/100%, o que
+  // quebraria a média como referência real. Bloco/paver nunca preenchem
+  // este campo, então continuam com o cálculo de sempre (avg), sem
+  // qualquer mudança de comportamento.
+  curveResults: Array<GradationResult & { referencia?: number }>;
   hasLimits: boolean;
   compact?: boolean;
   // Modelo granulométrico usado — muda o rótulo exibido para deixar claro
@@ -64,9 +71,11 @@ export function GranulometryChart({ curveResults, hasLimits, compact = false, ti
       const limiteMin = r.limite_min != null ? Math.round(r.limite_min * 10000) / 100 : undefined;
       const limiteMax = r.limite_max != null ? Math.round(r.limite_max * 10000) / 100 : undefined;
       const dnAlvo =
-        limiteMin != null && limiteMax != null
-          ? Math.round(((limiteMin + limiteMax) / 2) * 100) / 100
-          : undefined;
+        r.referencia != null
+          ? Math.round(r.referencia * 10000) / 100
+          : limiteMin != null && limiteMax != null
+            ? Math.round(((limiteMin + limiteMax) / 2) * 100) / 100
+            : undefined;
 
       return {
         label:

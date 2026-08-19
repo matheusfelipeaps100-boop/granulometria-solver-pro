@@ -105,11 +105,14 @@ export const LIMITES_BLOCO_PADRAO: Array<{ sieve_id: number; limite_min: number;
 // a curva anterior que assumia extrusão/vibroacabadora (a fabricação real é
 // Wet Casting — ver src/lib/wet-cast-optimizer.ts).
 //
-// limite_min/limite_max abaixo = curva de referência ∓ 5 pontos percentuais,
-// arredondados aos limites [0%, 100%]. O centro exato (avg(min,max)) é a
-// própria curva de referência da Concreart:
-//   9,5mm 13,6% · 6,3mm 38,0% · 4,8mm 45,6% · 2,4mm 52,6% · 1,2mm 53,8% ·
-//   0,6mm 54,5% · 0,3mm 74,8% · 0,15mm 95,6% · Fundo 100,0%
+// limite_min/limite_max abaixo = faixa de estudo ∓ 5 pontos percentuais ao
+// redor da curva de referência, arredondados aos limites [0%, 100%]. Nas 7
+// peneiras sem "clamp" (9,5mm a 0,3mm), o centro exato (avg(min,max)) já
+// coincide com a curva de referência abaixo. Nas 2 peneiras onde o clamp em
+// 0%/100% quebra essa simetria (0,15mm e Fundo), o centro deixa de bater
+// com a referência exata — por isso a curva de referência é guardada à
+// parte, fixa, em CURVA_REFERENCIA_LAJE (não é recalculada como avg(min,max)
+// em nenhum lugar do gráfico/compatibilidade de laje).
 export const LIMITES_LAJE_PADRAO: Array<{ sieve_id: number; limite_min: number; limite_max: number }> = [
   { sieve_id: 1,  limite_min: 0.000, limite_max: 0.000 },
   { sieve_id: 2,  limite_min: 0.086, limite_max: 0.186 }, // 9,5 mm
@@ -122,6 +125,26 @@ export const LIMITES_LAJE_PADRAO: Array<{ sieve_id: number; limite_min: number; 
   { sieve_id: 9,  limite_min: 0.906, limite_max: 1.000 }, // 0,15 mm
   { sieve_id: 10, limite_min: 0.950, limite_max: 1.000 }, // Fundo
 ];
+
+// Curva de referência FIXA da Laje Protendida — os 9 pontos reais do traço
+// da Concreart (Areia Barranco 812kg, Brita 0 963kg, Pó de Pedra 85kg, MF
+// 3,77), em % acumulado retido (mesma convenção de limite_min/limite_max
+// acima). NÃO é recalculada a partir da mistura atual, do MF, nem como
+// avg(limite_min, limite_max) — é literalmente o traço real informado.
+// Usada exclusivamente pelo gráfico de Laje Protendida (StepGranulometry.tsx
+// → curveResultsParaGrafico → GranulometryChart.tsx prop `referencia`), sem
+// nenhuma relação com bloco/paver.
+export const CURVA_REFERENCIA_LAJE: Record<number, number> = {
+  2: 0.136,  // 9,5 mm  → 86,4% passante
+  3: 0.380,  // 6,3 mm  → 62,0% passante
+  4: 0.456,  // 4,8 mm  → 54,4% passante
+  5: 0.526,  // 2,4 mm  → 47,4% passante
+  6: 0.538,  // 1,2 mm  → 46,2% passante
+  7: 0.545,  // 0,6 mm  → 45,5% passante
+  8: 0.748,  // 0,3 mm  → 25,2% passante
+  9: 0.956,  // 0,15 mm →  4,4% passante
+  10: 1.000, // Fundo   →  0,0% passante
+};
 
 // Seleciona a curva de referência (fallback local) de acordo com o tipo de
 // produto/análise. Vibroprensados (bloco_estrutural, bloco_vedacao, paver,

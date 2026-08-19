@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   LIMITES_LAJE_PADRAO,
   LIMITES_BLOCO_PADRAO,
+  CURVA_REFERENCIA_LAJE,
   getLimitesPadrao,
 } from "@/lib/analysis-data";
 import {
@@ -164,5 +165,42 @@ describe("Traço diferente do de referência se afasta da compatibilidade máxim
     const status = calcCurvaStatus(curva);
     expect(status.indice_compatibilidade).toBeLessThan(1);
     expect(status.peneiras_fora).toBeGreaterThan(0);
+  });
+});
+
+describe("CURVA_REFERENCIA_LAJE — 9 pontos fixos exatos (% passante), sem depender do MF", () => {
+  // % passante de referência informado pelo usuário
+  const PASSANTE_ESPERADO: Record<number, number> = {
+    2: 86.4, 3: 62.0, 4: 54.4, 5: 47.4, 6: 46.2, 7: 45.5, 8: 25.2, 9: 4.4, 10: 0.0,
+  };
+
+  it("cada peneira bate exatamente com o % passante de referência informado", () => {
+    for (const [sieveId, passanteEsperado] of Object.entries(PASSANTE_ESPERADO)) {
+      const retido = CURVA_REFERENCIA_LAJE[Number(sieveId)];
+      const passante = (1 - retido) * 100;
+      expect(passante).toBeCloseTo(passanteEsperado, 5);
+    }
+  });
+
+  it("nas peneiras clampadas (0,15mm e Fundo), a referência NÃO é a média da faixa de estudo", () => {
+    // Prova de regressão do bug relatado: a curva central não pode vir de
+    // avg(limite_min, limite_max), pois nessas 2 peneiras a faixa perde a
+    // simetria ao ser limitada em 0%/100%.
+    for (const sieveId of [9, 10]) {
+      const limite = LIMITES_LAJE_PADRAO.find((l) => l.sieve_id === sieveId)!;
+      const mediaFaixa = (limite.limite_min + limite.limite_max) / 2;
+      const referenciaFixa = CURVA_REFERENCIA_LAJE[sieveId];
+      expect(Math.abs(mediaFaixa - referenciaFixa)).toBeGreaterThan(0.001);
+    }
+  });
+});
+
+describe("Curva central do gráfico de Laje — não recalculada a partir do MF", () => {
+  it("CURVA_REFERENCIA_LAJE é uma constante fixa, não uma função do MF/mistura", () => {
+    // CURVA_REFERENCIA_LAJE é um objeto literal (Record<number, number>),
+    // não uma função — não pode ser "recalculada" a partir de MF ou da
+    // mistura atual, por construção.
+    expect(typeof CURVA_REFERENCIA_LAJE).toBe("object");
+    expect(Object.keys(CURVA_REFERENCIA_LAJE).length).toBe(9);
   });
 });
