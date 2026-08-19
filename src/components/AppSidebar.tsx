@@ -11,7 +11,6 @@ import {
   LogOut,
   DollarSign,
   BarChart2,
-  TestTube2,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -41,7 +40,6 @@ const mainItems: NavItem[] = [
   { title: "Rompimentos", url: "/ruptures", icon: Hammer, allowedRoles: ["ADMIN", "PRODUCAO", "VENDAS", "GERENTE", "LABORATORIO"] },
   { title: "Traços Padrão", url: "/standard-traces", icon: Boxes, allowedRoles: ["ADMIN", "LABORATORIO"] },
   { title: "Granulometria", url: "/granulometria", icon: BarChart2, allowedRoles: ["ADMIN", "LABORATORIO", "GERENTE"] },
-  { title: "Estudo de Dosagem", url: "/dosagem/estudo", icon: TestTube2, allowedRoles: ["ADMIN", "LABORATORIO", "GERENTE"] },
   { title: "Materiais", url: "/materials", icon: Package, allowedRoles: ["ADMIN", "LABORATORIO"] },
   { title: "Relatórios", url: "/reports", icon: FileText, allowedRoles: ["ADMIN", "VENDAS", "GERENTE", "LABORATORIO"], exact: true },
   { title: "Custos", url: "/reports/costs", icon: DollarSign, allowedRoles: ["ADMIN", "VENDAS", "GERENTE", "LABORATORIO"] },
