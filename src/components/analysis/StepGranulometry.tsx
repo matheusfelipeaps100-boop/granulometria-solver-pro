@@ -46,6 +46,7 @@ import {
   getLimitesPadrao,
   getConfigMisturador,
   getTipoDosagem,
+  CURVA_REFERENCIA_LAJE,
   type AnalysisFormData,
   type AnalysisMaterial,
 } from "@/lib/analysis-data";
@@ -183,14 +184,25 @@ export function StepGranulometry({ data, onChange, readOnly }: StepGranulometryP
   // tipoDosagem. limite_min/limite_max são invertidos e trocados de posição
   // porque, ao converter retido→passante, o que era limite mínimo em retido
   // vira o limite máximo em passante (e vice-versa).
+  //
+  // `referencia` (passante) vem de CURVA_REFERENCIA_LAJE — a curva FIXA do
+  // traço real da Concreart — não de avg(limite_min, limite_max): nas
+  // peneiras 0,15mm e Fundo essa média não bate com a referência real
+  // (a faixa de estudo ali é "clampada" em 0%/100%, perdendo a simetria).
+  // GranulometryChart usa esse campo no lugar da média quando presente;
+  // bloco/paver nunca o enviam, então continuam com o cálculo de sempre.
   const curveResultsParaGrafico = useMemo(() => {
     if (tipoDosagem !== "WET_CASTING_PROTENDIDO") return curveResults;
-    return curveResults.map((r) => ({
-      ...r,
-      pct_acumulado: 1 - r.pct_acumulado,
-      limite_min: r.limite_max != null ? 1 - r.limite_max : undefined,
-      limite_max: r.limite_min != null ? 1 - r.limite_min : undefined,
-    }));
+    return curveResults.map((r) => {
+      const refRetido = CURVA_REFERENCIA_LAJE[r.sieve_id];
+      return {
+        ...r,
+        pct_acumulado: 1 - r.pct_acumulado,
+        limite_min: r.limite_max != null ? 1 - r.limite_max : undefined,
+        limite_max: r.limite_min != null ? 1 - r.limite_min : undefined,
+        referencia: refRetido != null ? 1 - refRetido : undefined,
+      };
+    });
   }, [curveResults, tipoDosagem]);
 
   // MF por material
