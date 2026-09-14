@@ -35,13 +35,13 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Search, Eye, Trash2, ArrowLeft, Plus, Save, Square, Layers, LayoutPanelTop } from "lucide-react";
+import { Search, Eye, Trash2, ArrowLeft, Plus, Save } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useGranulometryPresets, type GranulometryPreset } from "@/hooks/api/useGranulometryPresets";
 import { StepGranulometry } from "@/components/analysis/StepGranulometry";
-import { createEmptyAnalysis, TIPOS_ANALISE, getConfigMisturador, type AnalysisFormData } from "@/lib/analysis-data";
+import { createEmptyAnalysis, TIPOS_ANALISE, type AnalysisFormData } from "@/lib/analysis-data";
 import { calcCombinedCurve } from "@/lib/granulometry-engine";
 import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { getDefaultDateFilter, isInDateRange, formatPeriodLabel, type DateFilter } from "@/lib/dateFilter";
@@ -70,7 +70,7 @@ function calcMFPreset(preset: GranulometryPreset): string {
 }
 
 function tipoLabel(tipo?: string) {
-  return TIPOS_ANALISE.find((t) => t.value === tipo)?.label ?? "Bloco Estrutural";
+  return TIPOS_ANALISE.find((t) => t.value === tipo)?.label ?? "Geral";
 }
 
 function formatDate(iso: string) {
@@ -78,13 +78,6 @@ function formatDate(iso: string) {
     day: "2-digit", month: "2-digit", year: "numeric",
   });
 }
-
-// Grupos de tipo (mesmo padrão do StepIdentification)
-const GRUPOS = [
-  { group: "BLOCOS", defaultTipo: "bloco_estrutural", icon: Square, sub: "Padrão + Estrutural" },
-  { group: "PAVERS", defaultTipo: "paver",            icon: Layers,          sub: "Base + Face" },
-  { group: "LAJES",  defaultTipo: "laje",             icon: LayoutPanelTop,  sub: "Piso / Estrutural" },
-] as const;
 
 // ── Componente principal ──────────────────────────────────────────────────────
 
@@ -121,7 +114,7 @@ export default function GranulometriaPage() {
   const filtered = useMemo(() => {
     return presets.filter((p) => {
       const matchSearch = !search || p.nome.toLowerCase().includes(search.toLowerCase());
-      const matchTipo = filterTipo === "all" || (p.tipo_analise ?? "bloco_estrutural") === filterTipo;
+      const matchTipo = filterTipo === "all" || (p.tipo_analise || "geral") === filterTipo;
       const matchDate = isInDateRange(p.created_at, dateFilter);
       return matchSearch && matchTipo && matchDate;
     });
@@ -168,7 +161,7 @@ export default function GranulometriaPage() {
   if (mode === "view" && selected) {
     const fakeData: AnalysisFormData = {
       ...createEmptyAnalysis(),
-      tipo_analise: (selected.tipo_analise as AnalysisFormData["tipo_analise"]) || "bloco_estrutural",
+      tipo_analise: (selected.tipo_analise as AnalysisFormData["tipo_analise"]) || "",
       materiais_selecionados: selected.materiais,
       dna_selecionado: selected.dna_selecionado ?? "",
       limites_curva: selected.limites_curva ?? [],
@@ -195,11 +188,6 @@ export default function GranulometriaPage() {
 
   // ── Vista NOVA GRANULOMETRIA ──
   if (mode === "new") {
-    const activeGroup = GRUPOS.find((g) => g.defaultTipo === newData.tipo_analise ||
-      (g.group === "BLOCOS" && (newData.tipo_analise === "bloco_estrutural" || newData.tipo_analise === "bloco_vedacao")) ||
-      (g.group === "PAVERS" && (newData.tipo_analise === "paver" || newData.tipo_analise === "cp"))
-    )?.group ?? null;
-
     return (
       <div className="space-y-6 animate-fade-in">
         {/* Header */}
@@ -213,7 +201,7 @@ export default function GranulometriaPage() {
               <p className="text-sm text-muted-foreground">Preencha a tabela e salve para consultar depois</p>
             </div>
           </div>
-          {newData.tipo_analise && newData.materiais_selecionados.length > 0 && (
+          {newData.materiais_selecionados.length > 0 && (
             <Button onClick={() => { setSaveName(""); setSaveModal(true); }} className="gap-2">
               <Save className="h-4 w-4" />
               Salvar Granulometria
@@ -221,61 +209,10 @@ export default function GranulometriaPage() {
           )}
         </div>
 
-        {/* Seletor de tipo */}
-        {!newData.tipo_analise ? (
-          <Card className="shadow-sm">
-            <CardContent className="pt-6">
-              <div className="mb-4">
-                <p className="text-sm font-semibold text-muted-foreground uppercase tracking-widest">
-                  Selecione o tipo de produto
-                </p>
-              </div>
-              <div className="grid grid-cols-3 gap-3">
-                {GRUPOS.map(({ group, defaultTipo, icon: Icon, sub }) => (
-                  <button
-                    key={group}
-                    type="button"
-                    onClick={() => setNewData((d) => ({
-                      ...d,
-                      tipo_analise: defaultTipo as AnalysisFormData["tipo_analise"],
-                      volume_m3: getConfigMisturador(defaultTipo).volume_m3,
-                    }))}
-                    className="group relative flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-border bg-card p-6 transition-all duration-200 cursor-pointer hover:border-primary/40 hover:bg-muted/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                  >
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg border-2 border-border bg-muted group-hover:border-primary/40">
-                      <Icon className="h-6 w-6" strokeWidth={1.5} />
-                    </div>
-                    <div className="text-center">
-                      <p className="text-sm font-black tracking-wider">{group}</p>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">{sub}</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <>
-            {/* Chip do tipo selecionado com opção de trocar */}
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">Tipo:</span>
-              <span className="text-xs font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-                {activeGroup}
-              </span>
-              <button
-                type="button"
-                onClick={() => setNewData((d) => ({ ...d, tipo_analise: "", materiais_selecionados: [] }))}
-                className="text-xs text-muted-foreground hover:text-foreground underline"
-              >
-                Trocar
-              </button>
-            </div>
-            <StepGranulometry
-              data={newData}
-              onChange={(updates) => setNewData((d) => ({ ...d, ...updates }))}
-            />
-          </>
-        )}
+        <StepGranulometry
+          data={newData}
+          onChange={(updates) => setNewData((d) => ({ ...d, ...updates }))}
+        />
 
         {/* Modal de salvar */}
         <Dialog open={saveModal} onOpenChange={setSaveModal}>
@@ -340,6 +277,7 @@ export default function GranulometriaPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos os Tipos</SelectItem>
+                <SelectItem value="geral">Geral</SelectItem>
                 {TIPOS_ANALISE.map((t) => (
                   <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
                 ))}

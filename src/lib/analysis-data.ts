@@ -155,6 +155,9 @@ export const CURVA_REFERENCIA_LAJE: Record<number, number> = {
 // vigotas, pilares, estacas...) só precisam de uma nova entrada aqui.
 export function getLimitesPadrao(tipo?: string): Array<{ sieve_id: number; limite_min: number; limite_max: number }> {
   if (tipo === "laje") return LIMITES_LAJE_PADRAO;
+  // Sem tipo de produto definido (ex.: granulometria avulsa, sem faixa de
+  // referência associada) → nenhuma faixa é aplicada automaticamente.
+  if (!tipo) return [];
   return LIMITES_BLOCO_PADRAO;
 }
 
