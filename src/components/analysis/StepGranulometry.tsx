@@ -150,10 +150,13 @@ export function StepGranulometry({ data, onChange, readOnly }: StepGranulometryP
   // LIMITES_LAJE_PADRAO por completo. Para qualquer outro tipo
   // (bloco_estrutural, bloco_vedacao, paver, cp), o fallback
   // dnasDisponiveis[0] permanece idêntico ao de sempre.
+  // Sem tipo de produto definido (granulometria avulsa, sem faixa de
+  // referência associada), não cai para nenhuma curva por padrão — só usa a
+  // que o usuário selecionar manualmente no seletor de DNA.
   const dna =
     dnasDisponiveis.find((d) => d.id === data.dna_selecionado) ??
     dnasDisponiveis.find((d) => d.tipo === data.tipo_analise && d.limites.length) ??
-    (data.tipo_analise === "laje" ? undefined : dnasDisponiveis[0]);
+    (data.tipo_analise === "laje" || !data.tipo_analise ? undefined : dnasDisponiveis[0]);
   // Cascata: DB → form → normativo hardcoded por tipo (garante que limites nunca ficam vazios).
   //
   // Exclusivo para LAJE: a faixa é sempre a mesma referência fixa
