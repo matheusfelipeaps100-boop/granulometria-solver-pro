@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
-import { Search, FileText, ChevronRight, RefreshCw, ClipboardList } from "lucide-react";
+import { Search, FileText, ChevronRight, RefreshCw, ClipboardList, CalendarRange } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useProduction } from "@/hooks/api/useProduction";
 import { useNavigate } from "react-router-dom";
@@ -68,9 +68,15 @@ const ReportsPage = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Relatórios</h1>
-        <p className="text-sm text-muted-foreground">Certificados de Qualidade e Controle Tecnológico</p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Relatórios</h1>
+          <p className="text-sm text-muted-foreground">Certificados de Qualidade e Controle Tecnológico</p>
+        </div>
+        <Button variant="outline" className="gap-2" onClick={() => navigate("/reports/monthly")}>
+          <CalendarRange className="h-4 w-4" />
+          Relatório Mensal
+        </Button>
       </div>
 
       <Card className="shadow-sm">

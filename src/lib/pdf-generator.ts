@@ -12,11 +12,23 @@ import {
   ANALISTAS,
   type AnalysisFormData,
 } from "./analysis-data";
+import { statusConfig, type StatusType } from "@/components/StatusBadge";
 
 interface PDFOptions {
   limitesDna?: Array<{ sieve_id: number; limite_min: number; limite_max: number }>;
   dnaNome?: string;
+  status?: StatusType;
 }
+
+// jsPDF não lê classes Tailwind — mapa paralelo de cor RGB por status,
+// mesmo conjunto de status de análise usado em StatusBadge.
+const STATUS_PDF_COLORS: Record<string, [number, number, number]> = {
+  rascunho: [140, 140, 140],
+  em_analise: [59, 130, 246],
+  aprovado: [34, 139, 34],
+  liberado_producao: [153, 27, 27],
+  arquivado: [140, 140, 140],
+};
 
 export function generateAnalysisPDF(data: AnalysisFormData, options?: PDFOptions): void {
   const doc = new jsPDF("p", "mm", "a4");
@@ -52,15 +64,21 @@ export function generateAnalysisPDF(data: AnalysisFormData, options?: PDFOptions
   doc.rect(0, 0, pageWidth, 28, "F");
   addText("GRANULOMETRIA SOLVER PRO", margin, 12, { size: 16, bold: true, color: [255, 255, 255] });
   addText("Relatório de Análise Técnica", margin, 19, { size: 10, color: [255, 220, 220] });
-  addText(data.codigo, pageWidth - margin, 12, { size: 12, bold: true, color: [255, 255, 255] });
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(255, 255, 255);
   doc.text(data.codigo, pageWidth - margin, 12, { align: "right" });
   y = 36;
 
   // ── STATUS BADGE ──
-  doc.setFillColor(34, 139, 34);
-  doc.roundedRect(margin, y, 30, 7, 2, 2, "F");
-  addText("APROVADO", margin + 4, y + 5, { size: 8, bold: true, color: [255, 255, 255] });
-  addText(`Data: ${data.data}`, margin + 36, y + 5, { size: 9 });
+  const status = options?.status ?? "em_analise";
+  const statusColor = STATUS_PDF_COLORS[status] ?? STATUS_PDF_COLORS.em_analise;
+  const statusLabel = (statusConfig[status]?.label ?? status).toUpperCase();
+  doc.setFillColor(...statusColor);
+  const badgeWidth = Math.max(30, statusLabel.length * 2 + 12);
+  doc.roundedRect(margin, y, badgeWidth, 7, 2, 2, "F");
+  addText(statusLabel, margin + 4, y + 5, { size: 8, bold: true, color: [255, 255, 255] });
+  addText(`Data: ${data.data}`, margin + badgeWidth + 6, y + 5, { size: 9 });
   y += 14;
 
   // ── IDENTIFICAÇÃO ──

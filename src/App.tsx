@@ -19,6 +19,7 @@ import ReportsPage from "./pages/ReportsPage";
 import SettingsPage from "./pages/SettingsPage";
 import QualityReportPage from "./pages/QualityReportPage";
 import CostReportPage from "./pages/CostReportPage";
+import MonthlyReportPage from "./pages/MonthlyReportPage";
 import GranulometriaPage from "./pages/GranulometriaPage";
 import UnauthorizedPage from "./pages/UnauthorizedPage";
 import LoginPage from "./pages/LoginPage";
@@ -93,6 +94,11 @@ const App = () => (
             <Route path="/reports/costs" element={
               <ProtectedRoute allowedRoles={["ADMIN", "VENDAS", "GERENTE", "LABORATORIO"]}>
                 <CostReportPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/reports/monthly" element={
+              <ProtectedRoute allowedRoles={["ADMIN", "GERENTE", "LABORATORIO"]}>
+                <MonthlyReportPage />
               </ProtectedRoute>
             } />
             <Route path="/granulometria" element={

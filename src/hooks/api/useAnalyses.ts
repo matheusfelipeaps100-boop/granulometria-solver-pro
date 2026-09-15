@@ -90,6 +90,13 @@ export function useAnalyses() {
             custo_aditivo_lt: dosage?.custo_aditivo_lt || 0,
             custo_total_m3: dosage?.custo_total_m3 || 0,
             custo_total_batelada: dosage?.custo_total_batelada || 0,
+            cimento_marca_id: dosage?.cimento_marca_id || undefined,
+            cimento_lote: dosage?.cimento_lote || undefined,
+            cimento_observacao: dosage?.cimento_observacao || undefined,
+            aditivo_marca_id: dosage?.aditivo_marca_id || undefined,
+            aditivo_lote: dosage?.aditivo_lote || undefined,
+            aditivo_diluicao: dosage?.aditivo_diluicao || undefined,
+            aditivo_observacao: dosage?.aditivo_observacao || undefined,
             materiais_selecionados: allMats.map((am: any) => {
               const massaKg = Number(am.massa_kg) || 0;
               // Se massa_kg foi salvo, usa direto; senão reconstrói via dosagem
@@ -271,6 +278,13 @@ export function useAnalyses() {
           custo_aditivo_lt: formData.custo_aditivo_lt || null,
           custo_total_m3: custoTotalM3 > 0 ? Math.round(custoTotalM3 * 100) / 100 : null,
           custo_total_batelada: custoTotalBat > 0 ? Math.round(custoTotalBat * 100) / 100 : null,
+          cimento_marca_id: formData.cimento_marca_id || null,
+          cimento_lote: formData.cimento_lote || null,
+          cimento_observacao: formData.cimento_observacao || null,
+          aditivo_marca_id: formData.aditivo_marca_id || null,
+          aditivo_lote: formData.aditivo_lote || null,
+          aditivo_diluicao: formData.aditivo_diluicao || null,
+          aditivo_observacao: formData.aditivo_observacao || null,
         }]);
         if (dosError) throw dosError;
 
@@ -569,6 +583,13 @@ export function useAnalysis(codigo: string | null) {
         relacao_ac: dosage?.relacao_ac || 0.2,
         consumo_alvo_m3: dosage?.consumo_cimento_kg || 137,
         aditivos_ml: dosage?.aditivos_ml || 0,
+        cimento_marca_id: dosage?.cimento_marca_id || undefined,
+        cimento_lote: dosage?.cimento_lote || undefined,
+        cimento_observacao: dosage?.cimento_observacao || undefined,
+        aditivo_marca_id: dosage?.aditivo_marca_id || undefined,
+        aditivo_lote: dosage?.aditivo_lote || undefined,
+        aditivo_diluicao: dosage?.aditivo_diluicao || undefined,
+        aditivo_observacao: dosage?.aditivo_observacao || undefined,
         materiais_selecionados: (fullData.analysis_materials || []).map((am: any) => ({
           material_id: am.material_id,
           nome: am.materials?.nome || "",

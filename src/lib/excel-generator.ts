@@ -163,3 +163,81 @@ export async function generateDashboardExcel(
 
   await downloadWorkbook(workbook, `dashboard_${new Date().toISOString().split("T")[0]}.xlsx`);
 }
+
+export interface MonthlyReportExcelData {
+  periodoLabel: string;
+  resumo: { label: string; valor: string | number }[];
+  analisesPorProduto: { produto: string; quantidade: number; status: string }[];
+  resistenciaPorProduto: {
+    produto: string;
+    ensaios: number;
+    media: number | null;
+    minimo: number | null;
+    maximo: number | null;
+    meta: number | null;
+    situacao: string;
+  }[];
+  naoConformidades: { descricao: string; data: string }[];
+  marcasCimento: { marca: string; quantidade: number }[];
+  marcasAditivo: { marca: string; quantidade: number }[];
+  conclusao: string;
+}
+
+export async function generateMonthlyReportExcel(data: MonthlyReportExcelData): Promise<void> {
+  const workbook = new ExcelJS.Workbook();
+
+  const resumoSheet = workbook.addWorksheet("Resumo");
+  resumoSheet.columns = [{ width: 32 }, { width: 20 }];
+  resumoSheet.addRow(["Relatório Mensal de Controle de Qualidade"]);
+  resumoSheet.addRow(["Período", data.periodoLabel]);
+  resumoSheet.addRow([]);
+  data.resumo.forEach((r) => resumoSheet.addRow([r.label, r.valor]));
+
+  const analisesSheet = workbook.addWorksheet("Análises");
+  analisesSheet.columns = [
+    { header: "Produto", width: 24 },
+    { header: "Quantidade", width: 14 },
+    { header: "Status", width: 20 },
+  ];
+  analisesSheet.getRow(1).font = { bold: true };
+  data.analisesPorProduto.forEach((r) => analisesSheet.addRow([r.produto, r.quantidade, r.status]));
+
+  const resistenciaSheet = workbook.addWorksheet("Resistência");
+  resistenciaSheet.columns = [
+    { header: "Produto", width: 24 },
+    { header: "Ensaios", width: 10 },
+    { header: "Média (MPa)", width: 14 },
+    { header: "Mín (MPa)", width: 12 },
+    { header: "Máx (MPa)", width: 12 },
+    { header: "Meta (MPa)", width: 12 },
+    { header: "Situação", width: 16 },
+  ];
+  resistenciaSheet.getRow(1).font = { bold: true };
+  data.resistenciaPorProduto.forEach((r) =>
+    resistenciaSheet.addRow([r.produto, r.ensaios, r.media, r.minimo, r.maximo, r.meta, r.situacao])
+  );
+
+  const naoConfSheet = workbook.addWorksheet("Não Conformidades");
+  naoConfSheet.columns = [{ header: "Ocorrência", width: 60 }, { header: "Data", width: 14 }];
+  naoConfSheet.getRow(1).font = { bold: true };
+  if (data.naoConformidades.length === 0) {
+    naoConfSheet.addRow(["Nenhuma ocorrência registrada no período", ""]);
+  } else {
+    data.naoConformidades.forEach((n) => naoConfSheet.addRow([n.descricao, n.data]));
+  }
+
+  const marcasSheet = workbook.addWorksheet("Cimento e Aditivo");
+  marcasSheet.columns = [{ width: 24 }, { width: 14 }];
+  marcasSheet.addRow(["Marcas de Cimento", ""]);
+  marcasSheet.getRow(1).font = { bold: true };
+  data.marcasCimento.forEach((m) => marcasSheet.addRow([m.marca, m.quantidade]));
+  marcasSheet.addRow([]);
+  marcasSheet.addRow(["Marcas de Aditivo", ""]);
+  data.marcasAditivo.forEach((m) => marcasSheet.addRow([m.marca, m.quantidade]));
+
+  const conclusaoSheet = workbook.addWorksheet("Conclusão");
+  conclusaoSheet.columns = [{ width: 100 }];
+  conclusaoSheet.addRow([data.conclusao || "—"]);
+
+  await downloadWorkbook(workbook, `relatorio_mensal_${data.periodoLabel.replace("/", "-")}.xlsx`);
+}

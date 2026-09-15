@@ -44,6 +44,15 @@ export interface AnalysisFormData {
   // Override manual da dimensão máxima do agregado permitida pelo projeto (mm),
   // usado no modelo LAJE_PROTENDIDA. Quando ausente, cai para o valor do DNA.
   dimensao_maxima_permitida_mm?: number;
+  // Rastreabilidade de cimento/aditivo — opcional, ausente em análises
+  // criadas antes dessa funcionalidade.
+  cimento_marca_id?: string;
+  cimento_lote?: string;
+  cimento_observacao?: string;
+  aditivo_marca_id?: string;
+  aditivo_lote?: string;
+  aditivo_diluicao?: string;
+  aditivo_observacao?: string;
 }
 
 export interface AnalysisMaterial {

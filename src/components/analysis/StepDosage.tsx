@@ -15,10 +15,12 @@ import {
 } from "recharts";
 import { calcDosage } from "@/lib/granulometry-engine";
 import type { AnalysisFormData } from "@/lib/analysis-data";
-import { Beaker, Droplets, Weight, BarChart3, Pill, AlertCircle } from "lucide-react";
-import { cn, calcularCustoMaterial } from "@/lib/utils";
+import { Beaker, Droplets, Weight, BarChart3, AlertCircle, Link2 } from "lucide-react";
+import { calcularCustoMaterial } from "@/lib/utils";
 
 import { useMaterials } from "@/hooks/api/useMaterials";
+import { BrandSelect } from "@/components/analysis/BrandSelect";
+import { Textarea } from "@/components/ui/textarea";
 
 
 interface StepDosageProps {
@@ -275,18 +277,16 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Coluna Esquerda: Configuração */}
-        <div className="space-y-6">
-          <Card className="border-none shadow-sm bg-muted/20">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:[grid-template-areas:'traco_chart'_'consumo_chart'_'cimento_aditivo']">
+        {/* SEÇÃO 1 — TRAÇO */}
+        <Card className="border-none shadow-sm bg-muted/20 lg:[grid-area:traco]">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-black uppercase tracking-wider flex items-center gap-2 text-foreground/80">
-                <BarChart3 className="h-4 w-4 text-primary" />
-                Configuração do Traço
+                <Beaker className="h-4 w-4 text-primary" />
+                1. Traço
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              
               {/* Relação Cimento : Agregado */}
               <div className="space-y-3">
                 <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
@@ -331,7 +331,18 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
                   className="accent-primary"
                 />
               </div>
+            </CardContent>
+          </Card>
 
+        {/* SEÇÃO 2 — CONSUMO POR BATELADA (dado principal, destacado) */}
+        <Card className="border-none shadow-sm bg-muted/20 lg:[grid-area:consumo]">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-black uppercase tracking-wider flex items-center gap-2 text-foreground/80">
+                <Weight className="h-4 w-4 text-primary" />
+                2. Consumo por Batelada
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-5">
               {/* BOX DE DESTAQUE: CONSUMO E DENSIDADE */}
               <div className="flex gap-4">
                 <div className="flex-1 bg-white dark:bg-card border-2 border-primary rounded-xl p-5 shadow-sm relative overflow-hidden">
@@ -358,11 +369,10 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
                     />
                     <span className="text-sm font-bold text-muted-foreground">kg</span>
                   </div>
-                  {consumo_equiv_m3 > 0 && (
-                    <span className="text-[10px] text-muted-foreground mt-1 block">
-                      ≈ {consumo_equiv_m3.toFixed(0)} kg/m³ (equivalente)
-                    </span>
-                  )}
+                  <div className="flex flex-wrap gap-x-3 mt-1.5 text-[10px] text-muted-foreground">
+                    {consumo_equiv_m3 > 0 && <span>≈ {consumo_equiv_m3.toFixed(0)} kg/m³ (equivalente)</span>}
+                    <span>Calculado na batelada: <strong className="text-foreground">{dosageResult.consumo_cimento_batelada.toFixed(dosageResult.consumo_cimento_batelada % 1 === 0 ? 0 : 1)} kg</strong></span>
+                  </div>
                 </div>
 
                 <div className="w-1/3 bg-muted/50 rounded-xl p-4 flex flex-col justify-center border border-border/50">
@@ -380,68 +390,50 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
                 </div>
               </div>
 
-              {/* Volume e Massas por Batelada */}
-              <div className="grid grid-cols-2 gap-4 pt-2">
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                    Volume Batelada (m³)
+              {/* Volume, Massa, Água e Aditivo por Batelada — tiles uniformes */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
+                    Volume
                   </Label>
                   <div className="relative">
                     <Input
                       type="number"
                       step="0.01"
                       min="0"
-                      className="h-10 font-black bg-background border-2 border-border/50 focus-visible:ring-primary shadow-none"
+                      className="h-11 font-black bg-background border border-border/50 focus-visible:ring-primary shadow-none pr-9 text-sm"
                       value={volume_batelada_calc > 0 ? volume_batelada_calc.toFixed(3) : ""}
                       disabled
                     />
-                    <span className="absolute right-3 top-2.5 text-[10px] font-bold text-muted-foreground uppercase">m³</span>
+                    <span className="absolute right-2.5 top-3 text-[9px] font-bold text-muted-foreground uppercase">m³</span>
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                    Massa / Batelada
+                <div className="space-y-1.5">
+                  <Label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
+                    Massa Total
                   </Label>
                   <div className="relative">
                     <Input
                       type="number"
                       step="1"
                       min="0"
-                      className={cn(
-                        "h-10 font-black focus-visible:ring-primary shadow-none bg-muted/40 border-primary/20"
-                      )}
+                      className="h-11 font-black bg-background border border-border/50 focus-visible:ring-primary shadow-none pr-9 text-sm"
                       value={dosageResult.massa_total_batelada.toFixed(dosageResult.massa_total_batelada % 1 === 0 ? 0 : 1)}
                       disabled
                     />
-                    <span className="absolute right-3 top-2.5 text-[10px] font-bold text-muted-foreground uppercase">kg</span>
+                    <span className="absolute right-2.5 top-3 text-[9px] font-bold text-muted-foreground uppercase">kg</span>
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                    Cimento / Batelada
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      type="number"
-                      step="1"
-                      min="0"
-                      className="h-10 font-black bg-primary/10 text-primary border-primary/20 focus-visible:ring-primary shadow-none"
-                      value={dosageResult.consumo_cimento_batelada.toFixed(dosageResult.consumo_cimento_batelada % 1 === 0 ? 0 : 1)}
-                      disabled
-                    />
-                    <span className="absolute right-3 top-2.5 text-[10px] font-bold text-primary uppercase">kg</span>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                    Água / Batelada
+                <div className="space-y-1.5">
+                  <Label className="text-[9px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider flex items-center gap-1">
+                    <Droplets className="h-2.5 w-2.5" /> Água
                   </Label>
                   <div className="relative">
                     <Input
                       type="number"
                       step="0.1"
                       min="0"
-                      className="h-10 font-black bg-blue-500/10 text-blue-600 border-blue-500/20 focus-visible:ring-blue-500 shadow-none dark:text-blue-400"
+                      className="h-11 font-black bg-blue-500/10 text-blue-600 border-blue-500/20 focus-visible:ring-blue-500 shadow-none pr-9 text-sm dark:text-blue-400"
                       value={Math.round(dosageResult.agua_batelada * 10) / 10 || ""}
                       onChange={(e) => {
                         const agua = parseFloat(e.target.value) || 0;
@@ -450,19 +442,19 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
                         onChange({ relacao_ac: Math.max(0.01, novoAc) });
                       }}
                     />
-                    <span className="absolute right-3 top-2.5 text-[10px] font-bold text-blue-500 uppercase">kg</span>
+                    <span className="absolute right-2.5 top-3 text-[9px] font-bold text-blue-500 uppercase">kg</span>
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                    Aditivo / Batelada
+                <div className="space-y-1.5">
+                  <Label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
+                    Aditivo
                   </Label>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     <Input
                       type="number"
                       step="0.001"
                       min="0"
-                      className="h-10 font-black bg-background border border-border/50 focus-visible:ring-primary shadow-none"
+                      className="h-11 font-black bg-background border border-border/50 focus-visible:ring-primary shadow-none text-sm"
                       value={data.aditivos_ml || ""}
                       onChange={(e) => onChange({ aditivos_ml: parseFloat(e.target.value) || 0 })}
                     />
@@ -470,75 +462,66 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
                       type="button"
                       onClick={() => setAditivoUnidade(u => u === 'mL' ? 'g' : 'mL')}
                       title="Clique para alternar entre mL e g"
-                      className="h-10 px-2.5 shrink-0 rounded-md border border-border/50 bg-muted text-[10px] font-bold text-muted-foreground uppercase hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-colors cursor-pointer"
+                      className="h-11 px-2 shrink-0 rounded-md border border-border/50 bg-muted text-[9px] font-bold text-muted-foreground uppercase hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-colors cursor-pointer"
                     >
                       {aditivoUnidade}
                     </button>
                   </div>
                 </div>
               </div>
-
-              {/* Custos Operacionais */}
-              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-border/50">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                      Custo do Cimento (R$ / ton)
-                    </Label>
-                    {cimentoDb && data.custo_cimento_ton === (cimentoDb.custo_valor ?? cimentoDb.custo_tonelada ?? 0) && (
-                      <span className="text-[8px] font-bold text-primary uppercase bg-primary/10 px-1.5 py-0.5 rounded flex items-center gap-1">
-                        <AlertCircle className="h-2.5 w-2.5" />
-                        Automático
-                      </span>
-                    )}
-                  </div>
-                  <div className="relative">
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      className="h-10 font-bold bg-background border border-border/50 focus-visible:ring-primary shadow-none pl-8"
-                      value={data.custo_cimento_ton || ""}
-                      onChange={(e) => onChange({ custo_cimento_ton: parseFloat(e.target.value) || 0 })}
-                      placeholder={cimentoDb ? `${(cimentoDb.custo_valor ?? cimentoDb.custo_tonelada ?? 0).toFixed(2)}` : "0.00"}
-                    />
-                    <span className="absolute left-3 top-2.5 text-sm font-bold text-muted-foreground">R$</span>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                      Custo do Aditivo (R$ / Litro)
-                    </Label>
-                    {aditivoDb && data.custo_aditivo_lt === (aditivoDb.custo_valor ?? 0) && (
-                      <span className="text-[8px] font-bold text-primary uppercase bg-primary/10 px-1.5 py-0.5 rounded flex items-center gap-1">
-                        <AlertCircle className="h-2.5 w-2.5" />
-                        Automático
-                      </span>
-                    )}
-                  </div>
-                  <div className="relative">
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      className="h-10 font-bold bg-background border border-border/50 focus-visible:ring-primary shadow-none pl-8"
-                      value={data.custo_aditivo_lt || ""}
-                      onChange={(e) => onChange({ custo_aditivo_lt: parseFloat(e.target.value) || 0 })}
-                      placeholder={aditivoDb ? `${(aditivoDb.custo_valor ?? 0).toFixed(2)}` : "0.00"}
-                    />
-                    <span className="absolute left-3 top-2.5 text-sm font-bold text-muted-foreground">R$</span>
-                  </div>
-                </div>
-              </div>
-
             </CardContent>
           </Card>
-        </div>
 
-        {/* Coluna Direita: Gráfico */}
-        <div className="space-y-6">
-          <Card className="flex flex-col overflow-hidden">
+        {/* SEÇÃO 3 — RASTREABILIDADE (à vista, bem organizada) */}
+        <Card className="border-none shadow-sm bg-muted/20 lg:[grid-area:cimento]">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-black uppercase tracking-wider flex items-center gap-2 text-foreground/80">
+                <Link2 className="h-4 w-4 text-primary" />
+                3. Rastreabilidade
+                <span className="text-[10px] font-medium normal-case text-muted-foreground tracking-normal">(opcional)</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-[11px] font-black text-muted-foreground uppercase tracking-widest">Cimento</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                    Marca
+                  </Label>
+                  <BrandSelect
+                    tipo="cimento"
+                    value={data.cimento_marca_id}
+                    onChange={(id) => onChange({ cimento_marca_id: id ?? undefined })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                    Lote
+                  </Label>
+                  <Input
+                    className="h-10"
+                    placeholder="Opcional"
+                    value={data.cimento_lote ?? ""}
+                    onChange={(e) => onChange({ cimento_lote: e.target.value || undefined })}
+                  />
+                </div>
+                <div className="space-y-1.5 sm:col-span-2">
+                  <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                    Observação
+                  </Label>
+                  <Textarea
+                    className="min-h-[44px] resize-none"
+                    placeholder="Opcional"
+                    value={data.cimento_observacao ?? ""}
+                    onChange={(e) => onChange({ cimento_observacao: e.target.value || undefined })}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+        {/* Gráfico */}
+        <Card className="flex flex-col overflow-hidden lg:[grid-area:chart]">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-black uppercase tracking-wider flex items-center gap-2">
@@ -600,7 +583,62 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
               </div>
             </CardContent>
           </Card>
-        </div>
+
+        {/* Rastreabilidade do Aditivo — alinhada com o card de Cimento */}
+        <Card className="border-none shadow-sm bg-muted/20 lg:[grid-area:aditivo]">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-black uppercase tracking-wider flex items-center gap-2 text-foreground/80">
+                <Link2 className="h-4 w-4 text-primary" />
+                Rastreabilidade — Aditivo
+                <span className="text-[10px] font-medium normal-case text-muted-foreground tracking-normal">(opcional)</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                  Marca
+                </Label>
+                <BrandSelect
+                  tipo="aditivo"
+                  value={data.aditivo_marca_id}
+                  onChange={(id) => onChange({ aditivo_marca_id: id ?? undefined })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                  Lote
+                </Label>
+                <Input
+                  className="h-10"
+                  placeholder="Opcional"
+                  value={data.aditivo_lote ?? ""}
+                  onChange={(e) => onChange({ aditivo_lote: e.target.value || undefined })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                  Diluição
+                </Label>
+                <Input
+                  className="h-10"
+                  placeholder="Ex: 1:5 (opcional)"
+                  value={data.aditivo_diluicao ?? ""}
+                  onChange={(e) => onChange({ aditivo_diluicao: e.target.value || undefined })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                  Observação
+                </Label>
+                <Textarea
+                  className="min-h-[44px] resize-none"
+                  placeholder="Opcional"
+                  value={data.aditivo_observacao ?? ""}
+                  onChange={(e) => onChange({ aditivo_observacao: e.target.value || undefined })}
+                />
+              </div>
+            </CardContent>
+          </Card>
       </div>
 
       {/* FOOTER SUMMARY: CUSTOS */}

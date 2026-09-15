@@ -81,7 +81,7 @@ const ProductionPage = () => {
         observacoes: analysis.observacoes ?? "",
         data: analysis.data_analise,
       };
-      generateAnalysisPDF(pdfData);
+      generateAnalysisPDF(pdfData, { status: analysis.status });
       await generateAnalysisExcel(pdfData);
       toast.success("Relatório exportado com sucesso!", {
         description: `Arquivos ${analysis.codigo}_relatorio.pdf e .xlsx baixados`,
