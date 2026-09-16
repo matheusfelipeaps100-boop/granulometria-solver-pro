@@ -61,6 +61,7 @@ interface PeriodSummary {
     situacao: string;
   }[];
   naoConformidades: { descricao: string; data: string }[];
+  naoRealizados: { descricao: string; data: string }[];
   marcasCimento: { marca: string; quantidade: number }[];
   marcasAditivo: { marca: string; quantidade: number }[];
 }
@@ -148,6 +149,19 @@ function buildSummary(
       });
     });
 
+  // Ensaios não realizados por falta de expediente — informativo, fora da
+  // contagem de não conformidades e das médias/mínimos/máximos.
+  const naoRealizados: { descricao: string; data: string }[] = [];
+  schedules
+    .filter((s: any) => s.status === "sem_expediente" && inPeriod(s.data_executada, ano, mes))
+    .forEach((s: any) => {
+      const produto = s.batch?.analyses?.produto || s.batch?.analyses?.tipo || "—";
+      naoRealizados.push({
+        descricao: `Ensaio não realizado (sem expediente) — ${produto} (lote ${s.batch?.batch_code ?? "—"}, ${s.idade_dias} dias)${s.motivo_nao_realizado ? `: ${s.motivo_nao_realizado}` : ""}`,
+        data: s.data_executada?.slice(0, 10) ?? "—",
+      });
+    });
+
   // G — marcas de cimento/aditivo usadas no período
   const cimentoCount = new Map<string, number>();
   const aditivoCount = new Map<string, number>();
@@ -175,6 +189,7 @@ function buildSummary(
     analisesPorProduto,
     resistenciaPorProduto,
     naoConformidades,
+    naoRealizados,
     marcasCimento,
     marcasAditivo,
   };
@@ -282,6 +297,7 @@ const MonthlyReportPage = () => {
         analisesPorProduto: summaryAtual.analisesPorProduto,
         resistenciaPorProduto: summaryAtual.resistenciaPorProduto,
         naoConformidades: summaryAtual.naoConformidades,
+        naoRealizados: summaryAtual.naoRealizados,
         marcasCimento: summaryAtual.marcasCimento,
         marcasAditivo: summaryAtual.marcasAditivo,
         conclusao: conclusaoValue,
@@ -471,6 +487,26 @@ const MonthlyReportPage = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Ensaios não realizados (sem expediente) — informativo, não conta como não conformidade */}
+        {summaryAtual.naoRealizados.length > 0 && (
+          <Card>
+            <CardHeader><CardTitle className="text-base">Ensaios Não Realizados (Sem Expediente)</CardTitle></CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground mb-3">
+                Rompimentos que não puderam ser executados por falta de expediente no laboratório (fins de semana/feriados). Não entram nas médias nem na contagem de não conformidades acima.
+              </p>
+              <ul className="space-y-2">
+                {summaryAtual.naoRealizados.map((n, i) => (
+                  <li key={i} className="text-sm flex items-start justify-between gap-4 border-b pb-2 last:border-0">
+                    <span>{n.descricao}</span>
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">{n.data}</span>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        )}
 
         {/* G — Cimento e aditivo */}
         <Card>

@@ -178,6 +178,7 @@ export interface MonthlyReportExcelData {
     situacao: string;
   }[];
   naoConformidades: { descricao: string; data: string }[];
+  naoRealizados?: { descricao: string; data: string }[];
   marcasCimento: { marca: string; quantidade: number }[];
   marcasAditivo: { marca: string; quantidade: number }[];
   conclusao: string;
@@ -224,6 +225,13 @@ export async function generateMonthlyReportExcel(data: MonthlyReportExcelData): 
     naoConfSheet.addRow(["Nenhuma ocorrência registrada no período", ""]);
   } else {
     data.naoConformidades.forEach((n) => naoConfSheet.addRow([n.descricao, n.data]));
+  }
+
+  if (data.naoRealizados && data.naoRealizados.length > 0) {
+    const naoRealizadosSheet = workbook.addWorksheet("Não Realizados");
+    naoRealizadosSheet.columns = [{ header: "Ocorrência", width: 70 }, { header: "Data", width: 14 }];
+    naoRealizadosSheet.getRow(1).font = { bold: true };
+    data.naoRealizados.forEach((n) => naoRealizadosSheet.addRow([n.descricao, n.data]));
   }
 
   const marcasSheet = workbook.addWorksheet("Cimento e Aditivo");

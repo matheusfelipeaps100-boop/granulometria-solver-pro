@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "../useAuth";
-export type ScheduleStatus = "pendente" | "em_andamento" | "concluido" | "atrasado" | "ignorado";
+export type ScheduleStatus = "pendente" | "em_andamento" | "concluido" | "atrasado" | "ignorado" | "sem_expediente";
 
 export interface DBRuptureSchedule {
   id: string;
@@ -314,6 +314,28 @@ export function useRuptures() {
     }
   });
 
+  const markSemExpedienteMutation = useMutation({
+    mutationFn: async ({ scheduleId, motivo }: { scheduleId: string; motivo: string }) => {
+      const { error } = await supabase
+        .from("rupture_schedules")
+        .update({
+          status: "sem_expediente",
+          data_executada: new Date().toISOString().split("T")[0],
+          responsavel_id: profile?.id,
+          responsavel_nome: profile?.nome,
+          motivo_nao_realizado: motivo,
+        })
+        .eq("id", scheduleId);
+      if (error) throw error;
+      return { scheduleId };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["rupture_schedules", orgId] });
+      queryClient.invalidateQueries({ queryKey: ["rupture_schedule_detail"] });
+      queryClient.invalidateQueries({ queryKey: ["production_batches", orgId] });
+    },
+  });
+
   const updateRuptureMutation = useMutation({
     mutationFn: async ({
       scheduleId,
@@ -386,6 +408,8 @@ export function useRuptures() {
     isReleasing: releaseEarlyMutation.isPending,
     updateRupture: updateRuptureMutation.mutateAsync,
     isUpdating: updateRuptureMutation.isPending,
+    markSemExpediente: markSemExpedienteMutation.mutateAsync,
+    isMarkingSemExpediente: markSemExpedienteMutation.isPending,
   };
 }
 

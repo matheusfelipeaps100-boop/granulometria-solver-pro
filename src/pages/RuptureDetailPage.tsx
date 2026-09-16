@@ -50,7 +50,7 @@ const RuptureDetailPage = () => {
   const navigate = useNavigate();
   const { profile } = useAuth();
   const { profiles } = useProfiles();
-  const { completeRupture, isCompleting, finalizeWithCurrentTest, isFinalizing, updateRupture, isUpdating } = useRuptures();
+  const { completeRupture, isCompleting, finalizeWithCurrentTest, isFinalizing, updateRupture, isUpdating, markSemExpediente, isMarkingSemExpediente } = useRuptures();
   const { data: scheduleData, isLoading } = useScheduleDetail(scheduleId);
 
   const found = useMemo(() => {
@@ -73,6 +73,8 @@ const RuptureDetailPage = () => {
   const [saving, setSaving] = useState(false);
   const [finalizeModalOpen, setFinalizeModalOpen] = useState(false);
   const [finalizeMotivo, setFinalizeMotivo] = useState("");
+  const [semExpedienteModalOpen, setSemExpedienteModalOpen] = useState(false);
+  const [semExpedienteMotivo, setSemExpedienteMotivo] = useState("");
 
   // 3 samples per test type
   const [samples, setSamples] = useState<Record<TipoAmostra, SampleInput[]>>({
@@ -254,6 +256,19 @@ const RuptureDetailPage = () => {
     return result;
   }, [samples, found, areas, settings, tiposVisiveis]);
 
+  // Tensão mínima plausível para um rompimento real — valores abaixo disso
+  // (ex.: "1" digitado só para conseguir salvar) indicam que o ensaio não foi
+  // realizado de verdade e deveriam usar o botão "Sem Expediente" em vez de
+  // um resultado inventado.
+  const MIN_TENSAO_PLAUSIVEL = 0.5;
+  const hasImplausibleForce = useCallback((tipo: TipoAmostra) => {
+    return samples[tipo].some((s) => {
+      const forca = parseFloat(s.forca_kn);
+      if (isNaN(forca) || forca <= 0) return false;
+      return calcTensaoPorTipo(tipo, forca) < MIN_TENSAO_PLAUSIVEL;
+    });
+  }, [samples, calcTensaoPorTipo]);
+
   if (!found) {
     return (
       <div className="space-y-6 animate-fade-in">
@@ -273,12 +288,14 @@ const RuptureDetailPage = () => {
 
   const isAdmin = profile?.role === "ADMIN";
   const isViewOnlyRole = profile?.role === "VENDAS" || profile?.role === "GERENTE" || profile?.role === "PRODUCAO";
+  const isSemExpediente = schedule.status === 'sem_expediente';
   const isConcluido =
     schedule.status === 'concluido' ||
     (batch as any).status === 'liberado_antecipado';
   const isReadOnly =
     isViewOnlyRole ||
     schedule.status === 'ignorado' ||
+    isSemExpediente ||
     (isConcluido && !isAdmin);
 
   const formatDate = (dateStr: string) => {
@@ -301,6 +318,12 @@ const RuptureDetailPage = () => {
     );
     if (!tipoComAmostra) {
       toast.error("Informe ao menos uma amostra com força (kN)");
+      return;
+    }
+    if (hasImplausibleForce(tipoComAmostra)) {
+      toast.error("Força muito baixa para ser um resultado real", {
+        description: "Se o ensaio não pôde ser realizado, use o botão \"Sem Expediente\" em vez de lançar um valor fictício.",
+      });
       return;
     }
 
@@ -346,6 +369,24 @@ const RuptureDetailPage = () => {
     }
   };
 
+  const handleMarkSemExpediente = async () => {
+    if (!semExpedienteMotivo.trim()) {
+      toast.error("Informe o motivo (ex.: rompimento caiu em fim de semana)");
+      return;
+    }
+    try {
+      await markSemExpediente({ scheduleId: scheduleId!, motivo: semExpedienteMotivo });
+      toast.success("Ensaio marcado como sem expediente", {
+        description: "Não entra nas médias nem na contagem de não conformidades.",
+      });
+      setSemExpedienteModalOpen(false);
+      navigate("/ruptures");
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao marcar ensaio como sem expediente");
+    }
+  };
+
   const handleSave = async () => {
     if (!responsavel) {
       toast.error("Selecione o responsável pelo ensaio");
@@ -358,6 +399,12 @@ const RuptureDetailPage = () => {
 
     if (!tipoComAmostra) {
       toast.error("Informe ao menos uma amostra com força (kN)");
+      return;
+    }
+    if (hasImplausibleForce(tipoComAmostra)) {
+      toast.error("Força muito baixa para ser um resultado real", {
+        description: "Se o ensaio não pôde ser realizado, use o botão \"Sem Expediente\" em vez de lançar um valor fictício.",
+      });
       return;
     }
 
@@ -403,6 +450,12 @@ const RuptureDetailPage = () => {
     );
     if (!tipoComAmostra) {
       toast.error("Informe ao menos uma amostra com força (kN)");
+      return;
+    }
+    if (hasImplausibleForce(tipoComAmostra)) {
+      toast.error("Força muito baixa para ser um resultado real", {
+        description: "Se o ensaio não pôde ser realizado, use o botão \"Sem Expediente\" em vez de lançar um valor fictício.",
+      });
       return;
     }
     const testStats = statsPerTipo[tipoComAmostra];
@@ -501,12 +554,27 @@ const RuptureDetailPage = () => {
         </CardContent>
       </Card>
 
-      {isReadOnly && (
+      {isSemExpediente ? (
+        <div className="flex items-start gap-3 rounded-lg border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+          <AlertTriangle className="h-5 w-5 shrink-0 text-slate-500 mt-0.5" />
+          <div>
+            <p className="font-bold">Ensaio não realizado — sem expediente</p>
+            <p className="mt-1">
+              {(schedule as any).motivo_nao_realizado || "Não foi possível realizar o rompimento nessa data (sem expediente no laboratório)."}
+            </p>
+            <p className="mt-1 text-xs text-slate-500">
+              Esse ensaio fica de fora das médias, mínimos/máximos e da contagem de não conformidades dos relatórios.
+            </p>
+          </div>
+        </div>
+      ) : isReadOnly && (
         <div className="flex items-center gap-2 rounded-lg border border-muted bg-muted/30 px-4 py-2 text-sm text-muted-foreground">
           <Eye className="h-4 w-4 shrink-0" /> Modo somente visualização — este ensaio já foi registrado e não pode ser alterado.
         </div>
       )}
 
+      {!isSemExpediente && (
+      <>
       {/* Data real + Responsável */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
@@ -748,9 +816,17 @@ const RuptureDetailPage = () => {
           <div className="text-muted-foreground text-sm">Preencha pesos para visualizar o gráfico de evolução do peso médio.</div>
         )}
       </div>
+      </>
+      )}
 
       {/* Actions */}
-      {isReadOnly ? (
+      {isSemExpediente ? (
+        <div className="flex justify-end">
+          <Button variant="outline" onClick={() => navigate("/ruptures")}>
+            <ArrowLeft className="h-4 w-4 mr-2" /> Voltar aos Rompimentos
+          </Button>
+        </div>
+      ) : isReadOnly ? (
         <div className="flex justify-end">
           <Button variant="outline" onClick={() => navigate("/ruptures")}>
             <ArrowLeft className="h-4 w-4 mr-2" /> Voltar aos Rompimentos
@@ -770,6 +846,15 @@ const RuptureDetailPage = () => {
         <div className="flex flex-col sm:flex-row justify-end gap-3">
           <Button variant="outline" onClick={() => navigate("/ruptures")} disabled={isCompleting || isFinalizing}>
             Cancelar
+          </Button>
+          <Button
+            onClick={() => setSemExpedienteModalOpen(true)}
+            disabled={isCompleting || isFinalizing || isMarkingSemExpediente}
+            variant="outline"
+            className="gap-2 border-slate-400 text-slate-600 hover:bg-slate-50"
+          >
+            <AlertTriangle className="h-4 w-4" />
+            Sem Expediente
           </Button>
           <Button onClick={handleSave} disabled={isCompleting || isFinalizing} className="gap-2">
             <Save className="h-4 w-4" />
@@ -842,6 +927,66 @@ const RuptureDetailPage = () => {
               disabled={isFinalizing}
             >
               {isFinalizing ? "Finalizando..." : "Confirmar Finalização"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Sem Expediente */}
+      <Dialog open={semExpedienteModalOpen} onOpenChange={setSemExpedienteModalOpen}>
+        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-slate-600">
+              <AlertTriangle className="h-5 w-5" /> Marcar Ensaio como Sem Expediente
+            </DialogTitle>
+            <DialogDescription>
+              Use quando não for possível romper porque a data caiu em dia sem expediente no laboratório (fim de semana, feriado). Não invente um resultado só para conseguir salvar.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="bg-slate-50 border border-slate-200 p-3 rounded-md flex items-start gap-3 mt-2">
+            <AlertTriangle className="h-5 w-5 text-slate-500 mt-0.5 shrink-0" />
+            <div className="text-sm text-slate-700">
+              <p className="font-bold">Este ensaio não entra nos relatórios de conformidade</p>
+              <p className="mt-1 leading-snug">
+                Nenhuma força/resultado é gravado. O ensaio fica registrado como "Sem Expediente", fora das médias, mínimos/máximos e da contagem de não conformidades.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="text-muted-foreground text-xs">Lote</p>
+                <p className="font-black">{found?.batch.batch_code}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground text-xs">Ensaio</p>
+                <p className="font-bold">{found?.schedule.idade_dias} dias</p>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Motivo *</Label>
+              <Textarea
+                placeholder="Ex: Rompimento previsto para domingo (14/09), sem expediente no laboratório. Será reagendado ou desconsiderado."
+                value={semExpedienteMotivo}
+                onChange={(e) => setSemExpedienteMotivo(e.target.value)}
+                rows={4}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSemExpedienteModalOpen(false)} disabled={isMarkingSemExpediente}>
+              Cancelar
+            </Button>
+            <Button
+              className="bg-slate-600 hover:bg-slate-700"
+              onClick={handleMarkSemExpediente}
+              disabled={isMarkingSemExpediente}
+            >
+              {isMarkingSemExpediente ? "Salvando..." : "Confirmar"}
             </Button>
           </DialogFooter>
         </DialogContent>

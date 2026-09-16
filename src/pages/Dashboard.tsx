@@ -179,12 +179,12 @@ const Dashboard = () => {
     const counts = {
       concluido: schedules.filter(s => s.status === 'concluido').length,
       pendente: schedules.filter(s => s.status === 'pendente' || s.status === 'atrasado').length,
-      ignorado: schedules.filter(s => s.status === 'ignorado').length,
+      ignorado: schedules.filter(s => s.status === 'ignorado' || s.status === 'sem_expediente').length,
     };
     return [
       { name: "Concluído", value: counts.concluido, color: BRAND_RED },
       { name: "Pendente", value: counts.pendente, color: BRAND_RED_MED },
-      { name: "Ignorado", value: counts.ignorado, color: BRAND_RED_LIGHT },
+      { name: "Ignorado/Sem Expediente", value: counts.ignorado, color: BRAND_RED_LIGHT },
     ];
   }, [schedules]);
 

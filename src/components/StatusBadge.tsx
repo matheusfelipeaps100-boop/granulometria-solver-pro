@@ -18,7 +18,8 @@ export type StatusType =
   | "liberado_antecipado"
   | "ignorado"
   | "aguardando_rompimentos"
-  | "aprovado_sem_ensaio";
+  | "aprovado_sem_ensaio"
+  | "sem_expediente";
 
 export const statusConfig: Record<StatusType, { label: string; className: string }> = {
   rascunho: { label: "Rascunho", className: "bg-muted text-muted-foreground" },
@@ -38,6 +39,7 @@ export const statusConfig: Record<StatusType, { label: string; className: string
   ignorado: { label: "Ignorado", className: "bg-muted text-muted-foreground" },
   aguardando_rompimentos: { label: "Aguardando Rompimentos", className: "bg-info/15 text-info border-info/30" },
   aprovado_sem_ensaio: { label: "Aprovado", className: "bg-success/15 text-success border-success/30" },
+  sem_expediente: { label: "Sem Expediente", className: "bg-slate-100 text-slate-600 border-slate-300" },
 };
 
 interface StatusBadgeProps {

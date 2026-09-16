@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 
 const RECIPIENT_ROLES = ["admin", "gestor", "laboratorio", "producao"];
 const RUPTURE_TYPES = ["rupture_due_today", "rupture_overdue"];
-const RESOLVED_STATUSES = ["concluido", "ignorado"];
+const RESOLVED_STATUSES = ["concluido", "ignorado", "sem_expediente"];
 
 /**
  * Ao abrir o app, garante que existam notificações para rompimentos

@@ -28,6 +28,7 @@ const statusColor: Record<ScheduleStatus, string> = {
   concluido: "border-green-400 text-green-700 bg-green-50 hover:bg-green-100",
   atrasado: "border-destructive text-destructive bg-red-50 hover:bg-red-100",
   ignorado: "border-muted text-muted-foreground bg-muted/20 opacity-50 cursor-not-allowed",
+  sem_expediente: "border-slate-300 text-slate-600 bg-slate-50 opacity-80 cursor-not-allowed",
 };
 
 const dueTodayColor = "border-purple-300 text-purple-700 bg-purple-50 hover:bg-purple-100";
@@ -94,7 +95,7 @@ const RupturesPage = () => {
   const batchStatus = (schedules: any[], currentStatus: string) => {
     if (currentStatus === "aprovado_sem_ensaio") return "aprovado_sem_ensaio";
     if (currentStatus === "liberado_antecipado") return "liberado_antecipado";
-    if (schedules.every((s) => s.status === "concluido" || s.status === "ignorado")) return "concluido";
+    if (schedules.every((s) => s.status === "concluido" || s.status === "ignorado" || s.status === "sem_expediente")) return "concluido";
     const atrasados = schedules.filter((s) => s.status === "atrasado");
     if (atrasados.length > 0) {
       const maxAtrasadoDias = Math.max(...atrasados.map((s) => s.idade_dias));
@@ -325,14 +326,14 @@ const RupturesPage = () => {
                                   disabled={s.status === 'ignorado'}
                                   onClick={() => {
                                     if (s.status === 'ignorado') return;
-                                    if (s.status === 'concluido' || canCompleteRupture) {
+                                    if (s.status === 'concluido' || s.status === 'sem_expediente' || canCompleteRupture) {
                                       navigate(`/ruptures/${s.id}`);
                                     } else {
                                       toast.error("Você não tem permissão para realizar rompimentos.");
                                     }
                                   }}
-                                  className={`inline-flex items-center justify-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors ${chipColor} ${s.status !== 'ignorado' && (canCompleteRupture || s.status === 'concluido') ? 'cursor-pointer' : 'cursor-default'}`}
-                                  title={canCompleteRupture || s.status === 'concluido' ? `${s.idade_dias}d — ${statusLabel} — ${formatDate(s.data_prevista)}` : "Visualização restrita"}
+                                  className={`inline-flex items-center justify-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors ${chipColor} ${s.status !== 'ignorado' && (canCompleteRupture || s.status === 'concluido' || s.status === 'sem_expediente') ? 'cursor-pointer' : 'cursor-default'}`}
+                                  title={canCompleteRupture || s.status === 'concluido' || s.status === 'sem_expediente' ? `${s.idade_dias}d — ${statusLabel} — ${formatDate(s.data_prevista)}` : "Visualização restrita"}
                                 >
                                   {s.idade_dias}d
                                 </button>
