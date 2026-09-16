@@ -117,7 +117,6 @@ export function ProductsTab() {
                     <TableHead>Nome</TableHead>
                     <TableHead>Tipo de Análise</TableHead>
                     <TableHead>Dimensões</TableHead>
-                    <TableHead className="text-right">Resistência Ref.</TableHead>
                     <TableHead className="text-center">Status</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
@@ -128,9 +127,6 @@ export function ProductsTab() {
                       <TableCell className="font-medium">{p.nome}</TableCell>
                       <TableCell>{tipoLabel(p.tipo_produto)}</TableCell>
                       <TableCell>{p.dimensoes}</TableCell>
-                      <TableCell className="text-right">
-                        {p.resistencia_referencia} MPa
-                      </TableCell>
                       <TableCell className="text-center">
                         <Badge
                           variant="outline"

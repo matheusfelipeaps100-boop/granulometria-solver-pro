@@ -8,7 +8,6 @@ export interface Product {
   nome: string;
   tipo_produto: string;
   dimensoes: string | null;
-  resistencia_referencia: number | null;
   ativo: boolean;
   created_at: string;
   updated_at: string;

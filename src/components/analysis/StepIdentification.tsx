@@ -241,7 +241,6 @@ export function StepIdentification({ data, onChange }: StepIdentificationProps) 
                 onChange({
                   produto_id: v,
                   produto_nome: prod ? `${prod.nome}${prod.dimensoes ? ` — ${prod.dimensoes}` : ""}` : "",
-                  resistencia_prevista: prod?.resistencia_referencia ?? data.resistencia_prevista,
                 });
               }}
             >

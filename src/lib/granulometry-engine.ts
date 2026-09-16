@@ -351,19 +351,21 @@ export function calcRuptureStatsLaje(
 }
 
 /**
- * Resolve a meta de resistência esperada para a idade do ensaio (1d/3d/7d/28d),
- * caindo de volta para a meta final do produto quando não houver meta configurada
- * para aquela idade/tipo (ex.: corpo de prova "cp", que não tem metas por idade).
+ * Resolve a meta de resistência esperada para a idade do ensaio.
+ *
+ * A meta de conformidade é sempre a "Resistência Prevista (MPa)" informada na
+ * análise (metaFinal). As metas por idade configuradas em technical_settings
+ * (bloco_meta_1d/3d/7d/28d, paver_meta_1d/3d/7d/28d) são mantidas no banco apenas
+ * como referência informativa e não são mais usadas como parâmetro de conformidade,
+ * para evitar divergência com o MPa previsto escolhido por análise.
  */
 export function getMetaForAge(
-  tipo: "bloco" | "paver" | "cp" | "laje",
-  idadeDias: number,
-  settings: Partial<Record<string, number>> | null | undefined,
+  _tipo: "bloco" | "paver" | "cp" | "laje",
+  _idadeDias: number,
+  _settings: Partial<Record<string, number>> | null | undefined,
   metaFinal: number
 ): number {
-  if (!settings || tipo === "cp" || tipo === "laje") return metaFinal;
-  const valor = settings[`${tipo}_meta_${idadeDias}d`];
-  return typeof valor === "number" && valor > 0 ? valor : metaFinal;
+  return metaFinal;
 }
 
 /**

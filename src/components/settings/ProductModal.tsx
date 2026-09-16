@@ -32,7 +32,6 @@ const emptyForm = {
   nome: "",
   tipo_produto: "",
   dimensoes: "",
-  resistencia_referencia: 0,
   ativo: true,
 };
 
@@ -49,7 +48,6 @@ export function ProductModal({ open, onOpenChange, editId }: ProductModalProps) 
           nome: p.nome,
           tipo_produto: p.tipo_produto,
           dimensoes: p.dimensoes || "",
-          resistencia_referencia: p.resistencia_referencia || 0,
           ativo: p.ativo,
         });
       }
@@ -71,7 +69,6 @@ export function ProductModal({ open, onOpenChange, editId }: ProductModalProps) 
           nome: form.nome,
           tipo_produto: form.tipo_produto,
           dimensoes: form.dimensoes,
-          resistencia_referencia: form.resistencia_referencia,
           ativo: form.ativo,
         });
         toast.success("Produto atualizado");
@@ -80,7 +77,6 @@ export function ProductModal({ open, onOpenChange, editId }: ProductModalProps) 
           nome: form.nome,
           tipo_produto: form.tipo_produto,
           dimensoes: form.dimensoes,
-          resistencia_referencia: form.resistencia_referencia,
           ativo: form.ativo,
         });
         toast.success("Produto criado com sucesso");
@@ -136,23 +132,6 @@ export function ProductModal({ open, onOpenChange, editId }: ProductModalProps) 
               value={form.dimensoes}
               onChange={(e) => setForm({ ...form, dimensoes: e.target.value })}
               placeholder="Ex: 14x19x39 cm"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Resistência de Referência (MPa)</Label>
-            <Input
-              type="number"
-              step="0.1"
-              min="0"
-              value={form.resistencia_referencia || ""}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  resistencia_referencia: parseFloat(e.target.value) || 0,
-                })
-              }
-              placeholder="Ex: 4.0"
             />
           </div>
 

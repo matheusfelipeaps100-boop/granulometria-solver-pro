@@ -10,7 +10,6 @@ export interface Product {
   nome: string;
   tipo_produto: "bloco_estrutural" | "bloco_vedacao" | "paver" | "cp" | "laje";
   dimensoes: string;
-  resistencia_referencia: number;
   ativo: boolean;
   created_at: string;
 }
