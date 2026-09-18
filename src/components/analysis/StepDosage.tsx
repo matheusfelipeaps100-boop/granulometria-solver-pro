@@ -277,7 +277,7 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:[grid-template-areas:'traco_chart'_'consumo_chart'_'cimento_aditivo']">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start lg:[grid-template-areas:'traco_chart'_'consumo_chart'_'cimento_aditivo']">
         {/* SEÇÃO 1 — TRAÇO */}
         <Card className="border-none shadow-sm bg-muted/20 lg:[grid-area:traco]">
             <CardHeader className="pb-3">
@@ -345,11 +345,11 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
             <CardContent className="space-y-5">
               {/* BOX DE DESTAQUE: CONSUMO E DENSIDADE */}
               <div className="flex gap-4">
-                <div className="flex-1 bg-white dark:bg-card border-2 border-primary rounded-xl p-5 shadow-sm relative overflow-hidden">
+                <div className="flex-1 bg-white dark:bg-card border-2 border-primary rounded-xl p-4 shadow-sm relative overflow-hidden">
                   <div className="absolute top-0 right-0 p-2 opacity-10">
-                    <Weight className="h-12 w-12" />
+                    <Weight className="h-10 w-10" />
                   </div>
-                  <Label className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-2 block">
+                  <Label className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-1.5 block">
                     Cimento por Batelada (kg)
                   </Label>
                   <div className="flex items-baseline gap-2">
@@ -357,7 +357,7 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
                       type="number"
                       step="1"
                       min="0"
-                      className="flex-1 min-w-0 w-full text-5xl font-black text-foreground tracking-tighter h-14 bg-transparent border-none p-0 focus-visible:ring-0 shadow-none"
+                      className="flex-1 min-w-0 w-full text-4xl font-black text-foreground tracking-tighter h-11 bg-transparent border-none p-0 focus-visible:ring-0 shadow-none"
                       value={data.consumo_alvo_m3 || ""}
                       onChange={(e) => {
                         const cons = parseFloat(e.target.value) || 0;
@@ -483,7 +483,7 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
             </CardHeader>
             <CardContent className="space-y-3">
               <p className="text-[11px] font-black text-muted-foreground uppercase tracking-widest">Cimento</p>
-              <div className="grid grid-cols-1 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                     Marca
@@ -494,7 +494,7 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
                     onChange={(id) => onChange({ cimento_marca_id: id ?? undefined })}
                   />
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 sm:col-span-2">
                   <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                     Observação
                   </Label>
