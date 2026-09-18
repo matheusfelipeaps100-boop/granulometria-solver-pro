@@ -357,7 +357,7 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
                       type="number"
                       step="1"
                       min="0"
-                      className="w-28 text-5xl font-black text-foreground tracking-tighter h-14 bg-transparent border-none p-0 focus-visible:ring-0 shadow-none"
+                      className="flex-1 min-w-0 w-full text-5xl font-black text-foreground tracking-tighter h-14 bg-transparent border-none p-0 focus-visible:ring-0 shadow-none"
                       value={data.consumo_alvo_m3 || ""}
                       onChange={(e) => {
                         const cons = parseFloat(e.target.value) || 0;
@@ -367,7 +367,7 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
                         onChange({ consumo_alvo_m3: cons, relacao_cimento: rel });
                       }}
                     />
-                    <span className="text-sm font-bold text-muted-foreground">kg</span>
+                    <span className="text-sm font-bold text-muted-foreground shrink-0">kg</span>
                   </div>
                   <div className="flex flex-wrap gap-x-3 mt-1.5 text-[10px] text-muted-foreground">
                     {consumo_equiv_m3 > 0 && <span>≈ {consumo_equiv_m3.toFixed(0)} kg/m³ (equivalente)</span>}
@@ -483,7 +483,7 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
             </CardHeader>
             <CardContent className="space-y-3">
               <p className="text-[11px] font-black text-muted-foreground uppercase tracking-widest">Cimento</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                     Marca
@@ -495,17 +495,6 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                    Lote
-                  </Label>
-                  <Input
-                    className="h-10"
-                    placeholder="Opcional"
-                    value={data.cimento_lote ?? ""}
-                    onChange={(e) => onChange({ cimento_lote: e.target.value || undefined })}
-                  />
-                </div>
-                <div className="space-y-1.5 sm:col-span-2">
                   <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                     Observação
                   </Label>
@@ -606,17 +595,6 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
               </div>
               <div className="space-y-1.5">
                 <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                  Lote
-                </Label>
-                <Input
-                  className="h-10"
-                  placeholder="Opcional"
-                  value={data.aditivo_lote ?? ""}
-                  onChange={(e) => onChange({ aditivo_lote: e.target.value || undefined })}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                   Diluição
                 </Label>
                 <Input
@@ -626,7 +604,7 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
                   onChange={(e) => onChange({ aditivo_diluicao: e.target.value || undefined })}
                 />
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 sm:col-span-2">
                 <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                   Observação
                 </Label>
