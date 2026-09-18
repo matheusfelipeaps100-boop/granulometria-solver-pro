@@ -357,7 +357,7 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
                       type="number"
                       step="1"
                       min="0"
-                      className="flex-1 min-w-0 w-full text-4xl font-black text-foreground tracking-tighter h-11 bg-transparent border-none p-0 focus-visible:ring-0 shadow-none"
+                      className="flex-1 min-w-0 w-full text-6xl font-black text-foreground tracking-tighter h-16 bg-transparent border-none p-0 focus-visible:ring-0 shadow-none"
                       value={data.consumo_alvo_m3 || ""}
                       onChange={(e) => {
                         const cons = parseFloat(e.target.value) || 0;
