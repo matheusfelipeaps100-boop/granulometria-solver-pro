@@ -95,6 +95,15 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
     const { materials: dbMaterials } = useMaterials();
   const [aditivoUnidade, setAditivoUnidade] = useState<'mL' | 'g'>('mL');
 
+  const cimentoMaterials = useMemo(
+    () => dbMaterials.filter((m) => m.tipo === 'cimento'),
+    [dbMaterials]
+  );
+  const aditivoMaterials = useMemo(
+    () => dbMaterials.filter((m) => m.tipo === 'aditivo'),
+    [dbMaterials]
+  );
+
   // Auto-sincroniza custos de cimento e aditivo com o material ativo cadastrado.
   // Não depende de data.custo_cimento_ton/custo_aditivo_lt para não sobrescrever
   // o valor enquanto o usuário está digitando; só resincroniza quando a lista de
@@ -481,30 +490,27 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
                 <span className="text-[10px] font-medium normal-case text-muted-foreground tracking-normal">(opcional)</span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-[11px] font-black text-muted-foreground uppercase tracking-widest">Cimento</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                    Marca
-                  </Label>
-                  <BrandSelect
-                    tipo="cimento"
-                    value={data.cimento_marca_id}
-                    onChange={(id) => onChange({ cimento_marca_id: id ?? undefined })}
-                  />
-                </div>
-                <div className="space-y-1.5 sm:col-span-2">
-                  <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                    Observação
-                  </Label>
-                  <Textarea
-                    className="min-h-[44px] resize-none"
-                    placeholder="Opcional"
-                    value={data.cimento_observacao ?? ""}
-                    onChange={(e) => onChange({ cimento_observacao: e.target.value || undefined })}
-                  />
-                </div>
+            <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                  Marca
+                </Label>
+                <BrandSelect
+                  materials={cimentoMaterials}
+                  value={data.cimento_marca_id}
+                  onChange={(id) => onChange({ cimento_marca_id: id ?? undefined })}
+                />
+              </div>
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                  Observação
+                </Label>
+                <Textarea
+                  className="min-h-[44px] resize-none"
+                  placeholder="Opcional"
+                  value={data.cimento_observacao ?? ""}
+                  onChange={(e) => onChange({ cimento_observacao: e.target.value || undefined })}
+                />
               </div>
             </CardContent>
           </Card>
@@ -588,7 +594,7 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
                   Marca
                 </Label>
                 <BrandSelect
-                  tipo="aditivo"
+                  materials={aditivoMaterials}
                   value={data.aditivo_marca_id}
                   onChange={(id) => onChange({ aditivo_marca_id: id ?? undefined })}
                 />

@@ -11,18 +11,18 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useMaterialBrands, MaterialBrandTipo } from "@/hooks/api/useMaterialBrands";
+import type { Material } from "@/hooks/api/useMaterials";
 
 interface BrandSelectProps {
-  tipo: MaterialBrandTipo;
+  materials: Material[];
   value?: string | null;
   onChange: (id: string | null) => void;
   placeholder?: string;
 }
 
-export function BrandSelect({ tipo, value, onChange, placeholder }: BrandSelectProps) {
+export function BrandSelect({ materials, value, onChange, placeholder }: BrandSelectProps) {
   const [open, setOpen] = useState(false);
-  const { brands, isLoading } = useMaterialBrands(tipo);
+  const brands = materials;
 
   // Marca inativa selecionada em análise antiga continua aparecendo na lista,
   // para não "sumir" a informação histórica ao reabrir o registro.
@@ -36,7 +36,6 @@ export function BrandSelect({ tipo, value, onChange, placeholder }: BrandSelectP
           role="combobox"
           aria-expanded={open}
           className="w-full justify-between font-normal"
-          disabled={isLoading}
         >
           <span className="truncate">
             {selected ? selected.nome : placeholder ?? "Selecionar marca..."}
@@ -63,15 +62,22 @@ export function BrandSelect({ tipo, value, onChange, placeholder }: BrandSelectP
               {brands.map((brand) => (
                 <CommandItem
                   key={brand.id}
-                  value={brand.nome}
+                  value={`${brand.nome} ${brand.fornecedor ?? ""}`}
                   onSelect={() => {
                     onChange(brand.id);
                     setOpen(false);
                   }}
                 >
-                  <Check className={cn("mr-2 h-4 w-4", value === brand.id ? "opacity-100" : "opacity-0")} />
-                  {brand.nome}
-                  {!brand.ativo && <span className="ml-2 text-xs text-muted-foreground">(inativa)</span>}
+                  <Check className={cn("mr-2 h-4 w-4 shrink-0", value === brand.id ? "opacity-100" : "opacity-0")} />
+                  <div className="flex flex-col min-w-0">
+                    <span className="truncate">
+                      {brand.nome}
+                      {!brand.ativo && <span className="ml-2 text-xs text-muted-foreground">(inativa)</span>}
+                    </span>
+                    {brand.fornecedor && (
+                      <span className="text-xs text-muted-foreground truncate">{brand.fornecedor}</span>
+                    )}
+                  </div>
                 </CommandItem>
               ))}
             </CommandGroup>

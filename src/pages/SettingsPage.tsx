@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { ProductsTab } from "@/components/settings/ProductsTab";
 import { ProductTypesTab } from "@/components/settings/ProductTypesTab";
 import { RuptureDaysTab } from "@/components/settings/RuptureDaysTab";
-import { MaterialBrandsTab } from "@/components/settings/MaterialBrandsTab";
 import { WebhooksTab } from "@/components/settings/WebhooksTab";
 import { GoalsTab } from "@/components/settings/GoalsTab";
 import { SievesTab } from "@/components/settings/SievesTab";
@@ -127,7 +126,6 @@ const SettingsPage = () => {
           <TabsTrigger value="goals">Metas</TabsTrigger>
           <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
           <TabsTrigger value="ruptures">Rompimentos</TabsTrigger>
-          <TabsTrigger value="brands">Marcas</TabsTrigger>
           <TabsTrigger value="sieves">Peneiras</TabsTrigger>
           <TabsTrigger value="users">Usuários</TabsTrigger>
         </TabsList>
@@ -303,10 +301,6 @@ const SettingsPage = () => {
 
         <TabsContent value="ruptures">
           <RuptureDaysTab />
-        </TabsContent>
-
-        <TabsContent value="brands">
-          <MaterialBrandsTab />
         </TabsContent>
 
         <TabsContent value="sieves">

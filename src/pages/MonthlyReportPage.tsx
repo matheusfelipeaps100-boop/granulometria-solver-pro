@@ -24,7 +24,7 @@ import { toast } from "sonner";
 import { useAnalyses } from "@/hooks/api/useAnalyses";
 import { useOrganization } from "@/hooks/api/useOrganization";
 import { useAuth } from "@/hooks/useAuth";
-import { useMaterialBrands } from "@/hooks/api/useMaterialBrands";
+import { useMaterials, Material } from "@/hooks/api/useMaterials";
 import { useMonthlyReport, useRuptureSchedulesWithTests } from "@/hooks/api/useMonthlyReports";
 import { generateElementPDF } from "@/lib/pdf-generator";
 import { generateMonthlyReportExcel } from "@/lib/excel-generator";
@@ -72,8 +72,8 @@ function buildSummary(
   analyses: ReturnType<typeof useAnalyses>["analyses"],
   batches: any[],
   schedules: any[],
-  cimentoBrands: ReturnType<typeof useMaterialBrands>["brands"],
-  aditivoBrands: ReturnType<typeof useMaterialBrands>["brands"]
+  cimentoBrands: Material[],
+  aditivoBrands: Material[]
 ): PeriodSummary {
   const analisesPeriodo = analyses.filter((a) => inPeriod(a.data_analise || a.created_at, ano, mes));
 
@@ -221,8 +221,9 @@ const MonthlyReportPage = () => {
   const { data: schedules = [], isLoading: isLoadingSchedules } = useRuptureSchedulesWithTests();
   const { organization } = useOrganization();
   const { profile } = useAuth();
-  const { brands: cimentoBrands } = useMaterialBrands("cimento");
-  const { brands: aditivoBrands } = useMaterialBrands("aditivo");
+  const { materials: dbMaterials } = useMaterials();
+  const cimentoBrands = useMemo(() => dbMaterials.filter((m) => m.tipo === "cimento"), [dbMaterials]);
+  const aditivoBrands = useMemo(() => dbMaterials.filter((m) => m.tipo === "aditivo"), [dbMaterials]);
   const { report, saveConclusao, isSaving } = useMonthlyReport(ano, mes);
 
   const [conclusaoDraft, setConclusaoDraft] = useState<string | null>(null);
