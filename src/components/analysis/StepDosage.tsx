@@ -100,7 +100,7 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
     [dbMaterials]
   );
   const aditivoMaterials = useMemo(
-    () => dbMaterials.filter((m) => m.tipo === 'aditivo'),
+    () => dbMaterials.filter((m) => m.tipo === 'aditivo' || m.nome.toLowerCase().includes('aditivo')),
     [dbMaterials]
   );
 

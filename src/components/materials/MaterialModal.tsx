@@ -27,6 +27,7 @@ const TIPOS_MATERIAL = [
   { label: "Brita", value: "brita" },
   { label: "Granilha", value: "granilha" },
   { label: "Cimento", value: "cimento" },
+  { label: "Aditivo", value: "aditivo" },
   { label: "Outro", value: "outro" },
 ];
 

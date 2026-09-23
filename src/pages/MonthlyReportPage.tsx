@@ -223,7 +223,10 @@ const MonthlyReportPage = () => {
   const { profile } = useAuth();
   const { materials: dbMaterials } = useMaterials();
   const cimentoBrands = useMemo(() => dbMaterials.filter((m) => m.tipo === "cimento"), [dbMaterials]);
-  const aditivoBrands = useMemo(() => dbMaterials.filter((m) => m.tipo === "aditivo"), [dbMaterials]);
+  const aditivoBrands = useMemo(
+    () => dbMaterials.filter((m) => m.tipo === "aditivo" || m.nome.toLowerCase().includes("aditivo")),
+    [dbMaterials]
+  );
   const { report, saveConclusao, isSaving } = useMonthlyReport(ano, mes);
 
   const [conclusaoDraft, setConclusaoDraft] = useState<string | null>(null);
