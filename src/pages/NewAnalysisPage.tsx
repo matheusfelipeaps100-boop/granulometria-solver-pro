@@ -8,7 +8,13 @@ import { StepGranulometry } from "@/components/analysis/StepGranulometry";
 import { StepDosage } from "@/components/analysis/StepDosage";
 import { StepReview } from "@/components/analysis/StepReview";
 import { StepResult } from "@/components/analysis/StepResult";
-import { createEmptyAnalysis, PENEIRAS_PADRAO, getConfigMisturador, type AnalysisFormData } from "@/lib/analysis-data";
+import {
+  createEmptyAnalysis,
+  generateAnalysisCode,
+  PENEIRAS_PADRAO,
+  getConfigMisturador,
+  type AnalysisFormData,
+} from "@/lib/analysis-data";
 import {
   ArrowLeft,
   ArrowRight,
@@ -19,6 +25,8 @@ import {
   Trophy,
   Save,
   X,
+  Copy,
+  FastForward,
 } from "lucide-react";
 import { useAnalyses, useAnalysis } from "@/hooks/api/useAnalyses";
 import { toast } from "sonner";
@@ -68,13 +76,82 @@ const STEPS = [
   { number: 5, title: "Resultado", icon: Trophy },
 ];
 
+// ─── Conversão banco → formData (usada no editar e no duplicar) ───────────────
+function mapAnalysisToFormData(analysisData: any): AnalysisFormData {
+  const dosage = Array.isArray(analysisData.analysis_dosage)
+    ? analysisData.analysis_dosage[0]
+    : analysisData.analysis_dosage;
+
+  const materiais = (analysisData.analysis_materials || []).map((am: any) => {
+    const gradations = (am.analysis_material_gradations || []).map((g: any) => {
+      const peneira = PENEIRAS_PADRAO.find((p) => p.sieve_id === g.sieve_id);
+      return {
+        sieve_id: g.sieve_id,
+        abertura_mm: peneira?.abertura_mm ?? 0,
+        massa_retida: g.massa_retida ?? 0,
+      };
+    });
+    return {
+      material_id: am.material_id,
+      nome: am.materials?.nome || "",
+      proporcao_kg: am.massa_kg ?? am.proporcao_kg ?? am.proporcao_pct * getConfigMisturador(analysisData.tipo).capacidade_kg,
+      proporcao_pct: am.proporcao_pct ?? 0,
+      densidade: am.materials?.densidade || 2.65,
+      custo_tonelada: am.materials?.custo_tonelada ?? undefined,
+      gradations,
+    };
+  });
+
+  return {
+    ...createEmptyAnalysis(),
+    id: analysisData.id,
+    codigo: analysisData.codigo,
+    nome: analysisData.nome || "",
+    tipo_analise: (analysisData.tipo as any) || "",
+    produto_nome: analysisData.produto || "",
+    resistencia_prevista: analysisData.resistencia_prevista || 0,
+    unidade: analysisData.unidade || "",
+    observacoes: analysisData.observacoes || "",
+    data: analysisData.data_analise || new Date().toISOString().split("T")[0],
+    relacao_cimento: dosage?.relacao_cimento || 18,
+    relacao_ac: dosage?.relacao_ac || 0.2,
+    consumo_alvo_m3: dosage?.consumo_cimento_kg || 137,
+    volume_m3: dosage?.volume_batelada_litros
+      ? dosage.volume_batelada_litros / 1000
+      : getConfigMisturador(analysisData.tipo).volume_m3,
+    densidade_cimento: dosage?.densidade_cimento || 3.15,
+    aditivos_ml: dosage?.aditivos_ml || 0,
+    custo_cimento_ton: dosage?.custo_cimento_ton || 0,
+    custo_aditivo_lt: dosage?.custo_aditivo_lt || 0,
+    cimento_marca_id: dosage?.cimento_marca_id || undefined,
+    cimento_lote: dosage?.cimento_lote || undefined,
+    cimento_observacao: dosage?.cimento_observacao || undefined,
+    aditivo_marca_id: dosage?.aditivo_marca_id || undefined,
+    aditivo_lote: dosage?.aditivo_lote || undefined,
+    aditivo_diluicao: dosage?.aditivo_diluicao || undefined,
+    aditivo_observacao: dosage?.aditivo_observacao || undefined,
+    materiais_selecionados: materiais,
+    dna_selecionado: "",
+    limites_curva: [],
+  };
+}
+
 // ─── Componente principal ─────────────────────────────────────────────────────
 const NewAnalysisPage = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const editCode = searchParams.get("edit");
   const isEditMode = !!editCode;
+
+  // Modo duplicar: ?from=CODIGO copia o traço de uma análise existente para uma nova.
+  const fromCode = !isEditMode ? searchParams.get("from") : null;
+  const isDuplicateMode = !!fromCode;
+  const sourceCode = editCode ?? fromCode;
+
+  // Código da análise de origem — mantido em estado porque o ?from= é removido
+  // da URL após o carregamento (evita recarregar por cima das edições).
+  const [duplicatedFrom, setDuplicatedFrom] = useState<string | null>(null);
 
   const {
     currentStep,
@@ -86,7 +163,7 @@ const NewAnalysisPage = () => {
   } = useAnalysisDraftStore();
 
   const { createAnalysis } = useAnalyses();
-  const { data: analysisData, isLoading: isLoadingAnalysis, isError } = useAnalysis(editCode);
+  const { data: analysisData, isLoading: isLoadingAnalysis, isError } = useAnalysis(sourceCode);
 
   const [approved, setApproved] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
@@ -95,79 +172,53 @@ const NewAnalysisPage = () => {
   // useState (não useRef) para disparar re-render quando o carregamento terminar.
   const [loadedCode, setLoadedCode] = useState<string | null>(null);
 
-  // Quando o editCode muda (troca de análise), resetar o estado de carregamento.
+  // Quando a análise de origem muda (troca de análise), resetar o estado de carregamento.
   useEffect(() => {
     setLoadedCode(null);
     setParseError(null);
-  }, [editCode]);
+  }, [sourceCode]);
 
   // Carrega os dados da análise no draft quando disponíveis.
   useEffect(() => {
-    if (!editCode || isLoadingAnalysis || isError || !analysisData) return;
-    if (loadedCode === editCode) return; // já carregado para este código
+    if (!sourceCode || isLoadingAnalysis || isError || !analysisData) return;
+    if (loadedCode === sourceCode) return; // já carregado para este código
 
     // Se o código de edição coincidir com o rascunho atual, e já tivermos progresso salvo localmente,
     // usamos o estado local e ignoramos os dados do banco para não sobrescrever rascunhos.
-    if (formData.codigo === editCode && currentStep > 1) {
+    if (isEditMode && formData.codigo === editCode && currentStep > 1) {
       setLoadedCode(editCode);
       return;
     }
 
     try {
-      const dosage = Array.isArray(analysisData.analysis_dosage)
-        ? analysisData.analysis_dosage[0]
-        : analysisData.analysis_dosage;
+      const mapped = mapAnalysisToFormData(analysisData);
 
-      const materiais = (analysisData.analysis_materials || []).map((am: any) => {
-        const gradations = (am.analysis_material_gradations || []).map((g: any) => {
-          const peneira = PENEIRAS_PADRAO.find((p) => p.sieve_id === g.sieve_id);
-          return {
-            sieve_id: g.sieve_id,
-            abertura_mm: peneira?.abertura_mm ?? 0,
-            massa_retida: g.massa_retida ?? 0,
-          };
-        });
-        return {
-          material_id: am.material_id,
-          nome: am.materials?.nome || "",
-            proporcao_kg: am.massa_kg ?? am.proporcao_kg ?? am.proporcao_pct * getConfigMisturador(analysisData.tipo).capacidade_kg,
-          proporcao_pct: am.proporcao_pct ?? 0,
-          densidade: am.materials?.densidade || 2.65,
-          custo_tonelada: am.materials?.custo_tonelada ?? undefined,
-          gradations,
-        };
-      });
+      if (isDuplicateMode) {
+        // Nova análise: mantém o traço (materiais, granulometria, dosagem, cimento/aditivo)
+        // e zera apenas os dados de identificação que mudam a cada análise.
+        loadAnalysis({
+          ...mapped,
+          id: undefined,
+          codigo: generateAnalysisCode(),
+          nome: "",
+          data: new Date().toISOString().split("T")[0],
+          observacoes: "",
+        }, 1);
+        setDuplicatedFrom(fromCode);
+        setLoadedCode(fromCode);
+        // Remove o ?from= para que um recarregamento da página não sobrescreva as edições.
+        setSearchParams({}, { replace: true });
+        return;
+      }
 
-      loadAnalysis({
-        ...createEmptyAnalysis(),
-        id: analysisData.id,
-        codigo: analysisData.codigo,
-        nome: analysisData.nome || "",
-        tipo_analise: (analysisData.tipo as any) || "",
-        produto_nome: analysisData.produto || "",
-        resistencia_prevista: analysisData.resistencia_prevista || 0,
-        unidade: analysisData.unidade || "",
-        observacoes: analysisData.observacoes || "",
-        data: analysisData.data_analise || new Date().toISOString().split("T")[0],
-        relacao_cimento: dosage?.relacao_cimento || 18,
-        relacao_ac: dosage?.relacao_ac || 0.2,
-        consumo_alvo_m3: dosage?.consumo_cimento_kg || 137,
-        volume_m3: dosage?.volume_batelada_litros
-          ? dosage.volume_batelada_litros / 1000
-          : getConfigMisturador(analysisData.tipo).volume_m3,
-        densidade_cimento: dosage?.densidade_cimento || 3.15,
-        aditivos_ml: dosage?.aditivos_ml || 0,
-        materiais_selecionados: materiais,
-        dna_selecionado: "",
-        limites_curva: [],
-      }, analysisData.wizard_step || 1);
+      loadAnalysis(mapped, analysisData.wizard_step || 1);
 
       // Marcar como carregado — dispara re-render para sair da tela de loading.
       setLoadedCode(editCode);
     } catch (err: any) {
       setParseError(err?.message || String(err));
     }
-  }, [editCode, analysisData, isLoadingAnalysis, isError, loadedCode]);
+  }, [sourceCode, analysisData, isLoadingAnalysis, isError, loadedCode]);
 
   // ── Callbacks — TODOS os hooks antes de qualquer return condicional ──────────
   const handleChange = useCallback(
@@ -213,7 +264,7 @@ const NewAnalysisPage = () => {
 
   // ── Tela de carregamento (early return DEPOIS de todos os hooks) ─────────────
   // Condição baseada em estado, não em localStorage, para evitar tela presa.
-  if (isEditMode && loadedCode !== editCode) {
+  if ((isEditMode || isDuplicateMode) && loadedCode !== sourceCode) {
     const hasLoadError = isError || !!parseError;
     return (
       <div className="flex flex-col h-screen w-full items-center justify-center p-8 gap-4">
@@ -266,7 +317,7 @@ const NewAnalysisPage = () => {
           {/* Título central + progresso */}
           <div className="flex-1 text-center min-w-0">
             <p className="text-xs font-black text-foreground/60 uppercase tracking-widest">
-              {isEditMode ? "Editar Análise" : "Nova Análise"}
+              {isEditMode ? "Editar Análise" : duplicatedFrom ? "Nova Análise (cópia)" : "Nova Análise"}
             </p>
             <p className="text-[11px] text-muted-foreground truncate font-mono">
               {formData.codigo}
@@ -302,6 +353,17 @@ const NewAnalysisPage = () => {
           currentStep={currentStep}
           onStepClick={(step) => setCurrentStep(step)}
         />
+
+        {/* Aviso: análise duplicada */}
+        {duplicatedFrom && (
+          <div className="flex items-center gap-3 rounded-lg border border-sky-200 bg-sky-50 dark:border-sky-900 dark:bg-sky-950/30 px-4 py-3">
+            <Copy className="h-4 w-4 text-sky-600 shrink-0" />
+            <p className="text-sm text-foreground">
+              Duplicada de <span className="font-mono font-semibold">{duplicatedFrom}</span> — Granulometria e
+              Dosagem já preenchidas. Altere a identificação e confira o traço, se necessário.
+            </p>
+          </div>
+        )}
 
         {/* Step content */}
         <FormErrorBoundary>
@@ -342,14 +404,27 @@ const NewAnalysisPage = () => {
             )}
 
             {currentStep < 4 && (
-              <Button
-                onClick={() => setCurrentStep(currentStep + 1)}
-                disabled={!canProceed()}
-                className="gap-2 font-bold"
-              >
-                PRÓXIMO
-                <ArrowRight className="h-4 w-4" />
-              </Button>
+              <div className="flex gap-3">
+                {duplicatedFrom && currentStep === 1 && (
+                  <Button
+                    variant="outline"
+                    onClick={() => setCurrentStep(4)}
+                    disabled={!canProceed()}
+                    className="gap-2 font-bold"
+                  >
+                    PULAR PARA REVISÃO
+                    <FastForward className="h-4 w-4" />
+                  </Button>
+                )}
+                <Button
+                  onClick={() => setCurrentStep(currentStep + 1)}
+                  disabled={!canProceed()}
+                  className="gap-2 font-bold"
+                >
+                  PRÓXIMO
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </div>
             )}
           </div>
         )}

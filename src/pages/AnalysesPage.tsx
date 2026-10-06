@@ -31,7 +31,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Search, Eye, Pencil, Trash2, FileEdit, X, Check, CalendarDays } from "lucide-react";
+import { Plus, Search, Eye, Pencil, Trash2, FileEdit, X, Check, CalendarDays, Copy } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
 import { TIPOS_ANALISE } from "@/lib/analysis-data";
@@ -151,6 +151,23 @@ const AnalysesPage = () => {
     });
 
   const hasDraft = currentStep > 1 || !!formData.tipo_analise || !!formData.nome;
+
+  // Duplicar: abre o wizard com o traço da análise de origem já preenchido.
+  // Se houver rascunho em andamento, pede confirmação antes de descartá-lo.
+  const [duplicateCode, setDuplicateCode] = useState<string | null>(null);
+
+  const startDuplicate = (codigo: string) => {
+    clearDraft();
+    navigate(`/analyses/new?from=${encodeURIComponent(codigo)}`);
+  };
+
+  const handleDuplicate = (codigo: string) => {
+    if (hasDraft) {
+      setDuplicateCode(codigo);
+      return;
+    }
+    startDuplicate(codigo);
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -320,6 +337,11 @@ const AnalysesPage = () => {
                             <CalendarDays className="h-4 w-4 text-muted-foreground hover:text-foreground" />
                           </Button>
                         )}
+                        {canCreate && (
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDuplicate(a.codigo)} title="Duplicar análise">
+                            <Copy className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                          </Button>
+                        )}
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/analyses/${a.codigo}`)} title="Visualizar">
                           <Eye className="h-4 w-4 text-muted-foreground hover:text-foreground" />
                         </Button>
@@ -363,6 +385,27 @@ const AnalysesPage = () => {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Modal de confirmação ao duplicar com rascunho em andamento */}
+      <AlertDialog open={!!duplicateCode} onOpenChange={(open) => { if (!open) setDuplicateCode(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Copy className="h-5 w-5" />
+              Duplicar Análise
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Existe um rascunho em andamento (<strong>{formData.codigo}</strong>). Ao duplicar <strong>{duplicateCode}</strong>, esse rascunho será descartado.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { if (duplicateCode) startDuplicate(duplicateCode); setDuplicateCode(null); }}>
+              Descartar e duplicar
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
