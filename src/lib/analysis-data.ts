@@ -277,7 +277,7 @@ export function createEmptyAnalysis(): AnalysisFormData {
     codigo: generateAnalysisCode(),
     data: new Date().toISOString().split("T")[0],
     analista: "",
-    unidade: "",
+    unidade: "Lajeforro",
     produto_id: "",
     produto_nome: "",
     resistencia_prevista: 0,

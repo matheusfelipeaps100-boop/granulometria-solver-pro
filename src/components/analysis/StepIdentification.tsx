@@ -331,9 +331,10 @@ export function StepIdentification({ data, onChange }: StepIdentificationProps) 
             Unidade / Planta
           </Label>
           <Input
-            value={data.unidade}
-            onChange={(e) => onChange({ unidade: e.target.value })}
-            placeholder="Ex: Lajeforro Matriz"
+            value="Lajeforro"
+            readOnly
+            disabled
+            className="font-semibold"
           />
         </div>
       </div>
