@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useAnalysisDraftStore } from "@/store/useAnalysisDraftStore";
 import { Button } from "@/components/ui/button";
@@ -162,8 +162,16 @@ const NewAnalysisPage = () => {
     clearDraft,
   } = useAnalysisDraftStore();
 
-  const { createAnalysis } = useAnalyses();
+  const { createAnalysis, analyses } = useAnalyses();
   const { data: analysisData, isLoading: isLoadingAnalysis, isError } = useAnalysis(sourceCode);
+
+  const isNomeDuplicado = useMemo(() => {
+    const nome = formData.nome?.trim().toLowerCase();
+    if (!nome) return false;
+    return analyses.some(
+      (a) => a.id !== formData.id && a.nome?.trim().toLowerCase() === nome
+    );
+  }, [analyses, formData.nome, formData.id]);
 
   const [approved, setApproved] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
@@ -229,6 +237,10 @@ const NewAnalysisPage = () => {
   );
 
   const handleApprove = useCallback(async () => {
+    if (isNomeDuplicado) {
+      toast.error("Já existe uma análise com este nome. Escolha outro nome antes de salvar.");
+      return;
+    }
     try {
       if (!formData.id) {
         const result = await createAnalysis({ formData, status: "aprovado" });
@@ -240,9 +252,13 @@ const NewAnalysisPage = () => {
     } catch (error: any) {
       toast.error("Erro ao salvar análise: " + error.message);
     }
-  }, [formData, createAnalysis, setFormData, setCurrentStep]);
+  }, [formData, createAnalysis, setFormData, setCurrentStep, isNomeDuplicado]);
 
   const handleSaveDraft = useCallback(async () => {
+    if (isNomeDuplicado) {
+      toast.error("Já existe uma análise com este nome. Escolha outro nome antes de salvar.");
+      return;
+    }
     try {
       const result = await createAnalysis({ formData, status: "rascunho", currentStep });
       toast.success("Rascunho salvo com sucesso", {
@@ -253,14 +269,14 @@ const NewAnalysisPage = () => {
     } catch (error: any) {
       toast.error("Erro ao salvar rascunho: " + error.message);
     }
-  }, [formData, createAnalysis, navigate, currentStep]);
+  }, [formData, createAnalysis, navigate, currentStep, isNomeDuplicado]);
 
   const canProceed = useCallback(() => {
     if (currentStep === 1) {
-      return !!formData.tipo_analise && !!formData.nome && !!formData.codigo;
+      return !!formData.tipo_analise && !!formData.nome && !!formData.codigo && !isNomeDuplicado;
     }
     return true;
-  }, [currentStep, formData.tipo_analise, formData.nome, formData.codigo]);
+  }, [currentStep, formData.tipo_analise, formData.nome, formData.codigo, isNomeDuplicado]);
 
   // ── Tela de carregamento (early return DEPOIS de todos os hooks) ─────────────
   // Condição baseada em estado, não em localStorage, para evitar tela presa.
@@ -369,7 +385,7 @@ const NewAnalysisPage = () => {
         <FormErrorBoundary>
           <div className="min-h-[400px]">
             {currentStep === 1 && (
-              <StepIdentification data={formData} onChange={handleChange} />
+              <StepIdentification data={formData} onChange={handleChange} isNomeDuplicado={isNomeDuplicado} />
             )}
             {currentStep === 2 && (
               <StepGranulometry data={formData} onChange={handleChange} />

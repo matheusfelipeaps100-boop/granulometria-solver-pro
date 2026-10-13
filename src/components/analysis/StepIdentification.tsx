@@ -18,6 +18,7 @@ import { getConfigMisturador } from "@/lib/analysis-data";
 interface StepIdentificationProps {
   data: AnalysisFormData;
   onChange: (updates: Partial<AnalysisFormData>) => void;
+  isNomeDuplicado?: boolean;
 }
 
 const TIPO_OPTIONS = [
@@ -62,7 +63,7 @@ const BLOCOS_TIPOS = TIPO_OPTIONS.filter((t) => t.group === "BLOCOS");
 const PAVERS_TIPOS = TIPO_OPTIONS.filter((t) => t.group === "PAVERS");
 const LAJES_TIPOS  = TIPO_OPTIONS.filter((t) => t.group === "LAJES");
 
-export function StepIdentification({ data, onChange }: StepIdentificationProps) {
+export function StepIdentification({ data, onChange, isNomeDuplicado }: StepIdentificationProps) {
   const { products } = useProducts();
 
   const filteredProducts = useMemo(() => {
@@ -269,8 +270,16 @@ export function StepIdentification({ data, onChange }: StepIdentificationProps) 
             value={data.nome}
             onChange={(e) => onChange({ nome: e.target.value })}
             placeholder="Ex: Análise Verão Disco 10"
-            className="font-medium"
+            className={cn(
+              "font-medium",
+              isNomeDuplicado && "border-destructive focus-visible:ring-destructive text-destructive"
+            )}
           />
+          {isNomeDuplicado && (
+            <p className="text-xs font-semibold text-destructive">
+              Já existe uma análise com este nome. Escolha outro para continuar.
+            </p>
+          )}
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
@@ -354,7 +363,7 @@ export function StepIdentification({ data, onChange }: StepIdentificationProps) 
       </div>
 
       {/* Botão avançar interno */}
-      {data.tipo_analise && data.nome && data.codigo && (
+      {data.tipo_analise && data.nome && data.codigo && !isNomeDuplicado && (
         <div className="text-right">
           <p className="text-xs text-muted-foreground mt-2">
             ✓ Etapa 1 preenchida — use o botão <strong>Próximo</strong> para continuar
