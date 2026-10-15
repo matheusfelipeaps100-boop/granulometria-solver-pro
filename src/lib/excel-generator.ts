@@ -249,3 +249,32 @@ export async function generateMonthlyReportExcel(data: MonthlyReportExcelData): 
 
   await downloadWorkbook(workbook, `relatorio_mensal_${data.periodoLabel.replace("/", "-")}.xlsx`);
 }
+
+export interface PistaMetricsExcelRow {
+  data: string;
+  lote: string;
+  pista: string;
+  fios: number | null;
+  volume_m3: number;
+  metros_perda: number;
+  perda_pct: number;
+  aproveitamento_pct: number;
+}
+
+export async function generatePistaMetricsExcel(rows: PistaMetricsExcelRow[]): Promise<void> {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet("Métricas de Pista");
+  sheet.columns = [
+    { header: "Data", key: "data", width: 14 },
+    { header: "Lote", key: "lote", width: 22 },
+    { header: "Pista", key: "pista", width: 12 },
+    { header: "Fios", key: "fios", width: 8 },
+    { header: "Volume (m³)", key: "volume_m3", width: 14 },
+    { header: "Mts Perda", key: "metros_perda", width: 12 },
+    { header: "% Perda", key: "perda_pct", width: 10 },
+    { header: "% Aproveit.", key: "aproveitamento_pct", width: 12 },
+  ];
+  sheet.getRow(1).font = { bold: true };
+  rows.forEach((r) => sheet.addRow(r));
+  await downloadWorkbook(workbook, `metricas_pista_${new Date().toISOString().split("T")[0]}.xlsx`);
+}

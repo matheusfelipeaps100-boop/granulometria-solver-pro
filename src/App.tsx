@@ -14,6 +14,7 @@ import MaterialsPage from "./pages/MaterialsPage";
 import StandardTracesPage from "./pages/StandardTracesPage";
 import ProductionPage from "./pages/ProductionPage";
 import ProductionLajePage from "./pages/ProductionLajePage";
+import PistaMetricsPage from "./pages/PistaMetricsPage";
 import RupturesPage from "./pages/RupturesPage";
 import RuptureDetailPage from "./pages/RuptureDetailPage";
 import ReportsPage from "./pages/ReportsPage";
@@ -75,6 +76,11 @@ const App = () => (
             <Route path="/production-laje" element={
               <ProtectedRoute allowedRoles={["ADMIN", "PRODUCAO", "VENDAS", "GERENTE"]}>
                 <ProductionLajePage />
+              </ProtectedRoute>
+            } />
+            <Route path="/pista-metrics" element={
+              <ProtectedRoute allowedRoles={["ADMIN", "PRODUCAO", "VENDAS", "GERENTE"]}>
+                <PistaMetricsPage />
               </ProtectedRoute>
             } />
             <Route path="/ruptures" element={

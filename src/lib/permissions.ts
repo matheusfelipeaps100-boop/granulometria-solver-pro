@@ -10,6 +10,7 @@ export const ROUTE_PERMISSIONS: Record<string, UserRole[]> = {
   "/standard-traces": ["ADMIN", "LABORATORIO"],
   "/production": ["ADMIN", "PRODUCAO", "VENDAS", "GERENTE"],
   "/production-laje": ["ADMIN", "PRODUCAO", "VENDAS", "GERENTE"],
+  "/pista-metrics": ["ADMIN", "PRODUCAO", "VENDAS", "GERENTE"],
   "/ruptures": ["ADMIN", "PRODUCAO", "VENDAS", "GERENTE", "LABORATORIO"],
   "/reports": ["ADMIN", "VENDAS", "GERENTE", "LABORATORIO"],
   "/settings": ["ADMIN"],
