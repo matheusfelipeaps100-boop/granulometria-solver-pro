@@ -18,6 +18,13 @@ export interface DBProductionBatch {
   produced_at: string;
   created_by: string | null;
   created_at: string;
+  pista?: string | null;
+  fios?: number | null;
+  comprimento_pista_m?: number | null;
+  volume_concreto_m3?: number | null;
+  metros_perda?: number | null;
+  perda_pct?: number | null;
+  aproveitamento_pct?: number | null;
   analyses?: {
     codigo: string;
     nome: string;
@@ -90,6 +97,16 @@ export function useProduction() {
       volume_produzido: number | null;
       notas: string | null;
       produced_at: string;
+      // Somente laje
+      laje?: {
+        pista: string;
+        fios: number;
+        comprimento_pista_m: number | null;
+        volume_concreto_m3: number;
+        metros_perda: number;
+        perda_pct: number;
+        aproveitamento_pct: number;
+      };
     }) => {
       if (!orgId) throw new Error("Usuário não tem organização vinculada");
       if (!profile?.id) throw new Error("Usuário não autenticado");
@@ -107,7 +124,8 @@ export function useProduction() {
           status: "aguardando_rompimentos",
           notas: batchData.notas,
           produced_at: batchData.produced_at,
-          created_by: profile.id
+          created_by: profile.id,
+          ...(batchData.laje ?? {}),
         }])
         .select()
         .single();

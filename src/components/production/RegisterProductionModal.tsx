@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ClipboardList } from "lucide-react";
 import { toast } from "sonner";
 import { useProduction } from "@/hooks/api/useProduction";
@@ -39,6 +40,22 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
   const [observacoes, setObservacoes] = useState("");
   const [aguaKg, setAguaKg] = useState<string>("");
   const [aditivoMl, setAditivoMl] = useState<string>("");
+
+  // Campos exclusivos de laje
+  const isLaje = analysis?.tipo === "laje";
+  const [pista, setPista] = useState("");
+  const [fios, setFios] = useState("3");
+  const [comprimentoPista, setComprimentoPista] = useState("");
+  const [volumeConcreto, setVolumeConcreto] = useState("");
+  const [metrosPerda, setMetrosPerda] = useState("0");
+
+  const perdaPct = useMemo(() => {
+    const comp = Number(comprimentoPista) || 0;
+    const perda = Number(metrosPerda) || 0;
+    if (comp <= 0) return 0;
+    return Math.min(100, Math.max(0, Math.round((perda / comp) * 10000) / 100));
+  }, [comprimentoPista, metrosPerda]);
+  const aproveitamentoPct = Math.round((100 - perdaPct) * 100) / 100;
 
   // Sincroniza data/hora com o momento de liberação da análise quando o modal abre
   useEffect(() => {
@@ -101,9 +118,38 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
       toast.error("Informe a máquina");
       return;
     }
+    if (isLaje) {
+      if (!pista.trim()) {
+        toast.error("Informe a pista");
+        return;
+      }
+      if (!(Number(comprimentoPista) > 0)) {
+        toast.error("Informe o comprimento da pista");
+        return;
+      }
+      if (!(Number(volumeConcreto) > 0)) {
+        toast.error("Informe o volume de concreto produzido (m³)");
+        return;
+      }
+      if (Number(metrosPerda) > Number(comprimentoPista)) {
+        toast.error("Metros de perda não pode ser maior que o comprimento da pista");
+        return;
+      }
+    }
 
     try {
       await createBatch({
+        ...(isLaje && {
+          laje: {
+            pista: pista.trim(),
+            fios: Number(fios),
+            comprimento_pista_m: Number(comprimentoPista),
+            volume_concreto_m3: Number(volumeConcreto),
+            metros_perda: Number(metrosPerda) || 0,
+            perda_pct: perdaPct,
+            aproveitamento_pct: aproveitamentoPct,
+          },
+        }),
         analysis_id: analysis.id,
         batch_code: batchCode.trim(),
         operador_nome: operador.trim(),
@@ -130,6 +176,11 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
     setOperador("");
     setMaquina("");
     setObservacoes("");
+    setPista("");
+    setFios("3");
+    setComprimentoPista("");
+    setVolumeConcreto("");
+    setMetrosPerda("0");
   };
 
   return (
@@ -202,6 +253,84 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
               />
             </div>
           </div>
+
+          {isLaje && (
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="pista">Pista *</Label>
+                  <Input
+                    id="pista"
+                    value={pista}
+                    onChange={(e) => setPista(e.target.value)}
+                    placeholder="Ex: Pista A"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Fios *</Label>
+                  <Select value={fios} onValueChange={setFios}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[3, 4, 5, 7].map((n) => (
+                        <SelectItem key={n} value={String(n)}>{n} fios</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="comprimento-pista">Comprimento da Pista (m) *</Label>
+                  <Input
+                    id="comprimento-pista"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={comprimentoPista}
+                    onChange={(e) => setComprimentoPista(e.target.value)}
+                    placeholder="Ex: 100"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="volume-concreto">Volume de Concreto Produzido (m³) *</Label>
+                  <Input
+                    id="volume-concreto"
+                    type="number"
+                    min="0"
+                    step="0.001"
+                    value={volumeConcreto}
+                    onChange={(e) => setVolumeConcreto(e.target.value)}
+                    placeholder="Ex: 12.6"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="metros-perda">Metros de Perda (m)</Label>
+                  <Input
+                    id="metros-perda"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={metrosPerda}
+                    onChange={(e) => setMetrosPerda(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>% Perda</Label>
+                  <Input value={perdaPct.toFixed(2)} readOnly className="bg-muted/50 cursor-not-allowed" />
+                </div>
+                <div className="space-y-2">
+                  <Label>% Aprov.</Label>
+                  <Input value={aproveitamentoPct.toFixed(2)} readOnly className="bg-muted/50 cursor-not-allowed" />
+                </div>
+              </div>
+            </>
+          )}
 
           {recipe && (
             <div className="space-y-2">

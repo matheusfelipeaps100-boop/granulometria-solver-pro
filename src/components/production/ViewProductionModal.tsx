@@ -267,6 +267,15 @@ export function ViewProductionModal({ open, onOpenChange, analysis, batch }: Vie
                 <div><span className="text-muted-foreground">Operador:</span> {batch.operador_nome}</div>
                 <div><span className="text-muted-foreground">Máquina:</span> {batch.maquina}</div>
                 <div><span className="text-muted-foreground">Volume:</span> {batch.volume_produzido} L</div>
+                {batch.pista && (
+                  <>
+                    <div><span className="text-muted-foreground">Pista:</span> {batch.pista}</div>
+                    <div><span className="text-muted-foreground">Fios:</span> {batch.fios}</div>
+                    <div><span className="text-muted-foreground">Concreto produzido:</span> {batch.volume_concreto_m3} m³</div>
+                    <div><span className="text-muted-foreground">Perda:</span> {batch.metros_perda ?? 0} m ({batch.perda_pct ?? 0}%)</div>
+                    <div><span className="text-muted-foreground">Aproveitamento:</span> {batch.aproveitamento_pct ?? 100}%</div>
+                  </>
+                )}
                 <div>
                   <span className="text-muted-foreground">Status:</span>{" "}
                   <StatusBadge status={batch.status} />
