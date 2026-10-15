@@ -431,6 +431,7 @@ export function useScheduleDetail(scheduleId?: string) {
             batch_code,
             produced_at,
             status,
+            moldagem_data, moldagem_hora, moldagem_temperatura, moldagem_tempo, moldagem_slump_cm,
             analyses (id, nome, codigo, produto, tipo, resistencia_prevista)
           )
         `)

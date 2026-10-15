@@ -15,6 +15,8 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useRuptures, useScheduleDetail } from "@/hooks/api/useRuptures";
 import { useProfiles } from "@/hooks/api/useProfiles";
+import { MoldagemControlCard } from "@/components/rupture/MoldagemControlCard";
+import { hasActionPermission } from "@/lib/permissions";
 import { useTechnicalSettings } from "@/hooks/api/useTechnicalSettings";
 import { TIPOS_ANALISE } from "@/lib/analysis-data";
 import { calcTensao, calcRuptureStats, AREAS_PADRAO, calcTensaoPaver, calcRuptureStatsPaver, calcTensaoLaje, calcRuptureStatsLaje, getMetaForAge } from "@/lib/granulometry-engine";
@@ -595,6 +597,14 @@ const RuptureDetailPage = () => {
           </Select>
         </div>
       </div>
+
+      {/* Controle de moldagem — somente laje */}
+      {found?.analysis?.tipo === "laje" && (
+        <MoldagemControlCard
+          batch={batch as any}
+          canEdit={profile ? hasActionPermission(profile.role, "rupture:complete") : false}
+        />
+      )}
 
       {/* Blocos de amostras por tipo (PRD: bloco, paver, cp) */}
       {tiposVisiveis.map((tipo) => {

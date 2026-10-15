@@ -25,6 +25,11 @@ export interface DBProductionBatch {
   metros_perda?: number | null;
   perda_pct?: number | null;
   aproveitamento_pct?: number | null;
+  moldagem_data?: string | null;
+  moldagem_hora?: string | null;
+  moldagem_temperatura?: number | null;
+  moldagem_tempo?: string | null;
+  moldagem_slump_cm?: number | null;
   analyses?: {
     codigo: string;
     nome: string;
@@ -181,6 +186,31 @@ export function useProduction() {
     },
   });
 
+  const updateBatchMoldagemMutation = useMutation({
+    mutationFn: async ({ id, ...moldagem }: {
+      id: string;
+      moldagem_data: string | null;
+      moldagem_hora: string | null;
+      moldagem_temperatura: number | null;
+      moldagem_tempo: string | null;
+      moldagem_slump_cm: number | null;
+    }) => {
+      const { data, error } = await supabase
+        .from("production_batches")
+        .update(moldagem)
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["production_batches", orgId] });
+      queryClient.invalidateQueries({ queryKey: ["rupture_schedule_detail"] });
+    },
+  });
+
   const deleteBatchMutation = useMutation({
     mutationFn: async (batchId: string) => {
       const { error } = await supabase
@@ -202,6 +232,8 @@ export function useProduction() {
     deleteBatch: deleteBatchMutation.mutateAsync,
     updateBatchCode: updateBatchCodeMutation.mutateAsync,
     updateBatchDate: updateBatchDateMutation.mutateAsync,
+    updateBatchMoldagem: updateBatchMoldagemMutation.mutateAsync,
+    isUpdatingMoldagem: updateBatchMoldagemMutation.isPending,
     isCreating: createBatchMutation.isPending,
     isDeleting: deleteBatchMutation.isPending,
     isUpdatingBatchCode: updateBatchCodeMutation.isPending,
