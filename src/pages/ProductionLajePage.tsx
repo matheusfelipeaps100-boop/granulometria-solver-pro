@@ -162,14 +162,13 @@ const ProductionLajePage = () => {
         <Card className="shadow-sm">
           <CardContent className="p-0">
             <div className="overflow-x-auto">
-              <Table>
+              <Table className="[&_th]:px-3 [&_td]:px-3 [&_th:first-child]:pl-5 [&_td:first-child]:pl-5 [&_th:last-child]:pr-5 [&_td:last-child]:pr-5">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="pl-6 whitespace-nowrap">ANÁLISE / TRAÇO</TableHead>
                     <TableHead className="whitespace-nowrap">STATUS</TableHead>
                     <TableHead className="whitespace-nowrap">LOTE</TableHead>
-                    <TableHead className="whitespace-nowrap">PISTA</TableHead>
-                    <TableHead className="whitespace-nowrap">FIOS</TableHead>
+                    <TableHead className="whitespace-nowrap">PISTA / FIOS</TableHead>
                     <TableHead className="whitespace-nowrap">CONCRETO (m³)</TableHead>
                     <TableHead className="whitespace-nowrap">% APROV.</TableHead>
                     <TableHead className="whitespace-nowrap">DATA PRODUÇÃO</TableHead>
@@ -200,7 +199,6 @@ const ProductionLajePage = () => {
                         <TableCell>
                           <span className="text-xs text-muted-foreground italic">Aguardando registro</span>
                         </TableCell>
-                        <TableCell>—</TableCell>
                         <TableCell>—</TableCell>
                         <TableCell>—</TableCell>
                         <TableCell>—</TableCell>
@@ -241,8 +239,9 @@ const ProductionLajePage = () => {
                         <TableCell>
                           <span className="font-mono text-sm">{batch.batch_code}</span>
                         </TableCell>
-                        <TableCell className="text-sm whitespace-nowrap">{batch.pista ?? "—"}</TableCell>
-                        <TableCell className="text-sm whitespace-nowrap">{batch.fios ?? "—"}</TableCell>
+                        <TableCell className="text-sm whitespace-nowrap">
+                          {batch.pista ? `${batch.pista} · ${batch.fios ?? "—"} fios` : "—"}
+                        </TableCell>
                         <TableCell className="text-sm whitespace-nowrap">{batch.volume_concreto_m3 ?? "—"}</TableCell>
                         <TableCell className="text-sm whitespace-nowrap">
                           {batch.aproveitamento_pct != null ? `${batch.aproveitamento_pct}%` : "—"}
@@ -268,7 +267,7 @@ const ProductionLajePage = () => {
                   })}
                   {releasedAnalyses.length === 0 && filteredBatches.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">Nenhum lote encontrado.</TableCell>
+                      <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Nenhum lote encontrado.</TableCell>
                     </TableRow>
                   )}
                 </TableBody>

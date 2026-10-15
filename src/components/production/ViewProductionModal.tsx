@@ -264,23 +264,90 @@ export function ViewProductionModal({ open, onOpenChange, analysis, batch }: Vie
                     </>
                   )}
                 </div>
-                <div><span className="text-muted-foreground">Operador:</span> {batch.operador_nome}</div>
-                <div><span className="text-muted-foreground">Máquina:</span> {batch.maquina}</div>
-                <div><span className="text-muted-foreground">Volume:</span> {batch.volume_produzido} L</div>
-                {batch.pista && (
+                {!batch.pista && (
                   <>
-                    <div><span className="text-muted-foreground">Pista:</span> {batch.pista}</div>
-                    <div><span className="text-muted-foreground">Fios:</span> {batch.fios}</div>
-                    <div><span className="text-muted-foreground">Concreto produzido:</span> {batch.volume_concreto_m3} m³</div>
-                    <div><span className="text-muted-foreground">Perda:</span> {batch.metros_perda ?? 0} m ({batch.perda_pct ?? 0}%)</div>
-                    <div><span className="text-muted-foreground">Aproveitamento:</span> {batch.aproveitamento_pct ?? 100}%</div>
+                    <div><span className="text-muted-foreground">Operador:</span> {batch.operador_nome}</div>
+                    <div><span className="text-muted-foreground">Máquina:</span> {batch.maquina}</div>
+                    <div><span className="text-muted-foreground">Volume:</span> {batch.volume_produzido} L</div>
+                    <div>
+                      <span className="text-muted-foreground">Status:</span>{" "}
+                      <StatusBadge status={batch.status} />
+                    </div>
                   </>
                 )}
-                <div>
-                  <span className="text-muted-foreground">Status:</span>{" "}
-                  <StatusBadge status={batch.status} />
-                </div>
               </div>
+
+              {/* Lote de laje: dados em destaque */}
+              {batch.pista && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="rounded-lg border bg-muted/20 p-3">
+                      <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Operador</p>
+                      <p className="font-bold text-sm mt-1 truncate">{batch.operador_nome}</p>
+                    </div>
+                    <div className="rounded-lg border bg-muted/20 p-3">
+                      <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Máquina</p>
+                      <p className="font-bold text-sm mt-1 truncate">{batch.maquina}</p>
+                    </div>
+                    <div className="rounded-lg border bg-muted/20 p-3">
+                      <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Status</p>
+                      <div className="mt-1"><StatusBadge status={batch.status} /></div>
+                    </div>
+                  </div>
+                  <div className="rounded-lg border bg-muted/20 p-3 w-1/3 min-w-[8rem]">
+                    <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Volume da Batelada</p>
+                    <p className="font-black text-lg mt-1">
+                      {batch.volume_produzido} <span className="text-xs font-bold text-muted-foreground">L</span>
+                    </p>
+                  </div>
+
+                  <h4 className="font-semibold text-muted-foreground text-[10px] uppercase tracking-widest pt-1">
+                    Concretagem da Pista
+                  </h4>
+                  <div className="grid grid-cols-4 gap-3">
+                    <div className="rounded-lg border p-3">
+                      <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Pista</p>
+                      <p className="font-black text-xl mt-1">{batch.pista}</p>
+                    </div>
+                    <div className="rounded-lg border p-3">
+                      <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Fios</p>
+                      <p className="font-black text-xl mt-1">{batch.fios ?? "—"}</p>
+                    </div>
+                    <div className="rounded-lg border p-3">
+                      <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Concreto</p>
+                      <p className="font-black text-xl mt-1">
+                        {batch.volume_concreto_m3 ?? "—"}
+                        {batch.volume_concreto_m3 != null && (
+                          <span className="text-xs font-bold text-muted-foreground"> m³</span>
+                        )}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border p-3">
+                      <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Perda</p>
+                      <p className="font-black text-xl mt-1">
+                        {(batch.metros_perda ?? 0).toFixed(2).replace(".", ",")}
+                        <span className="text-xs font-bold text-muted-foreground"> m</span>
+                      </p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-900 p-3">
+                      <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">% Perda</p>
+                      <p className="font-black text-2xl mt-1 text-red-600">
+                        {(batch.perda_pct ?? 0).toFixed(2).replace(".", ",")}
+                        <span className="text-xs font-bold"> %</span>
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-900 p-3">
+                      <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">% Aproveitamento</p>
+                      <p className="font-black text-2xl mt-1 text-green-600">
+                        {(batch.aproveitamento_pct ?? 100).toFixed(2).replace(".", ",")}
+                        <span className="text-xs font-bold"> %</span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {recipe && (
                 <div className="pt-2">
