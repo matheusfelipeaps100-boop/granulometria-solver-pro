@@ -281,7 +281,7 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="comprimento-pista">Comprimento da Pista (m) *</Label>
                   <Input
@@ -308,7 +308,7 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-3 gap-4 items-end">
                 <div className="space-y-2">
                   <Label htmlFor="metros-perda">Metros de Perda (m)</Label>
                   <Input
