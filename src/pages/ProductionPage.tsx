@@ -30,7 +30,7 @@ const ProductionPage = () => {
   const [dateFilter, setDateFilter] = useState<DateFilter>(getDefaultDateFilter());
 
   const releasedAnalyses = analyses
-    .filter((a) => a.status === "liberado_producao")
+    .filter((a) => a.status === "liberado_producao" && a.tipo !== "laje")
     .sort((a, b) => {
       const dateCompare = (b.data_analise || "0000-00-00").localeCompare(a.data_analise || "0000-00-00");
       if (dateCompare !== 0) return dateCompare;
@@ -47,6 +47,7 @@ const ProductionPage = () => {
 
   // Filtragem dos lotes
   const filteredBatches = batches
+    .filter((batch) => batch.analyses?.tipo !== "laje")
     .filter((batch) => {
       const matchesBatch = batchFilter ? batch.batch_code?.toLowerCase().includes(batchFilter.toLowerCase()) : true;
       const matchesStatus = statusFilter ? batch.status === statusFilter : true;

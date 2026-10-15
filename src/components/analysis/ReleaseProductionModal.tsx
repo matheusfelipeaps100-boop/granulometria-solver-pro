@@ -47,7 +47,7 @@ export function ReleaseProductionModal({ open, onOpenChange, data }: ReleaseProd
       toast.success("Análise liberada para produção!", {
         description: `${data.codigo} — Status atualizado para "Liberado para Produção"`,
       });
-      navigate("/production");
+      navigate(data.tipo_analise === "laje" ? "/production-laje" : "/production");
     } catch (error) {
       console.error(error);
       const msg = (error as any).message || (typeof error === 'object' ? JSON.stringify(error) : String(error));
