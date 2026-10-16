@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { MultiStatusFilter } from "@/components/MultiStatusFilter";
 import { StatusBadge } from "@/components/StatusBadge";
 import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { getDefaultDateFilter, isInDateRange, formatPeriodLabel } from "@/lib/dateFilter";
@@ -42,7 +43,6 @@ import { hasActionPermission } from "@/lib/permissions";
 import { toast } from "sonner";
 
 const STATUS_OPTIONS = [
-  { value: "all", label: "Todos" },
   { value: "rascunho", label: "Rascunho" },
   { value: "em_analise", label: "Em Análise" },
   { value: "aprovado", label: "Aprovado" },
@@ -88,7 +88,7 @@ const AnalysesPage = () => {
 
   const [search, setSearch] = usePersistedState("analyses:search", "");
   const [filterTipo, setFilterTipo] = usePersistedState("analyses:filterTipo", "all");
-  const [filterStatus, setFilterStatus] = usePersistedState("analyses:filterStatus", "all");
+  const [filterStatuses, setFilterStatuses] = usePersistedState<string[]>("analyses:filterStatuses", []);
   const [dateFilter, setDateFilter] = usePersistedState<DateFilter>("analyses:dateFilter", getDefaultDateFilter());
   const [editingNome, setEditingNome] = useState<{ id: string; value: string } | null>(null);
   const [editingData, setEditingData] = useState<{ id: string; value: string } | null>(null);
@@ -139,7 +139,7 @@ const AnalysesPage = () => {
         a.nome.toLowerCase().includes(search.toLowerCase()) ||
         (a.produto ?? "").toLowerCase().includes(search.toLowerCase());
       const matchTipo = filterTipo === "all" || a.tipo === filterTipo;
-      const matchStatus = filterStatus === "all" || a.status === filterStatus;
+      const matchStatus = filterStatuses.length === 0 || filterStatuses.includes(a.status);
       const rawAnalise = analyses.find((r) => r.id === a.id);
       const matchDate = isInDateRange(rawAnalise?.data_analise ?? null, dateFilter);
       return matchSearch && matchTipo && matchStatus && matchDate;
@@ -242,18 +242,7 @@ const AnalysesPage = () => {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-full sm:w-[160px]">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                {STATUS_OPTIONS.map((s) => (
-                  <SelectItem key={s.value} value={s.value}>
-                    {s.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <MultiStatusFilter options={STATUS_OPTIONS} value={filterStatuses} onChange={setFilterStatuses} />
           </div>
           <div className="flex items-center justify-between mt-3">
             <DateRangeFilter value={dateFilter} onChange={setDateFilter} />

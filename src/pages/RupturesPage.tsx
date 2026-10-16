@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Search, Package, Unlock, AlertTriangle, ClipboardList, Eye, CheckCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { MultiStatusFilter } from "@/components/MultiStatusFilter";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,15 @@ const statusColor: Record<ScheduleStatus, string> = {
   sem_expediente: "border-slate-300 text-slate-600 bg-slate-50 opacity-80 cursor-not-allowed",
 };
 
+const STATUS_OPTIONS = [
+  { value: "pendente", label: "Pendente" },
+  { value: "em_andamento", label: "Em Andamento" },
+  { value: "atrasado", label: "Atrasado" },
+  { value: "concluido", label: "Concluído" },
+  { value: "aprovado_sem_ensaio", label: "Aprovado" },
+  { value: "liberado_antecipado", label: "Aprovado Antecipado" },
+];
+
 const dueTodayColor = "border-purple-300 text-purple-700 bg-purple-50 hover:bg-purple-100";
 
 const RupturesPage = () => {
@@ -42,7 +51,7 @@ const RupturesPage = () => {
   const canReleaseEarlyPermission = profile ? hasActionPermission(profile.role, "rupture:early_release") : false;
 
   const [search, setSearch] = usePersistedState("ruptures:search", "");
-  const [filterStatus, setFilterStatus] = usePersistedState<string>("ruptures:filterStatus", "all");
+  const [filterStatuses, setFilterStatuses] = usePersistedState<string[]>("ruptures:filterStatuses", []);
   const [dateFilter, setDateFilter] = usePersistedState<DateFilter>("ruptures:dateFilter", getDefaultDateFilter());
   
   // States of early release modal
@@ -118,13 +127,13 @@ const RupturesPage = () => {
         const matchProduto = ((g.analysis?.produto ?? g.analysis?.nome) ?? "").toLowerCase().includes(q);
         if (!matchLote && !matchProduto) return false;
       }
-      if (filterStatus !== "all") {
+      if (filterStatuses.length > 0) {
         const computed = batchStatus(g.schedules, g.batch?.status ?? "");
-        if (computed !== filterStatus) return false;
+        if (!filterStatuses.includes(computed)) return false;
       }
       return true;
     });
-  }, [groupedBatches, search, filterStatus, dateFilter]);
+  }, [groupedBatches, search, filterStatuses, dateFilter]);
 
   // Stats
   const stats = useMemo(() => ({
@@ -232,20 +241,7 @@ const RupturesPage = () => {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-full sm:w-[160px]">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos status</SelectItem>
-                <SelectItem value="pendente">Pendente</SelectItem>
-                <SelectItem value="em_andamento">Em Andamento</SelectItem>
-                <SelectItem value="atrasado">Atrasado</SelectItem>
-                <SelectItem value="concluido">Concluído</SelectItem>
-                <SelectItem value="aprovado_sem_ensaio">Aprovado</SelectItem>
-                <SelectItem value="liberado_antecipado">Aprovado Antecipado</SelectItem>
-              </SelectContent>
-            </Select>
+            <MultiStatusFilter options={STATUS_OPTIONS} value={filterStatuses} onChange={setFilterStatuses} />
           </div>
           <div className="flex items-center justify-between mt-3">
             <DateRangeFilter value={dateFilter} onChange={setDateFilter} />

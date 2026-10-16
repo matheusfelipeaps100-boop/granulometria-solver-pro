@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { getDefaultDateFilter, isInDateRange, formatPeriodLabel } from "@/lib/dateFilter";
 import type { DateFilter } from "@/lib/dateFilter";
+import { MultiStatusFilter } from "@/components/MultiStatusFilter";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -26,7 +27,7 @@ const ProductionPage = () => {
   const { batches } = useProduction();
   // Filtros
   const [batchFilter, setBatchFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const [dateFilter, setDateFilter] = useState<DateFilter>(getDefaultDateFilter());
 
   const releasedAnalyses = analyses
@@ -39,7 +40,6 @@ const ProductionPage = () => {
 
   // Opções de status possíveis (valores reais do banco)
   const statusOptions = [
-    { value: "", label: "Todos" },
     { value: "aguardando_rompimentos", label: "Aguardando Rompimentos" },
     { value: "aprovado_sem_ensaio", label: "Aprovado" },
     { value: "liberado_antecipado", label: "Aprovado Antecipado" },
@@ -50,7 +50,7 @@ const ProductionPage = () => {
     .filter((batch) => batch.analyses?.tipo !== "laje")
     .filter((batch) => {
       const matchesBatch = batchFilter ? batch.batch_code?.toLowerCase().includes(batchFilter.toLowerCase()) : true;
-      const matchesStatus = statusFilter ? batch.status === statusFilter : true;
+      const matchesStatus = statusFilter.length === 0 || statusFilter.includes(batch.status);
       const matchesDate = isInDateRange(batch.produced_at, dateFilter);
       return matchesBatch && matchesStatus && matchesDate;
     })
@@ -129,15 +129,7 @@ const ProductionPage = () => {
         </div>
         <div>
           <label className="block text-xs font-semibold mb-1">Status</label>
-          <select
-            className="border rounded px-2 py-1 text-sm w-48"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            {statusOptions.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
+          <MultiStatusFilter className="sm:w-48 h-8 text-sm" options={statusOptions} value={statusFilter} onChange={setStatusFilter} />
         </div>
         <div className="flex flex-col gap-1">
           <label className="block text-xs font-semibold">Período</label>
