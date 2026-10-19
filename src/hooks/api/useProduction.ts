@@ -186,6 +186,29 @@ export function useProduction() {
     },
   });
 
+  // Perda da pista de laje: costuma ser medida só depois da concretagem
+  const updateBatchPerdaMutation = useMutation({
+    mutationFn: async ({ id, ...perda }: {
+      id: string;
+      metros_perda: number;
+      perda_pct: number;
+      aproveitamento_pct: number;
+    }) => {
+      const { data, error } = await supabase
+        .from("production_batches")
+        .update(perda)
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["production_batches", orgId] });
+    },
+  });
+
   const updateBatchMoldagemMutation = useMutation({
     mutationFn: async ({ id, ...moldagem }: {
       id: string;
@@ -234,6 +257,8 @@ export function useProduction() {
     updateBatchDate: updateBatchDateMutation.mutateAsync,
     updateBatchMoldagem: updateBatchMoldagemMutation.mutateAsync,
     isUpdatingMoldagem: updateBatchMoldagemMutation.isPending,
+    updateBatchPerda: updateBatchPerdaMutation.mutateAsync,
+    isUpdatingPerda: updateBatchPerdaMutation.isPending,
     isCreating: createBatchMutation.isPending,
     isDeleting: deleteBatchMutation.isPending,
     isUpdatingBatchCode: updateBatchCodeMutation.isPending,

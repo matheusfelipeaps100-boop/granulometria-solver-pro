@@ -36,10 +36,17 @@ export function ViewProductionModal({ open, onOpenChange, analysis, batch }: Vie
   const [editedCode, setEditedCode] = useState("");
   const [isEditingDate, setIsEditingDate] = useState(false);
   const [editedDate, setEditedDate] = useState("");
-  const { deleteBatch, updateBatchCode, updateBatchDate, isDeleting, isUpdatingBatchCode, isUpdatingBatchDate } = useProduction();
+  const [isEditingPerda, setIsEditingPerda] = useState(false);
+  const [editedPerda, setEditedPerda] = useState("");
+  const {
+    deleteBatch, updateBatchCode, updateBatchDate, updateBatchPerda,
+    isDeleting, isUpdatingBatchCode, isUpdatingBatchDate, isUpdatingPerda,
+  } = useProduction();
   const { settings } = useTechnicalSettings();
   const { profile } = useAuth();
   const canEditBatchCode = profile?.role ? hasActionPermission(profile.role, "batch:edit_code") : false;
+  // Quem registra o lote também lança a perda depois de medida
+  const canEditPerda = profile?.role ? hasActionPermission(profile.role, "batch:create") : false;
 
   const handleSaveBatchDate = async () => {
     if (!batch || !editedDate) return;
@@ -54,6 +61,42 @@ export function ViewProductionModal({ open, onOpenChange, analysis, batch }: Vie
       setIsEditingDate(false);
     } catch (err: any) {
       toast.error("Erro ao atualizar data de produção", { description: err?.message });
+    }
+  };
+
+  // Mesma regra do registro do lote: % perda = metros de perda ÷ comprimento da pista
+  const calcPerdaPct = (metros: number) => {
+    const comp = Number(batch?.comprimento_pista_m) || 0;
+    if (comp <= 0) return 0;
+    return Math.min(100, Math.max(0, Math.round((metros / comp) * 10000) / 100));
+  };
+  const editedPerdaNum = Number(editedPerda.replace(",", ".")) || 0;
+  const previewPerdaPct = calcPerdaPct(editedPerdaNum);
+
+  const handleSaveBatchPerda = async () => {
+    if (!batch) return;
+    const metros = Number(editedPerda.replace(",", "."));
+    if (isNaN(metros) || metros < 0) {
+      toast.error("Informe um valor de perda válido.");
+      return;
+    }
+    const comp = Number(batch.comprimento_pista_m) || 0;
+    if (comp > 0 && metros > comp) {
+      toast.error("Metros de perda não pode ser maior que o comprimento da pista");
+      return;
+    }
+    const perda_pct = calcPerdaPct(metros);
+    try {
+      await updateBatchPerda({
+        id: batch.id,
+        metros_perda: metros,
+        perda_pct,
+        aproveitamento_pct: Math.round((100 - perda_pct) * 100) / 100,
+      });
+      toast.success("Perda atualizada com sucesso!");
+      setIsEditingPerda(false);
+    } catch (err: any) {
+      toast.error("Erro ao atualizar perda", { description: err?.message });
     }
   };
 
@@ -322,26 +365,69 @@ export function ViewProductionModal({ open, onOpenChange, analysis, batch }: Vie
                         )}
                       </p>
                     </div>
-                    <div className="rounded-lg border p-3">
-                      <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Perda</p>
-                      <p className="font-black text-xl mt-1">
-                        {(batch.metros_perda ?? 0).toFixed(2).replace(".", ",")}
-                        <span className="text-xs font-bold text-muted-foreground"> m</span>
-                      </p>
+                    <div className={cn("rounded-lg border p-3", isEditingPerda && "border-primary")}>
+                      <div className="flex items-center justify-between gap-1">
+                        <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Perda</p>
+                        {canEditPerda && !isEditingPerda && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-5 w-5 -mr-1"
+                            title="Editar metros de perda"
+                            onClick={() => {
+                              setEditedPerda(String(batch.metros_perda ?? 0));
+                              setIsEditingPerda(true);
+                            }}
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
+                      {isEditingPerda ? (
+                        <div className="mt-1 space-y-1">
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={editedPerda}
+                            onChange={(e) => setEditedPerda(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") handleSaveBatchPerda();
+                              if (e.key === "Escape") setIsEditingPerda(false);
+                            }}
+                            className="h-7 px-1.5 text-sm font-bold"
+                            autoFocus
+                            disabled={isUpdatingPerda}
+                          />
+                          <div className="flex justify-end">
+                            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={handleSaveBatchPerda} disabled={isUpdatingPerda}>
+                              <Check className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setIsEditingPerda(false)} disabled={isUpdatingPerda}>
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="font-black text-xl mt-1">
+                          {(batch.metros_perda ?? 0).toFixed(2).replace(".", ",")}
+                          <span className="text-xs font-bold text-muted-foreground"> m</span>
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-900 p-3">
                       <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">% Perda</p>
                       <p className="font-black text-2xl mt-1 text-red-600">
-                        {(batch.perda_pct ?? 0).toFixed(2).replace(".", ",")}
+                        {(isEditingPerda ? previewPerdaPct : batch.perda_pct ?? 0).toFixed(2).replace(".", ",")}
                         <span className="text-xs font-bold"> %</span>
                       </p>
                     </div>
                     <div className="rounded-lg border border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-900 p-3">
                       <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">% Aproveitamento</p>
                       <p className="font-black text-2xl mt-1 text-green-600">
-                        {(batch.aproveitamento_pct ?? 100).toFixed(2).replace(".", ",")}
+                        {(isEditingPerda ? 100 - previewPerdaPct : batch.aproveitamento_pct ?? 100).toFixed(2).replace(".", ",")}
                         <span className="text-xs font-bold"> %</span>
                       </p>
                     </div>

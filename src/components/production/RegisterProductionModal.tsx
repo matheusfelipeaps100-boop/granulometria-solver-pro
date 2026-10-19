@@ -329,6 +329,9 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
                   <Input value={aproveitamentoPct.toFixed(2)} readOnly className="bg-muted/50 cursor-not-allowed" />
                 </div>
               </div>
+              <p className="text-[11px] text-muted-foreground -mt-2">
+                Se a perda ainda não foi medida, deixe 0 e edite depois nos detalhes do lote (ícone de lápis no card Perda).
+              </p>
             </>
           )}
 
