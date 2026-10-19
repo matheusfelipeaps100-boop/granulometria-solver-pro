@@ -330,7 +330,7 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
                 </div>
               </div>
               <p className="text-[11px] text-muted-foreground -mt-2">
-                Se a perda ainda não foi medida, deixe 0 e edite depois nos detalhes do lote (ícone de lápis no card Perda).
+                Se a perda ainda não foi medida, deixe 0. Todos os dados da pista podem ser corrigidos depois nos detalhes do lote (botão Editar em Concretagem da Pista).
               </p>
             </>
           )}

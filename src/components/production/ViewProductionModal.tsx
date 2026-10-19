@@ -16,6 +16,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { hasActionPermission } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Pencil, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -36,17 +38,17 @@ export function ViewProductionModal({ open, onOpenChange, analysis, batch }: Vie
   const [editedCode, setEditedCode] = useState("");
   const [isEditingDate, setIsEditingDate] = useState(false);
   const [editedDate, setEditedDate] = useState("");
-  const [isEditingPerda, setIsEditingPerda] = useState(false);
-  const [editedPerda, setEditedPerda] = useState("");
+  const [isEditingPista, setIsEditingPista] = useState(false);
+  const [editedPista, setEditedPista] = useState({ pista: "", fios: "3", comprimento: "", volume: "", perda: "" });
   const {
-    deleteBatch, updateBatchCode, updateBatchDate, updateBatchPerda,
-    isDeleting, isUpdatingBatchCode, isUpdatingBatchDate, isUpdatingPerda,
+    deleteBatch, updateBatchCode, updateBatchDate, updateBatchPista,
+    isDeleting, isUpdatingBatchCode, isUpdatingBatchDate, isUpdatingPista,
   } = useProduction();
   const { settings } = useTechnicalSettings();
   const { profile } = useAuth();
   const canEditBatchCode = profile?.role ? hasActionPermission(profile.role, "batch:edit_code") : false;
-  // Quem registra o lote também lança a perda depois de medida
-  const canEditPerda = profile?.role ? hasActionPermission(profile.role, "batch:create") : false;
+  // Quem registra o lote também corrige a concretagem da pista depois
+  const canEditPista = profile?.role ? hasActionPermission(profile.role, "batch:create") : false;
 
   const handleSaveBatchDate = async () => {
     if (!batch || !editedDate) return;
@@ -64,39 +66,68 @@ export function ViewProductionModal({ open, onOpenChange, analysis, batch }: Vie
     }
   };
 
+  const toNum = (v: string) => Number(v.replace(",", "."));
+
   // Mesma regra do registro do lote: % perda = metros de perda ÷ comprimento da pista
-  const calcPerdaPct = (metros: number) => {
-    const comp = Number(batch?.comprimento_pista_m) || 0;
-    if (comp <= 0) return 0;
+  const calcPerdaPct = (metros: number, comp: number) => {
+    if (!(comp > 0)) return 0;
     return Math.min(100, Math.max(0, Math.round((metros / comp) * 10000) / 100));
   };
-  const editedPerdaNum = Number(editedPerda.replace(",", ".")) || 0;
-  const previewPerdaPct = calcPerdaPct(editedPerdaNum);
+  const previewPerdaPct = calcPerdaPct(toNum(editedPista.perda) || 0, toNum(editedPista.comprimento) || 0);
 
-  const handleSaveBatchPerda = async () => {
+  const startEditPista = () => {
     if (!batch) return;
-    const metros = Number(editedPerda.replace(",", "."));
+    setEditedPista({
+      pista: batch.pista ?? "",
+      fios: String(batch.fios ?? 3),
+      comprimento: batch.comprimento_pista_m != null ? String(batch.comprimento_pista_m) : "",
+      volume: batch.volume_concreto_m3 != null ? String(batch.volume_concreto_m3) : "",
+      perda: String(batch.metros_perda ?? 0),
+    });
+    setIsEditingPista(true);
+  };
+
+  const handleSaveBatchPista = async () => {
+    if (!batch) return;
+    const comp = toNum(editedPista.comprimento);
+    const volume = toNum(editedPista.volume);
+    const metros = toNum(editedPista.perda || "0");
+    if (!editedPista.pista.trim()) {
+      toast.error("Informe a pista");
+      return;
+    }
+    if (!(comp > 0)) {
+      toast.error("Informe o comprimento da pista");
+      return;
+    }
+    if (!(volume > 0)) {
+      toast.error("Informe o volume de concreto produzido (m³)");
+      return;
+    }
     if (isNaN(metros) || metros < 0) {
       toast.error("Informe um valor de perda válido.");
       return;
     }
-    const comp = Number(batch.comprimento_pista_m) || 0;
-    if (comp > 0 && metros > comp) {
+    if (metros > comp) {
       toast.error("Metros de perda não pode ser maior que o comprimento da pista");
       return;
     }
-    const perda_pct = calcPerdaPct(metros);
+    const perda_pct = calcPerdaPct(metros, comp);
     try {
-      await updateBatchPerda({
+      await updateBatchPista({
         id: batch.id,
+        pista: editedPista.pista.trim(),
+        fios: Number(editedPista.fios),
+        comprimento_pista_m: comp,
+        volume_concreto_m3: volume,
         metros_perda: metros,
         perda_pct,
         aproveitamento_pct: Math.round((100 - perda_pct) * 100) / 100,
       });
-      toast.success("Perda atualizada com sucesso!");
-      setIsEditingPerda(false);
+      toast.success("Concretagem da pista atualizada com sucesso!");
+      setIsEditingPista(false);
     } catch (err: any) {
-      toast.error("Erro ao atualizar perda", { description: err?.message });
+      toast.error("Erro ao atualizar concretagem da pista", { description: err?.message });
     }
   };
 
@@ -344,9 +375,99 @@ export function ViewProductionModal({ open, onOpenChange, analysis, batch }: Vie
                     </p>
                   </div>
 
-                  <h4 className="font-semibold text-muted-foreground text-[10px] uppercase tracking-widest pt-1">
-                    Concretagem da Pista
-                  </h4>
+                  <div className="flex items-center justify-between pt-1">
+                    <h4 className="font-semibold text-muted-foreground text-[10px] uppercase tracking-widest">
+                      Concretagem da Pista
+                      {!isEditingPista && batch.comprimento_pista_m != null && (
+                        <span className="normal-case tracking-normal font-medium"> · comprimento {String(batch.comprimento_pista_m).replace(".", ",")} m</span>
+                      )}
+                    </h4>
+                    {canEditPista && !isEditingPista && (
+                      <Button size="sm" variant="ghost" className="h-6 gap-1 px-2 text-xs" onClick={startEditPista}>
+                        <Pencil className="h-3 w-3" />
+                        Editar
+                      </Button>
+                    )}
+                  </div>
+                  {isEditingPista ? (
+                    <div className="rounded-lg border border-primary p-3 space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Pista *</Label>
+                          <Input
+                            value={editedPista.pista}
+                            onChange={(e) => setEditedPista((p) => ({ ...p, pista: e.target.value }))}
+                            placeholder="Ex: Pista A"
+                            className="h-8"
+                            autoFocus
+                            disabled={isUpdatingPista}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Fios *</Label>
+                          <Select
+                            value={editedPista.fios}
+                            onValueChange={(v) => setEditedPista((p) => ({ ...p, fios: v }))}
+                            disabled={isUpdatingPista}
+                          >
+                            <SelectTrigger className="h-8">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {[3, 4, 5, 7].map((n) => (
+                                <SelectItem key={n} value={String(n)}>{n} fios</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Comprimento da Pista (m) *</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={editedPista.comprimento}
+                            onChange={(e) => setEditedPista((p) => ({ ...p, comprimento: e.target.value }))}
+                            className="h-8"
+                            disabled={isUpdatingPista}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Volume de Concreto (m³) *</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.001"
+                            value={editedPista.volume}
+                            onChange={(e) => setEditedPista((p) => ({ ...p, volume: e.target.value }))}
+                            className="h-8"
+                            disabled={isUpdatingPista}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Metros de Perda (m)</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={editedPista.perda}
+                            onChange={(e) => setEditedPista((p) => ({ ...p, perda: e.target.value }))}
+                            className="h-8"
+                            disabled={isUpdatingPista}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button size="sm" variant="ghost" onClick={() => setIsEditingPista(false)} disabled={isUpdatingPista}>
+                          Cancelar
+                        </Button>
+                        <Button size="sm" onClick={handleSaveBatchPista} disabled={isUpdatingPista} className="gap-1">
+                          <Check className="h-3.5 w-3.5" />
+                          Salvar
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
                   <div className="grid grid-cols-4 gap-3">
                     <div className="rounded-lg border p-3">
                       <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Pista</p>
@@ -365,69 +486,27 @@ export function ViewProductionModal({ open, onOpenChange, analysis, batch }: Vie
                         )}
                       </p>
                     </div>
-                    <div className={cn("rounded-lg border p-3", isEditingPerda && "border-primary")}>
-                      <div className="flex items-center justify-between gap-1">
-                        <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Perda</p>
-                        {canEditPerda && !isEditingPerda && (
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-5 w-5 -mr-1"
-                            title="Editar metros de perda"
-                            onClick={() => {
-                              setEditedPerda(String(batch.metros_perda ?? 0));
-                              setIsEditingPerda(true);
-                            }}
-                          >
-                            <Pencil className="h-3 w-3" />
-                          </Button>
-                        )}
-                      </div>
-                      {isEditingPerda ? (
-                        <div className="mt-1 space-y-1">
-                          <Input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={editedPerda}
-                            onChange={(e) => setEditedPerda(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") handleSaveBatchPerda();
-                              if (e.key === "Escape") setIsEditingPerda(false);
-                            }}
-                            className="h-7 px-1.5 text-sm font-bold"
-                            autoFocus
-                            disabled={isUpdatingPerda}
-                          />
-                          <div className="flex justify-end">
-                            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={handleSaveBatchPerda} disabled={isUpdatingPerda}>
-                              <Check className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setIsEditingPerda(false)} disabled={isUpdatingPerda}>
-                              <X className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <p className="font-black text-xl mt-1">
-                          {(batch.metros_perda ?? 0).toFixed(2).replace(".", ",")}
-                          <span className="text-xs font-bold text-muted-foreground"> m</span>
-                        </p>
-                      )}
+                    <div className="rounded-lg border p-3">
+                      <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Perda</p>
+                      <p className="font-black text-xl mt-1">
+                        {(batch.metros_perda ?? 0).toFixed(2).replace(".", ",")}
+                        <span className="text-xs font-bold text-muted-foreground"> m</span>
+                      </p>
                     </div>
                   </div>
+                  )}
                   <div className="grid grid-cols-2 gap-3">
                     <div className="rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-900 p-3">
                       <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">% Perda</p>
                       <p className="font-black text-2xl mt-1 text-red-600">
-                        {(isEditingPerda ? previewPerdaPct : batch.perda_pct ?? 0).toFixed(2).replace(".", ",")}
+                        {(isEditingPista ? previewPerdaPct : batch.perda_pct ?? 0).toFixed(2).replace(".", ",")}
                         <span className="text-xs font-bold"> %</span>
                       </p>
                     </div>
                     <div className="rounded-lg border border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-900 p-3">
                       <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">% Aproveitamento</p>
                       <p className="font-black text-2xl mt-1 text-green-600">
-                        {(isEditingPerda ? 100 - previewPerdaPct : batch.aproveitamento_pct ?? 100).toFixed(2).replace(".", ",")}
+                        {(isEditingPista ? 100 - previewPerdaPct : batch.aproveitamento_pct ?? 100).toFixed(2).replace(".", ",")}
                         <span className="text-xs font-bold"> %</span>
                       </p>
                     </div>
