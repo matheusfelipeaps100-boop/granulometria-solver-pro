@@ -94,6 +94,7 @@ const CustomConsumoCurveTooltip = ({ active, payload, label, dbMaterials, data, 
 export function StepDosage({ data, onChange }: StepDosageProps) {
     const { materials: dbMaterials } = useMaterials();
   const [aditivoUnidade, setAditivoUnidade] = useState<'mL' | 'g'>('mL');
+  const [aguaDraft, setAguaDraft] = useState<string | null>(null);
 
   const cimentoMaterials = useMemo(
     () => dbMaterials.filter((m) => m.tipo === 'cimento'),
@@ -402,7 +403,7 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
               {/* Volume, Massa, Água e Aditivo por Batelada — tiles uniformes */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
+                  <Label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1 h-3 leading-none">
                     Volume
                   </Label>
                   <div className="relative">
@@ -418,7 +419,7 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
+                  <Label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1 h-3 leading-none">
                     Massa Total
                   </Label>
                   <div className="relative">
@@ -434,7 +435,7 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-[9px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider flex items-center gap-1">
+                  <Label className="text-[9px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider flex items-center gap-1 h-3 leading-none">
                     <Droplets className="h-2.5 w-2.5" /> Água
                   </Label>
                   <div className="relative">
@@ -443,19 +444,23 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
                       step="0.1"
                       min="0"
                       className="h-11 font-black bg-blue-500/10 text-blue-600 border-blue-500/20 focus-visible:ring-blue-500 shadow-none pr-9 text-sm dark:text-blue-400"
-                      value={Math.round(dosageResult.agua_batelada * 10) / 10 || ""}
+                      value={aguaDraft ?? (Math.round(dosageResult.agua_batelada * 10) / 10 || "")}
                       onChange={(e) => {
-                        const agua = parseFloat(e.target.value) || 0;
+                        // Mantém o texto digitado enquanto edita, para não ser sobrescrito pelo recálculo
+                        setAguaDraft(e.target.value);
+                        const agua = parseFloat(e.target.value.replace(",", "."));
                         // Atualiza a relação A/C automaticamente
-                        const novoAc = dosageResult.consumo_cimento_batelada > 0 ? agua / dosageResult.consumo_cimento_batelada : data.relacao_ac;
-                        onChange({ relacao_ac: Math.max(0.01, novoAc) });
+                        if (agua > 0 && dosageResult.consumo_cimento_batelada > 0) {
+                          onChange({ relacao_ac: agua / dosageResult.consumo_cimento_batelada });
+                        }
                       }}
+                      onBlur={() => setAguaDraft(null)}
                     />
                     <span className="absolute right-2.5 top-3 text-[9px] font-bold text-blue-500 uppercase">kg</span>
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
+                  <Label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1 h-3 leading-none">
                     Aditivo
                   </Label>
                   <div className="flex items-center gap-1.5">
