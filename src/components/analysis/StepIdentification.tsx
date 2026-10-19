@@ -12,13 +12,14 @@ import { useProducts } from "@/hooks/api/useProducts";
 import { useMemo } from "react";
 import { Layers, Square, LayoutPanelTop } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { AnalysisFormData } from "@/lib/analysis-data";
+import type { AnalysisFormData, CategoriaAnalise } from "@/lib/analysis-data";
 import { getConfigMisturador } from "@/lib/analysis-data";
 
 interface StepIdentificationProps {
   data: AnalysisFormData;
   onChange: (updates: Partial<AnalysisFormData>) => void;
   isNomeDuplicado?: boolean;
+  categoria?: CategoriaAnalise;
 }
 
 const TIPO_OPTIONS = [
@@ -63,7 +64,7 @@ const BLOCOS_TIPOS = TIPO_OPTIONS.filter((t) => t.group === "BLOCOS");
 const PAVERS_TIPOS = TIPO_OPTIONS.filter((t) => t.group === "PAVERS");
 const LAJES_TIPOS  = TIPO_OPTIONS.filter((t) => t.group === "LAJES");
 
-export function StepIdentification({ data, onChange, isNomeDuplicado }: StepIdentificationProps) {
+export function StepIdentification({ data, onChange, isNomeDuplicado, categoria = "bloco_paver" }: StepIdentificationProps) {
   const { products } = useProducts();
 
   const filteredProducts = useMemo(() => {
@@ -90,8 +91,9 @@ export function StepIdentification({ data, onChange, isNomeDuplicado }: StepIden
         </p>
       </div>
 
-      {/* Seletor de grupo — BLOCOS / PAVERS / LAJES */}
-      <div className="grid grid-cols-3 gap-3">
+      {/* Seletor de grupo — BLOCOS / PAVERS (laje tem tela própria e já vem selecionada) */}
+      {categoria === "bloco_paver" && (
+      <div className="grid grid-cols-2 gap-3">
         {/* Card BLOCOS */}
         <button
           type="button"
@@ -163,43 +165,9 @@ export function StepIdentification({ data, onChange, isNomeDuplicado }: StepIden
             <p className="text-[11px] text-muted-foreground mt-0.5">Base + Face</p>
           </div>
         </button>
-
-        {/* Card LAJES */}
-        <button
-          type="button"
-          onClick={() =>
-            onChange({
-              tipo_analise: "laje",
-              produto_id: "",
-              produto_nome: "",
-              volume_m3: getConfigMisturador("laje").volume_m3,
-            })
-          }
-          className={cn(
-            "group relative flex flex-col items-center justify-center gap-3 rounded-lg border-2 p-6 text-left transition-all duration-200 cursor-pointer",
-            "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-            activeGroup === "LAJES"
-              ? "border-primary bg-primary/10 shadow-sm"
-              : "border-border bg-card hover:border-primary/40 hover:bg-muted/30"
-          )}
-        >
-          {activeGroup === "LAJES" && (
-            <span className="absolute top-2 right-2 h-2.5 w-2.5 rounded-full bg-primary" />
-          )}
-          <div className={cn(
-            "flex h-12 w-12 items-center justify-center rounded-lg border-2 transition-colors",
-            activeGroup === "LAJES"
-              ? "border-primary bg-primary text-primary-foreground"
-              : "border-border bg-muted group-hover:border-primary/40"
-          )}>
-            <LayoutPanelTop className="h-6 w-6" strokeWidth={1.5} />
-          </div>
-          <div className="text-center">
-            <p className="text-sm font-black tracking-wider">LAJES</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">Piso / Estrutural</p>
-          </div>
-        </button>
       </div>
+      )}
+
 
       {/* Sub-tipo (aparece após escolha do grupo) */}
       {activeGroup && (

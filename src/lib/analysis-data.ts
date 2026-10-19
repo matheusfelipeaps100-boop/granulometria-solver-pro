@@ -181,6 +181,15 @@ export const TIPOS_ANALISE = [
   { value: "laje", label: "Laje" },
 ];
 
+// Análises de laje ficam em tela própria, separadas de bloco/paver
+export type CategoriaAnalise = "bloco_paver" | "laje";
+
+export const getCategoriaAnalise = (tipo?: string | null): CategoriaAnalise =>
+  tipo === "laje" ? "laje" : "bloco_paver";
+
+export const getAnalysesListPath = (tipo?: string | null) =>
+  tipo === "laje" ? "/analyses-laje" : "/analyses";
+
 // Configuração centralizada da capacidade do misturador por tipo de análise
 export const CONFIG_MISTURADOR: Record<string, { capacidade_kg: number; volume_m3: number }> = {
   bloco_estrutural: { capacidade_kg: 550,  volume_m3: 0.55 },

@@ -13,6 +13,8 @@ import {
   generateAnalysisCode,
   PENEIRAS_PADRAO,
   getConfigMisturador,
+  getCategoriaAnalise,
+  getAnalysesListPath,
   type AnalysisFormData,
 } from "@/lib/analysis-data";
 import {
@@ -163,6 +165,20 @@ const NewAnalysisPage = () => {
   } = useAnalysisDraftStore();
 
   const { createAnalysis, analyses } = useAnalyses();
+
+  // Categoria (bloco/paver ou laje): vem do tipo já escolhido ou da tela de origem (?categoria=)
+  const categoria = formData.tipo_analise
+    ? getCategoriaAnalise(formData.tipo_analise)
+    : searchParams.get("categoria") === "laje" ? "laje" : "bloco_paver";
+  const listPath = getAnalysesListPath(categoria === "laje" ? "laje" : null);
+
+  // Nova análise de laje: laje é o único tipo da categoria, então já vem selecionado
+  useEffect(() => {
+    if (!isEditMode && !isDuplicateMode && !formData.tipo_analise && searchParams.get("categoria") === "laje") {
+      setFormData({ tipo_analise: "laje", volume_m3: getConfigMisturador("laje").volume_m3 });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.tipo_analise, searchParams]);
   const { data: analysisData, isLoading: isLoadingAnalysis, isError } = useAnalysis(sourceCode);
 
   const isNomeDuplicado = useMemo(() => {
@@ -265,11 +281,11 @@ const NewAnalysisPage = () => {
         description: `${result.codigo} — Etapa ${currentStep} de 5`,
       });
       // clearDraft(); // Removido para não perder o rascunho em andamento
-      navigate("/analyses");
+      navigate(listPath);
     } catch (error: any) {
       toast.error("Erro ao salvar rascunho: " + error.message);
     }
-  }, [formData, createAnalysis, navigate, currentStep, isNomeDuplicado]);
+  }, [formData, createAnalysis, navigate, currentStep, isNomeDuplicado, listPath]);
 
   const canProceed = useCallback(() => {
     if (currentStep === 1) {
@@ -323,7 +339,7 @@ const NewAnalysisPage = () => {
             className="gap-1.5 text-muted-foreground hover:text-foreground"
             onClick={() => {
               clearDraft();
-              navigate("/analyses");
+              navigate(listPath);
             }}
           >
             <X className="h-3.5 w-3.5" />
@@ -334,6 +350,7 @@ const NewAnalysisPage = () => {
           <div className="flex-1 text-center min-w-0">
             <p className="text-xs font-black text-foreground/60 uppercase tracking-widest">
               {isEditMode ? "Editar Análise" : duplicatedFrom ? "Nova Análise (cópia)" : "Nova Análise"}
+              {categoria === "laje" ? " · Laje" : ""}
             </p>
             <p className="text-[11px] text-muted-foreground truncate font-mono">
               {formData.codigo}
@@ -385,7 +402,7 @@ const NewAnalysisPage = () => {
         <FormErrorBoundary>
           <div className="min-h-[400px]">
             {currentStep === 1 && (
-              <StepIdentification data={formData} onChange={handleChange} isNomeDuplicado={isNomeDuplicado} />
+              <StepIdentification data={formData} onChange={handleChange} isNomeDuplicado={isNomeDuplicado} categoria={categoria} />
             )}
             {currentStep === 2 && (
               <StepGranulometry data={formData} onChange={handleChange} />

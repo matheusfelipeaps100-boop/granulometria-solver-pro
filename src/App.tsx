@@ -45,7 +45,12 @@ const App = () => (
             } />
             <Route path="/analyses" element={
               <ProtectedRoute allowedRoles={["ADMIN", "VENDAS", "GERENTE", "LABORATORIO"]}>
-                <AnalysesPage />
+                <AnalysesPage categoria="bloco_paver" />
+              </ProtectedRoute>
+            } />
+            <Route path="/analyses-laje" element={
+              <ProtectedRoute allowedRoles={["ADMIN", "VENDAS", "GERENTE", "LABORATORIO"]}>
+                <AnalysesPage categoria="laje" />
               </ProtectedRoute>
             } />
             <Route path="/analyses/new" element={

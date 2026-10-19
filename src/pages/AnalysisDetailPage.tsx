@@ -11,6 +11,7 @@ import { StepGranulometry } from "@/components/analysis/StepGranulometry";
 import { StepDosage } from "@/components/analysis/StepDosage";
 import { StepReview } from "@/components/analysis/StepReview";
 import { toast } from "sonner";
+import { getAnalysesListPath } from "@/lib/analysis-data";
 
 export default function AnalysisDetailPage() {
   const { codigo } = useParams<{ codigo: string }>();
@@ -55,7 +56,7 @@ export default function AnalysisDetailPage() {
   if (isError || !analysis) {
     return (
       <div className="space-y-6 animate-fade-in">
-        <Button variant="ghost" onClick={() => navigate("/analyses")} className="gap-2">
+        <Button variant="ghost" onClick={() => navigate(getAnalysesListPath(analysis?.tipo))} className="gap-2">
           <ArrowLeft className="h-4 w-4" /> Voltar
         </Button>
         <p className="text-muted-foreground">Análise não encontrada.</p>
@@ -66,7 +67,7 @@ export default function AnalysisDetailPage() {
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/analyses")}>
+        <Button variant="ghost" size="icon" onClick={() => navigate(getAnalysesListPath(analysis?.tipo))}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>

@@ -37,7 +37,8 @@ type NavItem = { title: string; url: string; icon: React.ElementType; allowedRol
 const mainItems: NavItem[] = [
   { title: "Métricas", url: "/", icon: LayoutDashboard, allowedRoles: ["ADMIN", "PRODUCAO", "VENDAS", "GERENTE", "LABORATORIO"], exact: true },
   { title: "Métricas de Pista", url: "/pista-metrics", icon: Gauge, allowedRoles: ["ADMIN", "PRODUCAO", "VENDAS", "GERENTE"] },
-  { title: "Análises", url: "/analyses", icon: FlaskConical, allowedRoles: ["ADMIN", "VENDAS", "GERENTE", "LABORATORIO"] },
+  { title: "Análises Bloco/Paver", url: "/analyses", icon: FlaskConical, allowedRoles: ["ADMIN", "VENDAS", "GERENTE", "LABORATORIO"] },
+  { title: "Análises Laje", url: "/analyses-laje", icon: FlaskConical, allowedRoles: ["ADMIN", "VENDAS", "GERENTE", "LABORATORIO"] },
   { title: "Produção Bloco/Paver", url: "/production", icon: Factory, allowedRoles: ["ADMIN", "PRODUCAO", "VENDAS", "GERENTE"], exact: true },
   { title: "Produção Laje", url: "/production-laje", icon: Factory, allowedRoles: ["ADMIN", "PRODUCAO", "VENDAS", "GERENTE"] },
   { title: "Rompimentos", url: "/ruptures", icon: Hammer, allowedRoles: ["ADMIN", "PRODUCAO", "VENDAS", "GERENTE", "LABORATORIO"] },
@@ -75,7 +76,9 @@ export function AppSidebar() {
   };
   
   const isActive = (path: string, exact?: boolean) =>
-    exact ? location.pathname === path : location.pathname.startsWith(path);
+    exact
+      ? location.pathname === path
+      : location.pathname === path || location.pathname.startsWith(path.endsWith("/") ? path : path + "/");
 
   const visibleMain = mainItems.filter(item => item.allowedRoles.includes(currentUserRole));
   const visibleAdmin = adminItems.filter(item => item.allowedRoles.includes(currentUserRole));

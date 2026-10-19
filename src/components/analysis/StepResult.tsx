@@ -21,6 +21,7 @@ import {
   ANALISTAS,
   PENEIRAS_PADRAO,
   getLimitesPadrao,
+  getAnalysesListPath,
   type AnalysisFormData,
 } from "@/lib/analysis-data";
 import { useStandardCurves } from "@/hooks/api/useStandardCurves";
@@ -506,7 +507,7 @@ export function StepResult({ data }: StepResultProps) {
         </Button>
         <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground" onClick={() => {
           clearDraft();
-          navigate("/analyses");
+          navigate(getAnalysesListPath(data.tipo_analise));
         }}>
           <Printer className="h-3 w-3" />
           Voltar para Análises

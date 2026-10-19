@@ -35,7 +35,7 @@ import {
 import { Plus, Search, Eye, Pencil, Trash2, FileEdit, X, Check, CalendarDays, Copy } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
-import { TIPOS_ANALISE } from "@/lib/analysis-data";
+import { TIPOS_ANALISE, getCategoriaAnalise, type CategoriaAnalise } from "@/lib/analysis-data";
 import { useAnalysisDraftStore } from "@/store/useAnalysisDraftStore";
 import { useAnalyses } from "@/hooks/api/useAnalyses";
 import { useAuth } from "@/hooks/useAuth";
@@ -51,7 +51,13 @@ const STATUS_OPTIONS = [
 
 const STEP_NAMES = ["Identificação", "Granulometria", "Dosagem", "Revisão", "Resultado"];
 
-const AnalysesPage = () => {
+interface AnalysesPageProps {
+  categoria: CategoriaAnalise;
+}
+
+const AnalysesPage = ({ categoria }: AnalysesPageProps) => {
+  const isLaje = categoria === "laje";
+  const tiposCategoria = TIPOS_ANALISE.filter((t) => getCategoriaAnalise(t.value) === categoria);
   const navigate = useNavigate();
   const { analyses, deleteAnalysis, isDeleting, updateNome, updateData } = useAnalyses();
   const { profile } = useAuth();
@@ -86,10 +92,10 @@ const AnalysesPage = () => {
     }
   };
 
-  const [search, setSearch] = usePersistedState("analyses:search", "");
-  const [filterTipo, setFilterTipo] = usePersistedState("analyses:filterTipo", "all");
-  const [filterStatuses, setFilterStatuses] = usePersistedState<string[]>("analyses:filterStatuses", []);
-  const [dateFilter, setDateFilter] = usePersistedState<DateFilter>("analyses:dateFilter", getDefaultDateFilter());
+  const [search, setSearch] = usePersistedState(`analyses:${categoria}:search`, "");
+  const [filterTipo, setFilterTipo] = usePersistedState(`analyses:${categoria}:filterTipo`, "all");
+  const [filterStatuses, setFilterStatuses] = usePersistedState<string[]>(`analyses:${categoria}:filterStatuses`, []);
+  const [dateFilter, setDateFilter] = usePersistedState<DateFilter>(`analyses:${categoria}:dateFilter`, getDefaultDateFilter());
   const [editingNome, setEditingNome] = useState<{ id: string; value: string } | null>(null);
   const [editingData, setEditingData] = useState<{ id: string; value: string } | null>(null);
 
@@ -118,7 +124,9 @@ const AnalysesPage = () => {
   };
 
   const allAnalyses = useMemo(() => {
-    return analyses.map((a) => ({
+    return analyses
+      .filter((a) => getCategoriaAnalise(a.tipo) === categoria)
+      .map((a) => ({
       id: a.id,
       codigo: a.codigo,
       nome: a.nome,
@@ -129,7 +137,7 @@ const AnalysesPage = () => {
       data_analise: a.data_analise ?? "",
       status: a.status,
     }));
-  }, [analyses, profile?.id]);
+  }, [analyses, profile?.id, categoria]);
 
   const filtered = allAnalyses
     .filter((a) => {
@@ -138,7 +146,7 @@ const AnalysesPage = () => {
         a.codigo.toLowerCase().includes(search.toLowerCase()) ||
         a.nome.toLowerCase().includes(search.toLowerCase()) ||
         (a.produto ?? "").toLowerCase().includes(search.toLowerCase());
-      const matchTipo = filterTipo === "all" || a.tipo === filterTipo;
+      const matchTipo = isLaje || filterTipo === "all" || a.tipo === filterTipo;
       const matchStatus = filterStatuses.length === 0 || filterStatuses.includes(a.status);
       const rawAnalise = analyses.find((r) => r.id === a.id);
       const matchDate = isInDateRange(rawAnalise?.data_analise ?? null, dateFilter);
@@ -151,6 +159,9 @@ const AnalysesPage = () => {
     });
 
   const hasDraft = currentStep > 1 || !!formData.tipo_analise || !!formData.nome;
+  // Rascunho sem tipo definido aparece nas duas telas; com tipo, só na tela da categoria dele
+  const showDraftBanner = hasDraft && (!formData.tipo_analise || getCategoriaAnalise(formData.tipo_analise) === categoria);
+  const newAnalysisPath = `/analyses/new?categoria=${categoria}`;
 
   // Duplicar: abre o wizard com o traço da análise de origem já preenchido.
   // Se houver rascunho em andamento, pede confirmação antes de descartá-lo.
@@ -172,7 +183,7 @@ const AnalysesPage = () => {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Banner: rascunho em andamento */}
-      {hasDraft && (
+      {showDraftBanner && (
         <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30 px-4 py-3">
           <FileEdit className="h-5 w-5 text-amber-600 shrink-0" />
           <div className="flex-1 min-w-0">
@@ -188,7 +199,7 @@ const AnalysesPage = () => {
             size="sm"
             variant="default"
             className="gap-1.5"
-            onClick={() => navigate("/analyses/new")}
+            onClick={() => navigate(formData.tipo_analise ? "/analyses/new" : newAnalysisPath)}
           >
             Continuar
           </Button>
@@ -206,11 +217,20 @@ const AnalysesPage = () => {
 
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Análises</h1>
-          <p className="text-sm text-muted-foreground">Gerenciar análises granulométricas</p>
+          <h1 className="text-2xl font-bold text-foreground">{isLaje ? "Análises Laje" : "Análises Bloco/Paver"}</h1>
+          <p className="text-sm text-muted-foreground">
+            {isLaje ? "Gerenciar análises granulométricas de laje" : "Gerenciar análises granulométricas de blocos e pavers"}
+          </p>
         </div>
         {canCreate && (
-          <Button onClick={() => navigate("/analyses/new")} className="gap-2">
+          <Button
+            onClick={() => {
+              // Rascunho de outra categoria não deve abrir na tela errada
+              if (formData.tipo_analise && getCategoriaAnalise(formData.tipo_analise) !== categoria) clearDraft();
+              navigate(newAnalysisPath);
+            }}
+            className="gap-2"
+          >
             <Plus className="h-4 w-4" />
             Nova Análise
           </Button>
@@ -229,19 +249,21 @@ const AnalysesPage = () => {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
+            {!isLaje && (
             <Select value={filterTipo} onValueChange={setFilterTipo}>
               <SelectTrigger className="w-full sm:w-[160px]">
                 <SelectValue placeholder="Tipo" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos os Tipos</SelectItem>
-                {TIPOS_ANALISE.map((t) => (
+                {tiposCategoria.map((t) => (
                   <SelectItem key={t.value} value={t.value}>
                     {t.label}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            )}
             <MultiStatusFilter options={STATUS_OPTIONS} value={filterStatuses} onChange={setFilterStatuses} />
           </div>
           <div className="flex items-center justify-between mt-3">
