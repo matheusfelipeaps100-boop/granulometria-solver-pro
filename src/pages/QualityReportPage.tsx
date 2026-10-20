@@ -513,7 +513,7 @@ const QualityReportPage = () => {
                             </span>
                           </div>
                           <div className="grid grid-cols-3 gap-2">
-                            {[["Média", r.stats.media.toFixed(2)], ["Desvio", r.stats.desvio_padrao.toFixed(2)], ["C.V", `${r.stats.coeficiente_variacao.toFixed(1)}%`]].map(([label, val]) => (
+                            {[[analysis?.tipo === "laje" ? "Maior" : "Média", r.stats.media.toFixed(2)], ["Desvio", r.stats.desvio_padrao.toFixed(2)], ["C.V", `${r.stats.coeficiente_variacao.toFixed(1)}%`]].map(([label, val]) => (
                               <div key={label} className="bg-background border rounded px-2 py-1.5 text-center">
                                 <p className="text-[7px] uppercase font-bold text-muted-foreground">{label}</p>
                                 <p className="text-[10px] font-black">{val}</p>

@@ -404,6 +404,22 @@ export function calcRuptureStats(
 }
 
 /**
+ * Laje: o resultado do ensaio é a MAIOR resistência entre os corpos de prova,
+ * não a média. Substitui `media` pelo máximo (é o valor salvo em media_mpa e
+ * usado em relatórios) e reavalia a conformidade por ele.
+ */
+export function aplicarResultadoLaje(stats: RuptureStats): RuptureStats {
+  const resultado = stats.maximo;
+  const meta = stats.meta_mpa;
+  return {
+    ...stats,
+    media: Math.round(resultado * 100) / 100,
+    conforme: meta > 0 ? resultado >= meta : null,
+    status: meta > 0 ? (resultado >= meta ? "conforme" : "nao_conforme") : "registro",
+  };
+}
+
+/**
  * CÁLCULO 7.1 — Estatísticas de rompimento para Paver
  * Usa calcTensaoPaver com multiplicador configurável
  */

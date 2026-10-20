@@ -19,7 +19,7 @@ import { MoldagemControlCard } from "@/components/rupture/MoldagemControlCard";
 import { hasActionPermission } from "@/lib/permissions";
 import { useTechnicalSettings } from "@/hooks/api/useTechnicalSettings";
 import { TIPOS_ANALISE } from "@/lib/analysis-data";
-import { calcTensao, calcRuptureStats, AREAS_PADRAO, calcTensaoPaver, calcRuptureStatsPaver, calcTensaoLaje, calcRuptureStatsLaje, getMetaForAge } from "@/lib/granulometry-engine";
+import { calcTensao, calcRuptureStats, AREAS_PADRAO, calcTensaoPaver, calcRuptureStatsPaver, calcTensaoLaje, calcRuptureStatsLaje, getMetaForAge, aplicarResultadoLaje } from "@/lib/granulometry-engine";
 
 import { cn } from "@/lib/utils";
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LineChart, Line } from "recharts";
@@ -63,6 +63,8 @@ const RuptureDetailPage = () => {
       analysis: (scheduleData.batch as any)?.analyses
     };
   }, [scheduleData]);
+
+  const isLajeAnalysis = found?.analysis?.tipo === "laje";
 
   const tiposVisiveis = useMemo<TipoAmostra[]>(() => {
     const norm = normalizeTipoAmostra(found?.analysis?.tipo);
@@ -253,10 +255,14 @@ const RuptureDetailPage = () => {
             divisorB
           );
         }
+        // Laje: vale o maior resultado entre os corpos de prova, não a média
+        if (isLajeAnalysis && result[tipo]) {
+          result[tipo] = aplicarResultadoLaje(result[tipo]!);
+        }
       }
     }
     return result;
-  }, [samples, found, areas, settings, tiposVisiveis]);
+  }, [samples, found, areas, settings, tiposVisiveis, isLajeAnalysis]);
 
   // Tensão mínima plausível para um rompimento real — valores abaixo disso
   // (ex.: "1" digitado só para conseguir salvar) indicam que o ensaio não foi
@@ -716,7 +722,9 @@ const RuptureDetailPage = () => {
                   <Separator className="mb-4 opacity-50" />
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 items-center">
                     <div className="text-center sm:text-left">
-                      <p className="text-[10px] uppercase text-muted-foreground font-bold mb-0.5">Média (MPa)</p>
+                      <p className="text-[10px] uppercase text-muted-foreground font-bold mb-0.5">
+                        {isLajeAnalysis ? "Resultado — maior (MPa)" : "Média (MPa)"}
+                      </p>
                       <p className="text-lg font-black text-primary leading-tight">{stats.media.toFixed(2)}</p>
                     </div>
                     

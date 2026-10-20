@@ -7,7 +7,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Separator } from "@/components/ui/separator";
-import { calcTensao, calcRuptureStats, calcTensaoPaver, calcRuptureStatsPaver, getMetaForAge } from "@/lib/granulometry-engine";
+import { calcTensao, calcRuptureStats, calcTensaoPaver, calcRuptureStatsPaver, getMetaForAge, aplicarResultadoLaje } from "@/lib/granulometry-engine";
 import type { RuptureSchedule, StoredAnalysis } from "@/store/useAppStore";
 import type { TechnicalSettings } from "@/hooks/api/useTechnicalSettings";
 import { useMemo } from "react";
@@ -30,6 +30,8 @@ export function ViewRuptureResultModal({ open, onOpenChange, schedule, analysis,
   if (!schedule || !analysis) return null;
 
   const responsavel = (schedule as any).responsavel_nome ?? "—";
+  // Laje: vale o maior resultado entre os corpos de prova, não a média
+  const isLaje = (analysis as any).tipo_analise === "laje" || (analysis as any).tipo === "laje";
 
   const statsPerTipo = useMemo(() => {
     const s = schedule as any;
@@ -44,8 +46,9 @@ export function ViewRuptureResultModal({ open, onOpenChange, schedule, analysis,
       const forcas = sorted.map((s: any) => Number(s.forca_kn)).filter((f: number) => f > 0);
       if (forcas.length === 0) continue;
       const isPaver = tipo === "paver";
+      const stats = isPaver ? calcRuptureStatsPaver(forcas, meta) : calcRuptureStats(forcas, meta);
       result[tipo] = {
-        stats: isPaver ? calcRuptureStatsPaver(forcas, meta) : calcRuptureStats(forcas, meta),
+        stats: isLaje ? aplicarResultadoLaje(stats) : stats,
         amostras: sorted.filter((s: any) => Number(s.forca_kn) > 0).map((s: any) => ({
           forca: Number(s.forca_kn),
           tensao: isPaver ? calcTensaoPaver(Number(s.forca_kn)) : calcTensao(Number(s.forca_kn)),
@@ -53,7 +56,7 @@ export function ViewRuptureResultModal({ open, onOpenChange, schedule, analysis,
       };
     }
     return Object.keys(result).length > 0 ? result : null;
-  }, [schedule, analysis, settings]);
+  }, [schedule, analysis, settings, isLaje]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -117,7 +120,7 @@ export function ViewRuptureResultModal({ open, onOpenChange, schedule, analysis,
                 {/* Stats Summary */}
                 <div className="grid grid-cols-3 gap-2 py-1 bg-primary/5 rounded-md border border-primary/10">
                   <div className="text-center border-r border-primary/10">
-                    <p className="text-[8px] uppercase font-bold text-muted-foreground">Média</p>
+                    <p className="text-[8px] uppercase font-bold text-muted-foreground">{isLaje ? "Maior" : "Média"}</p>
                     <p className="text-xs font-black">{data.stats.media.toFixed(2)}</p>
                   </div>
                   <div className="text-center border-r border-primary/10">
