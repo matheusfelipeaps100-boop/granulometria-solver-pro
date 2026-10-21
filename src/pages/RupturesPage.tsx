@@ -328,7 +328,7 @@ const RupturesPage = () => {
                                       toast.error("Você não tem permissão para realizar rompimentos.");
                                     }
                                   }}
-                                  className={`inline-flex items-center justify-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors ${chipColor} ${s.status !== 'ignorado' && (canCompleteRupture || s.status === 'concluido' || s.status === 'sem_expediente') ? 'cursor-pointer' : 'cursor-default'}`}
+                                  className={`inline-flex items-center justify-center whitespace-nowrap rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors ${chipColor} ${s.status !== 'ignorado' && (canCompleteRupture || s.status === 'concluido' || s.status === 'sem_expediente') ? 'cursor-pointer' : 'cursor-default'}`}
                                   title={canCompleteRupture || s.status === 'concluido' || s.status === 'sem_expediente' ? `${formatIdadeRompimento(s.idade_dias, analysis?.tipo)} — ${statusLabel} — ${formatDate(s.data_prevista)}` : "Visualização restrita"}
                                 >
                                   {formatIdadeRompimento(s.idade_dias, analysis?.tipo)}
