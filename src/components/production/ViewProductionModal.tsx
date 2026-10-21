@@ -6,7 +6,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/StatusBadge";
-import { TIPOS_ANALISE } from "@/lib/analysis-data";
+import { TIPOS_ANALISE, formatIdadeRompimento } from "@/lib/analysis-data";
 import type { StoredAnalysis, ProductionBatch } from "@/store/useAppStore";
 import type { DBProductionBatch } from "@/hooks/api/useProduction";
 import { useMemo, useState } from "react";
@@ -573,7 +573,7 @@ export function ViewProductionModal({ open, onOpenChange, analysis, batch }: Vie
                           : "opacity-80 cursor-default"
                       )}
                     >
-                      <p className="text-lg font-bold text-foreground">{s.idade_dias}d</p>
+                      <p className="text-lg font-bold text-foreground">{formatIdadeRompimento(s.idade_dias, analysis.tipo_analise)}</p>
                       <p className="text-[10px] text-muted-foreground">{s.data_prevista}</p>
                       <StatusBadge status={s.status} className="mt-1 h-4 text-[9px]" />
                     </button>

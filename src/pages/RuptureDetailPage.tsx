@@ -18,7 +18,7 @@ import { useProfiles } from "@/hooks/api/useProfiles";
 import { MoldagemControlCard } from "@/components/rupture/MoldagemControlCard";
 import { hasActionPermission } from "@/lib/permissions";
 import { useTechnicalSettings } from "@/hooks/api/useTechnicalSettings";
-import { TIPOS_ANALISE } from "@/lib/analysis-data";
+import { TIPOS_ANALISE, formatIdadeRompimento } from "@/lib/analysis-data";
 import { calcTensao, calcRuptureStats, AREAS_PADRAO, calcTensaoPaver, calcRuptureStatsPaver, calcTensaoLaje, calcRuptureStatsLaje, getMetaForAge, aplicarResultadoLaje } from "@/lib/granulometry-engine";
 
 import { cn } from "@/lib/utils";
@@ -514,7 +514,7 @@ const RuptureDetailPage = () => {
         </div>
         <div>
           <h1 className="text-2xl font-bold text-foreground">
-            {isReadOnly ? "Visualização de Rompimento" : isAdmin && isConcluido ? "Edição de Rompimento" : "Lançamento de Rompimento"} — {schedule.idade_dias} dias
+            {isReadOnly ? "Visualização de Rompimento" : isAdmin && isConcluido ? "Edição de Rompimento" : "Lançamento de Rompimento"} — {formatIdadeRompimento(schedule.idade_dias, found?.analysis?.tipo, true)}
           </h1>
           <p className="text-sm text-muted-foreground">
             {batch.batch_code} · {analysis?.produto ?? analysis?.nome ?? "—"}
@@ -544,7 +544,7 @@ const RuptureDetailPage = () => {
             </div>
             <div>
               <p className="text-muted-foreground">Idade</p>
-              <Badge variant="outline">{schedule.idade_dias} dias</Badge>
+              <Badge variant="outline">{formatIdadeRompimento(schedule.idade_dias, found?.analysis?.tipo, true)}</Badge>
             </div>
             <div>
               <p className="text-muted-foreground">Data Prevista</p>
@@ -898,7 +898,7 @@ const RuptureDetailPage = () => {
               <Flag className="h-5 w-5" /> Finalizar Análise com Este Ensaio
             </DialogTitle>
             <DialogDescription>
-              Os ensaios futuros deste lote serão ignorados e o ciclo será encerrado com os resultados do {found?.schedule.idade_dias}º dia.
+              Os ensaios futuros deste lote serão ignorados e o ciclo será encerrado com os resultados de {formatIdadeRompimento(found?.schedule.idade_dias ?? 0, found?.analysis?.tipo, true)}.
             </DialogDescription>
           </DialogHeader>
 
@@ -920,7 +920,7 @@ const RuptureDetailPage = () => {
               </div>
               <div>
                 <p className="text-muted-foreground text-xs">Ensaio Atual</p>
-                <p className="font-bold">{found?.schedule.idade_dias} dias</p>
+                <p className="font-bold">{formatIdadeRompimento(found?.schedule.idade_dias ?? 0, found?.analysis?.tipo, true)}</p>
               </div>
             </div>
 
@@ -980,7 +980,7 @@ const RuptureDetailPage = () => {
               </div>
               <div>
                 <p className="text-muted-foreground text-xs">Ensaio</p>
-                <p className="font-bold">{found?.schedule.idade_dias} dias</p>
+                <p className="font-bold">{formatIdadeRompimento(found?.schedule.idade_dias ?? 0, found?.analysis?.tipo, true)}</p>
               </div>
             </div>
 

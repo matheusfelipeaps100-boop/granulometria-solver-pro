@@ -1,3 +1,4 @@
+import { formatIdadeRompimento } from "@/lib/analysis-data";
 import { useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
@@ -79,7 +80,8 @@ export function useRuptureNotificationsSync() {
           status,
           batch:production_batches!inner (
             batch_code,
-            organization_id
+            organization_id,
+            analyses (tipo)
           )
         `)
         .eq("status", "pendente")
@@ -123,8 +125,8 @@ export function useRuptureNotificationsSync() {
             : `Rompimento em atraso: Lote ${batchCode}`;
         const mensagem =
           tipo === "rupture_due_today"
-            ? `O lote ${batchCode} tem rompimento de ${s.idade_dias} dias previsto para hoje.`
-            : `O lote ${batchCode} tem rompimento de ${s.idade_dias} dias em atraso (previsto: ${s.data_prevista}).`;
+            ? `O lote ${batchCode} tem rompimento de ${formatIdadeRompimento(s.idade_dias, s.batch?.analyses?.tipo, true)} previsto para hoje.`
+            : `O lote ${batchCode} tem rompimento de ${formatIdadeRompimento(s.idade_dias, s.batch?.analyses?.tipo, true)} em atraso (previsto: ${s.data_prevista}).`;
 
         return recipients.map((r) => ({
           organization_id: orgId,

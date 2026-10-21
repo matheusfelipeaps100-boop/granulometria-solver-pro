@@ -187,7 +187,14 @@ export type CategoriaAnalise = "bloco_paver" | "laje";
 export const getCategoriaAnalise = (tipo?: string | null): CategoriaAnalise =>
   tipo === "laje" ? "laje" : "bloco_paver";
 
-export const getAnalysesListPath = (tipo?: string | null) =>
+// Laje rompe com 24 h e 48 h no lugar de 1 e 3 dias; demais idades seguem em dias
+export const formatIdadeRompimento = (idadeDias: number, tipo?: string | null, longo = false) => {
+  if (tipo === "laje" && idadeDias === 1) return "24 h";
+  if (tipo === "laje" && idadeDias === 3) return "48 h";
+  return longo ? `${idadeDias} dias` : `${idadeDias}d`;
+};
+
+export const getAnalysesListPath =(tipo?: string | null) =>
   tipo === "laje" ? "/analyses-laje" : "/analyses";
 
 // Configuração centralizada da capacidade do misturador por tipo de análise

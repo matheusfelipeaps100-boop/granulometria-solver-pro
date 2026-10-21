@@ -1,3 +1,4 @@
+import { formatIdadeRompimento } from "@/lib/analysis-data";
 import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -196,7 +197,7 @@ const Dashboard = () => {
       .map(s => ({
         lote: s.batch?.batch_code || "—",
         produto: s.batch?.analyses?.nome || "—",
-        idade: `${s.idade_dias}d`,
+        idade: formatIdadeRompimento(s.idade_dias, s.batch?.analyses?.tipo),
         data: new Date(s.data_prevista + "T12:00:00").toLocaleDateString('pt-BR'),
         status: s.status as any
       }));

@@ -11,6 +11,7 @@ import { calcTensao, calcRuptureStats, calcTensaoPaver, calcRuptureStatsPaver, g
 import type { RuptureSchedule, StoredAnalysis } from "@/store/useAppStore";
 import type { TechnicalSettings } from "@/hooks/api/useTechnicalSettings";
 import { useMemo } from "react";
+import { formatIdadeRompimento } from "@/lib/analysis-data";
 
 interface ViewRuptureResultModalProps {
   open: boolean;
@@ -63,7 +64,7 @@ export function ViewRuptureResultModal({ open, onOpenChange, schedule, analysis,
       <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between pr-8">
-            <span>Resultado do Ensaio — {schedule.idade_dias}d</span>
+            <span>Resultado do Ensaio — {formatIdadeRompimento(schedule.idade_dias, (analysis as any)?.tipo_analise ?? (analysis as any)?.tipo)}</span>
             <StatusBadge status={schedule.status} />
           </DialogTitle>
         </DialogHeader>
