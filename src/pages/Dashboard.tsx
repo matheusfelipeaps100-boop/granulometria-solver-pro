@@ -96,7 +96,7 @@ const Dashboard = () => {
 
   // ── Processamento de Dados REAIS ─────────────────────────────
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = new Date().toLocaleDateString("en-CA");
 
   const complianceRate = useMemo(() => {
     const completedCount = schedules.filter(s => s.status === 'concluido').length;

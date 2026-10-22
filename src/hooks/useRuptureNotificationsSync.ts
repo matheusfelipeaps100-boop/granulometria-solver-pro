@@ -69,7 +69,7 @@ export function useRuptureNotificationsSync() {
     const sync = async () => {
       await markResolvedAsRead();
 
-      const today = new Date().toISOString().split("T")[0];
+      const today = new Date().toLocaleDateString("en-CA");
 
       const { data: schedules, error: schedulesError } = await supabase
         .from("rupture_schedules")

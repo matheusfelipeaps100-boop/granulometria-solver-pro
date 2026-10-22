@@ -1,4 +1,10 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+
+const getLocalDate = () => {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { DateRangeFilter } from "@/components/DateRangeFilter";
@@ -64,7 +70,12 @@ const RupturesPage = () => {
   const [exemptModalOpen, setExemptModalOpen] = useState(false);
   const [batchToExempt, setBatchToExempt] = useState<string | null>(null);
 
-  const today = useMemo(() => new Date().toISOString().split("T")[0], []);
+  // Data local (não UTC) e atualizada a cada minuto, para o atraso virar na virada do dia
+  const [today, setToday] = useState(getLocalDate);
+  useEffect(() => {
+    const id = setInterval(() => setToday(getLocalDate()), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   // Enrich and group by batch
   const groupedBatches = useMemo(() => {
