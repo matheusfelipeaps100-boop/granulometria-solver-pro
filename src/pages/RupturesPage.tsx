@@ -307,9 +307,9 @@ const RupturesPage = () => {
                           <div>
                             <p className="text-xs text-muted-foreground font-mono">{analysis?.codigo ?? ""}</p>
                             <p className="font-medium text-foreground">
-                              {analysis?.produto ?? analysis?.nome ?? "—"}
+                              {analysis?.produto ?? TIPOS_ANALISE.find(t => t.value === analysis?.tipo)?.label ?? analysis?.tipo ?? "—"}
                             </p>
-                            {analysis?.tipo && (
+                            {analysis?.produto && analysis?.tipo && (
                               <p className="text-xs text-muted-foreground">
                                 {TIPOS_ANALISE.find(t => t.value === analysis.tipo)?.label ?? analysis.tipo}
                               </p>
