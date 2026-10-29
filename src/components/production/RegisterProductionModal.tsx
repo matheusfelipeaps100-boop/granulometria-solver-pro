@@ -14,8 +14,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ClipboardList } from "lucide-react";
 import { toast } from "sonner";
-import { useProduction } from "@/hooks/api/useProduction";
+import { useProduction, type ReceitaRealItem } from "@/hooks/api/useProduction";
+import { useMaterials } from "@/hooks/api/useMaterials";
 import type { StoredAnalysis } from "@/hooks/api/useAnalyses";
+import { getConfigMisturador } from "@/lib/analysis-data";
+import { calcularCustoMaterial } from "@/lib/utils";
 
 interface RegisterProductionModalProps {
   open: boolean;
@@ -23,12 +26,23 @@ interface RegisterProductionModalProps {
   analysis: StoredAnalysis | null;
 }
 
+const PISTAS_LAJE = ["Pista 1", "Pista 2", "Pista 3", "Pista 4", "Pista 5", "Pista 6"];
+
+const fmt = (v: number, casas = 2) =>
+  v.toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas });
+
+const parseNum = (v: string) => {
+  const n = parseFloat(v.replace(",", "."));
+  return Number.isFinite(n) ? n : null;
+};
+
 function generateBatchCode() {
   return `L-${new Date().getFullYear()}-${Math.floor(Math.random() * 10000).toString().padStart(4, "0")}`;
 }
 
 export function RegisterProductionModal({ open, onOpenChange, analysis }: RegisterProductionModalProps) {
-  const { createBatch, isCreating } = useProduction();
+  const { createBatch, isCreating, batches } = useProduction();
+  const { materials: dbMaterials } = useMaterials();
 
   const [batchCode, setBatchCode] = useState(generateBatchCode);
   const [operador, setOperador] = useState("");
@@ -44,7 +58,9 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
   // Campos exclusivos de laje
   const isLaje = analysis?.tipo === "laje";
   const [pista, setPista] = useState("");
-  const [fios, setFios] = useState("3");
+  const [fios, setFios] = useState("");
+  const [numTracos, setNumTracos] = useState("1");
+  const [reais, setReais] = useState<Record<string, string>>({});
   const [comprimentoPista, setComprimentoPista] = useState("");
   const [volumeConcreto, setVolumeConcreto] = useState("");
   const [metrosPerda, setMetrosPerda] = useState("0");
@@ -95,6 +111,70 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
     }
   }, [recipe]);
 
+  // Laje: receita prevista de 1 traço, com custo unitário de cada material
+  const receitaLaje = useMemo(() => {
+    if (!analysis || !isLaje) return [];
+    const fd = analysis.formData;
+    const cimento = fd.consumo_alvo_m3 || 0;
+    const acoDb = dbMaterials.find((m) => m.id === fd.aco_material_id);
+    const custoAcoKg = acoDb
+      ? calcularCustoMaterial({
+          custo_valor: acoDb.custo_valor ?? acoDb.custo_tonelada ?? 0,
+          custo_unidade: acoDb.custo_unidade || "kg",
+          quantidade: 1,
+          densidade: acoDb.densidade ?? undefined,
+        })
+      : 0;
+    return [
+      { key: "cimento", material: "Cimento", unidade: "kg" as const, previsto: cimento, custoUnit: (fd.custo_cimento_ton || 0) / 1000, destaque: true },
+      ...(fd.materiais_selecionados ?? []).map((m: any, i: number) => ({
+        key: `mat-${i}`,
+        material: m.nome,
+        unidade: "kg" as const,
+        previsto: m.proporcao_kg ?? 0,
+        custoUnit: (m.custo_tonelada ?? 0) / 1000,
+        destaque: false,
+      })),
+      { key: "agua", material: "Água", unidade: "L" as const, previsto: cimento * (fd.relacao_ac || 0), custoUnit: 0, destaque: false },
+      { key: "aditivo", material: "Aditivo", unidade: "mL" as const, previsto: fd.aditivos_ml || 0, custoUnit: (fd.custo_aditivo_lt || 0) / 1000, destaque: false },
+      { key: "aco", material: "Aço", unidade: "kg" as const, previsto: fd.aco_quantidade_kg || 0, custoUnit: custoAcoKg, destaque: false },
+    ];
+  }, [analysis, isLaje, dbMaterials]);
+
+  // Massa que vai ao misturador (aço fica fora: vai na pista)
+  const massaTraco = (itens: Array<{ key: string; unidade: string }>, valor: (i: any) => number) =>
+    itens.reduce((s, i) => (i.key === "aco" ? s : s + (i.unidade === "mL" ? valor(i) / 1000 : valor(i))), 0);
+
+  const totalTracoLaje = massaTraco(receitaLaje, (i) => i.previsto);
+  const nTracos = Math.max(1, Math.floor(Number(numTracos) || 1));
+
+  const receitaReal = useMemo(() => {
+    return receitaLaje.map((i) => {
+      const previsto = i.previsto * nTracos;
+      const real = parseNum(reais[i.key] ?? "");
+      return {
+        ...i,
+        previsto,
+        real,
+        dif: real != null ? real - previsto : null,
+        custo: real != null && i.custoUnit > 0 ? real * i.custoUnit : null,
+      };
+    });
+  }, [receitaLaje, nTracos, reais]);
+  const temReal = receitaReal.some((i) => i.real != null);
+  const totalRealPrevisto = massaTraco(receitaReal, (i) => i.previsto);
+  const totalRealInformado = massaTraco(receitaReal, (i) => i.real ?? i.previsto);
+  const custoReal = receitaReal.reduce((s, i) => s + (i.custo ?? 0), 0);
+
+  const capacidadeMisturador = getConfigMisturador(analysis?.tipo ?? "").capacidade_kg;
+
+  // Pista escolhida: sugere o último comprimento registrado para ela
+  const handlePistaChange = (valor: string) => {
+    setPista(valor);
+    const anterior = batches.find((b) => b.pista === valor && Number(b.comprimento_pista_m) > 0);
+    if (anterior) setComprimentoPista(String(anterior.comprimento_pista_m));
+  };
+
   const totalBatelada = useMemo(() => {
     if (!recipe) return 0;
     const agua = Number(aguaKg) || 0;
@@ -123,6 +203,10 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
         toast.error("Informe a pista");
         return;
       }
+      if (!fios) {
+        toast.error("Informe a quantidade de fios");
+        return;
+      }
       if (!(Number(comprimentoPista) > 0)) {
         toast.error("Informe o comprimento da pista");
         return;
@@ -148,6 +232,16 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
             metros_perda: Number(metrosPerda) || 0,
             perda_pct: perdaPct,
             aproveitamento_pct: aproveitamentoPct,
+            ...((temReal || nTracos > 1) && {
+              num_tracos: nTracos,
+              receita_real: receitaReal.map<ReceitaRealItem>((i) => ({
+                material: i.material,
+                unidade: i.unidade,
+                previsto: Math.round(i.previsto * 100) / 100,
+                real: i.real,
+                custo: i.custo != null ? Math.round(i.custo * 100) / 100 : null,
+              })),
+            }),
           },
         }),
         analysis_id: analysis.id,
@@ -177,7 +271,9 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
     setMaquina("");
     setObservacoes("");
     setPista("");
-    setFios("3");
+    setFios("");
+    setNumTracos("1");
+    setReais({});
     setComprimentoPista("");
     setVolumeConcreto("");
     setMetrosPerda("0");
@@ -185,7 +281,7 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className={`${isLaje ? "sm:max-w-xl" : "sm:max-w-lg"} max-h-[90vh] overflow-y-auto`}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ClipboardList className="h-5 w-5 text-primary" />
@@ -258,19 +354,23 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
             <>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="pista">Pista *</Label>
-                  <Input
-                    id="pista"
-                    value={pista}
-                    onChange={(e) => setPista(e.target.value)}
-                    placeholder="Ex: Pista A"
-                  />
+                  <Label>Pista *</Label>
+                  <Select value={pista} onValueChange={handlePistaChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PISTAS_LAJE.map((p) => (
+                        <SelectItem key={p} value={p}>{p}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>Fios *</Label>
                   <Select value={fios} onValueChange={setFios}>
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue placeholder="Selecione" />
                     </SelectTrigger>
                     <SelectContent>
                       {[3, 4, 5, 7].map((n) => (
@@ -335,7 +435,137 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
             </>
           )}
 
-          {recipe && (
+          {isLaje && receitaLaje.length > 0 && (
+            <>
+              {/* Receita prevista de 1 traço */}
+              <div className="space-y-2">
+                <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                  Receita Prevista (1 traço)
+                </Label>
+                <div className="rounded-md border overflow-hidden">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="bg-muted/50 border-b">
+                        <th className="text-left py-1.5 px-3 font-black uppercase">Material</th>
+                        <th className="text-right py-1.5 px-3 font-black uppercase">Qtd. por traço</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {receitaLaje.map((i) => (
+                        <tr key={i.key} className={i.key === "agua" ? "bg-blue-50/30 dark:bg-blue-950/20" : undefined}>
+                          <td className={
+                            i.key === "agua"
+                              ? "py-1.5 px-3 font-bold text-blue-600 dark:text-blue-400"
+                              : i.destaque ? "py-1.5 px-3 font-bold" : "py-1.5 px-3 text-muted-foreground"
+                          }>
+                            {i.material}
+                          </td>
+                          <td className="py-1.5 px-3 text-right font-bold">
+                            {fmt(i.previsto, i.unidade === "mL" ? 1 : 2)}{" "}
+                            <span className="text-[10px] text-muted-foreground">{i.unidade}</span>
+                          </td>
+                        </tr>
+                      ))}
+                      <tr className="bg-muted/30 font-black">
+                        <td className="py-2 px-3 uppercase">Total do traço</td>
+                        <td className="py-2 px-3 text-right text-sm">{fmt(totalTracoLaje)} kg</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                {totalTracoLaje > capacidadeMisturador && (
+                  <p className="text-[10px] text-destructive font-bold">
+                    ⚠️ ATENÇÃO: massa de 1 traço excede a capacidade de {capacidadeMisturador} kg do misturador!
+                  </p>
+                )}
+              </div>
+
+              {/* Receita real utilizada na pista (opcional) */}
+              <div className="space-y-2">
+                <div className="flex items-end justify-between gap-3">
+                  <div>
+                    <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                      Receita Real Utilizada <span className="normal-case tracking-normal font-medium">(opcional)</span>
+                    </Label>
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      Informe a soma de todos os traços da pista. Os números em cinza são o previsto; deixe em branco o que não quiser informar.
+                    </p>
+                  </div>
+                  <div className="space-y-1 shrink-0">
+                    <Label htmlFor="num-tracos" className="text-[10px] font-bold text-muted-foreground uppercase">Nº de traços</Label>
+                    <Input
+                      id="num-tracos"
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={numTracos}
+                      onChange={(e) => setNumTracos(e.target.value)}
+                      className="w-20 h-8 text-right"
+                    />
+                  </div>
+                </div>
+                <div className="rounded-md border overflow-hidden">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="bg-muted/50 border-b">
+                        <th className="text-left py-1.5 px-2 font-black uppercase">Material</th>
+                        <th className="text-right py-1.5 px-2 font-black uppercase">Previsto</th>
+                        <th className="text-right py-1.5 px-2 font-black uppercase">Real</th>
+                        <th className="text-right py-1.5 px-2 font-black uppercase">Dif.</th>
+                        <th className="text-right py-1.5 px-2 font-black uppercase">Custo</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {receitaReal.map((i) => (
+                        <tr key={i.key}>
+                          <td className={i.destaque ? "py-1 px-2 font-bold" : "py-1 px-2 text-muted-foreground"}>{i.material}</td>
+                          <td className="py-1 px-2 text-right whitespace-nowrap">
+                            {fmt(i.previsto, i.unidade === "mL" ? 1 : 2)}{" "}
+                            <span className="text-[10px] text-muted-foreground">{i.unidade}</span>
+                          </td>
+                          <td className="py-1 px-2">
+                            <div className="flex items-center justify-end gap-1">
+                              <Input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={reais[i.key] ?? ""}
+                                placeholder={fmt(i.previsto, i.unidade === "mL" ? 1 : 2)}
+                                onChange={(e) => setReais((r) => ({ ...r, [i.key]: e.target.value }))}
+                                className="w-20 h-7 text-xs text-right placeholder:text-muted-foreground/50"
+                              />
+                              <span className="inline-block w-5 text-[10px] text-muted-foreground">{i.unidade}</span>
+                            </div>
+                          </td>
+                          <td className={
+                            i.dif == null || Math.abs(i.dif) < 0.005
+                              ? "py-1 px-2 text-right text-muted-foreground"
+                              : i.dif > 0 ? "py-1 px-2 text-right font-bold text-destructive" : "py-1 px-2 text-right font-bold text-blue-600"
+                          }>
+                            {i.dif == null ? "—" : `${i.dif > 0 ? "+" : ""}${fmt(i.dif)}`}
+                          </td>
+                          <td className="py-1 px-2 text-right whitespace-nowrap">
+                            {i.custo == null ? <span className="text-muted-foreground">—</span> : `R$ ${fmt(i.custo)}`}
+                          </td>
+                        </tr>
+                      ))}
+                      <tr className="bg-muted/30 font-black">
+                        <td className="py-2 px-2 uppercase">Total da mistura</td>
+                        <td className="py-2 px-2 text-right whitespace-nowrap">{fmt(totalRealPrevisto)} kg</td>
+                        <td className="py-2 px-2 text-right whitespace-nowrap">{temReal ? `${fmt(totalRealInformado)} kg` : "—"}</td>
+                        <td className="py-2 px-2 text-right whitespace-nowrap">
+                          {temReal ? `${totalRealInformado - totalRealPrevisto > 0 ? "+" : ""}${fmt(totalRealInformado - totalRealPrevisto)}` : "—"}
+                        </td>
+                        <td className="py-2 px-2 text-right whitespace-nowrap">{custoReal > 0 ? `R$ ${fmt(custoReal)}` : "—"}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
+
+          {!isLaje && recipe && (
             <div className="space-y-2">
               <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                 Receita de Pesagem (Misturador)
@@ -402,9 +632,9 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
                   </tbody>
                 </table>
               </div>
-              {totalBatelada > 550 && (
+              {totalBatelada > capacidadeMisturador && (
                 <p className="text-[10px] text-destructive font-bold animate-pulse">
-                  ⚠️ ATENÇÃO: Massa total excede a capacidade de 550kg do misturador!
+                  ⚠️ ATENÇÃO: Massa total excede a capacidade de {capacidadeMisturador}kg do misturador!
                 </p>
               )}
             </div>

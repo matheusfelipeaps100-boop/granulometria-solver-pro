@@ -4,6 +4,15 @@ import { useAuth } from "../useAuth";
 import type { BatchStatus } from "@/types/database.types";
 import type { ScheduleStatus } from "@/hooks/api/useRuptures";
 
+// Linha da receita real utilizada na produção de laje
+export interface ReceitaRealItem {
+  material: string;
+  unidade: "kg" | "L" | "mL";
+  previsto: number;
+  real: number | null;
+  custo: number | null;
+}
+
 export interface DBProductionBatch {
   id: string;
   organization_id: string;
@@ -30,6 +39,8 @@ export interface DBProductionBatch {
   moldagem_temperatura?: number | null;
   moldagem_tempo?: string | null;
   moldagem_slump_cm?: number | null;
+  num_tracos?: number | null;
+  receita_real?: ReceitaRealItem[] | null;
   analyses?: {
     codigo: string;
     nome: string;
@@ -111,6 +122,9 @@ export function useProduction() {
         metros_perda: number;
         perda_pct: number;
         aproveitamento_pct: number;
+        // Receita real (colunas da migration 031) — só enviada quando informada
+        num_tracos?: number;
+        receita_real?: ReceitaRealItem[];
       };
     }) => {
       if (!orgId) throw new Error("Usuário não tem organização vinculada");
