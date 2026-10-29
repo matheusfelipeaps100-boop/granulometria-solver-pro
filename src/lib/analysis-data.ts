@@ -194,6 +194,31 @@ export const formatIdadeRompimento = (idadeDias: number, tipo?: string | null, l
   return longo ? `${idadeDias} dias` : `${idadeDias}d`;
 };
 
+// Nome automático sequencial: "Análise N" (bloco/paver) e "Análise Laje N" (laje)
+const NOME_AUTO_REGEX: Record<CategoriaAnalise, RegExp> = {
+  bloco_paver: /^an[áa]lise\s+(\d+)$/i,
+  laje: /^an[áa]lise\s+laje\s+(\d+)$/i,
+};
+
+export const isNomeAnaliseAutomatico = (nome?: string | null, categoria?: CategoriaAnalise) => {
+  const valor = nome?.trim() ?? "";
+  if (categoria) return NOME_AUTO_REGEX[categoria].test(valor);
+  return NOME_AUTO_REGEX.bloco_paver.test(valor) || NOME_AUTO_REGEX.laje.test(valor);
+};
+
+export const getProximoNomeAnalise = (
+  analyses: { nome?: string | null; tipo_analise?: string | null }[],
+  categoria: CategoriaAnalise
+) => {
+  const regex = NOME_AUTO_REGEX[categoria];
+  const maior = analyses.reduce((max, a) => {
+    if (getCategoriaAnalise(a.tipo_analise) !== categoria) return max;
+    const match = a.nome?.trim().match(regex);
+    return match ? Math.max(max, Number(match[1])) : max;
+  }, 0);
+  return `${categoria === "laje" ? "Análise Laje" : "Análise"} ${maior + 1}`;
+};
+
 export const getAnalysesListPath =(tipo?: string | null) =>
   tipo === "laje" ? "/analyses-laje" : "/analyses";
 

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from "react";
+import React, { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useAnalysisDraftStore } from "@/store/useAnalysisDraftStore";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,8 @@ import {
   getConfigMisturador,
   getCategoriaAnalise,
   getAnalysesListPath,
+  getProximoNomeAnalise,
+  isNomeAnaliseAutomatico,
   type AnalysisFormData,
 } from "@/lib/analysis-data";
 import {
@@ -243,6 +245,26 @@ const NewAnalysisPage = () => {
       setParseError(err?.message || String(err));
     }
   }, [sourceCode, analysisData, isLoadingAnalysis, isError, loadedCode]);
+
+  // Nova análise: o nome vem preenchido com o próximo número da categoria
+  // ("Análise N" / "Análise Laje N"). Enquanto o nome continuar sendo o automático,
+  // acompanha a lista de análises e a troca de categoria; se a pessoa digitar
+  // outro nome, ele é respeitado.
+  const nomeAutoRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (isEditMode || (isDuplicateMode && loadedCode !== sourceCode)) return;
+    const nome = formData.nome?.trim() ?? "";
+    if (nomeAutoRef.current === null && nome) {
+      // Rascunho já aberto: só assume o nome como automático se seguir o padrão
+      if (!isNomeAnaliseAutomatico(nome)) return;
+      nomeAutoRef.current = nome;
+    }
+    if (nome && nome !== nomeAutoRef.current) return;
+    if (!nome && nomeAutoRef.current !== null) return;
+    const proximo = getProximoNomeAnalise(analyses, categoria);
+    nomeAutoRef.current = proximo;
+    if (proximo !== nome) setFormData({ nome: proximo });
+  }, [isEditMode, isDuplicateMode, loadedCode, sourceCode, formData.nome, categoria, analyses, setFormData]);
 
   // ── Callbacks — TODOS os hooks antes de qualquer return condicional ──────────
   const handleChange = useCallback(
