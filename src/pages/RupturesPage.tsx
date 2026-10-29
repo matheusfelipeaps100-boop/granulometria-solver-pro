@@ -12,7 +12,7 @@ import { getDefaultDateFilter, isInDateRange, formatPeriodLabel } from "@/lib/da
 import type { DateFilter } from "@/lib/dateFilter";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Package, Unlock, AlertTriangle, ClipboardList, Eye, CheckCircle } from "lucide-react";
+import { Search, Package, Unlock, AlertTriangle, ClipboardList, Eye, CheckCircle, StickyNote } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { MultiStatusFilter } from "@/components/MultiStatusFilter";
@@ -21,7 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
-import { useRuptures } from "@/hooks/api/useRuptures";
+import { useRuptures, getObservacaoRompimento } from "@/hooks/api/useRuptures";
 import { TIPOS_ANALISE, formatIdadeRompimento } from "@/lib/analysis-data";
 import { hasActionPermission } from "@/lib/permissions";
 import { useNavigate } from "react-router-dom";
@@ -59,6 +59,7 @@ const RupturesPage = () => {
   const [search, setSearch] = usePersistedState("ruptures:search", "");
   const [filterStatuses, setFilterStatuses] = usePersistedState<string[]>("ruptures:filterStatuses", []);
   const [dateFilter, setDateFilter] = usePersistedState<DateFilter>("ruptures:dateFilter", getDefaultDateFilter());
+  const [soComObservacao, setSoComObservacao] = usePersistedState("ruptures:soComObservacao", false);
   
   // States of early release modal
   const [releaseModalOpen, setReleaseModalOpen] = useState(false);
@@ -87,16 +88,23 @@ const RupturesPage = () => {
         batched[bId] = {
           batch: s.batch,
           analysis: s.batch?.analyses,
-          schedules: []
+          schedules: [],
+          observacoes: [] as Array<{ idade_dias: number; texto: string }>,
         };
       }
-      
+
       let status = s.status;
       if (s.status === "pendente" && s.data_prevista < today) {
         status = "atrasado" as ScheduleStatus;
       }
-      batched[bId].schedules.push({ ...s, status });
+      const observacao = getObservacaoRompimento(s);
+      batched[bId].schedules.push({ ...s, status, observacao });
+      if (observacao) batched[bId].observacoes.push({ idade_dias: s.idade_dias, texto: observacao });
     });
+
+    for (const g of Object.values(batched)) {
+      g.observacoes.sort((a: any, b: any) => a.idade_dias - b.idade_dias);
+    }
 
     return Object.values(batched).sort((a: any, b: any) => {
       const dateA = a.batch?.produced_at ?? "";
@@ -136,15 +144,17 @@ const RupturesPage = () => {
         const q = search.toLowerCase();
         const matchLote = g.batch?.batch_code?.toLowerCase().includes(q);
         const matchProduto = ((g.analysis?.produto ?? g.analysis?.nome) ?? "").toLowerCase().includes(q);
-        if (!matchLote && !matchProduto) return false;
+        const matchObservacao = g.observacoes.some((o: any) => o.texto.toLowerCase().includes(q));
+        if (!matchLote && !matchProduto && !matchObservacao) return false;
       }
+      if (soComObservacao && g.observacoes.length === 0) return false;
       if (filterStatuses.length > 0) {
         const computed = batchStatus(g.schedules, g.batch?.status ?? "");
         if (!filterStatuses.includes(computed)) return false;
       }
       return true;
     });
-  }, [groupedBatches, search, filterStatuses, dateFilter]);
+  }, [groupedBatches, search, filterStatuses, dateFilter, soComObservacao]);
 
   // Stats
   const stats = useMemo(() => ({
@@ -246,13 +256,27 @@ const RupturesPage = () => {
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar por lote ou produto..."
+                placeholder="Buscar por lote, produto ou observação..."
                 className="pl-9"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
             <MultiStatusFilter options={STATUS_OPTIONS} value={filterStatuses} onChange={setFilterStatuses} />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setSoComObservacao(!soComObservacao)}
+              className={
+                soComObservacao
+                  ? "gap-2 border-amber-400 bg-amber-50 text-amber-800 hover:bg-amber-100 hover:text-amber-900 dark:bg-amber-950/30 dark:text-amber-300"
+                  : "gap-2"
+              }
+              title="Mostrar só os lotes com observação"
+            >
+              <StickyNote className={soComObservacao ? "h-4 w-4 text-amber-600" : "h-4 w-4 text-muted-foreground"} />
+              Com observação
+            </Button>
           </div>
           <div className="flex items-center justify-between mt-3">
             <DateRangeFilter value={dateFilter} onChange={setDateFilter} />
@@ -290,7 +314,7 @@ const RupturesPage = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map(({ batch, analysis, schedules }) => {
+                {filtered.map(({ batch, analysis, schedules, observacoes }) => {
                   const overallStatus = batchStatus(schedules, batch.status);
                   // Sort schedules by idade_dias
                   const sorted = [...schedules].sort((a, b) => a.idade_dias - b.idade_dias);
@@ -317,7 +341,21 @@ const RupturesPage = () => {
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="font-mono text-sm font-medium">{batch.batch_code}</TableCell>
+                      <TableCell className="font-mono text-sm font-medium">
+                        <div className="flex items-center gap-1.5">
+                          {batch.batch_code}
+                          {observacoes.length > 0 && (
+                            <span
+                              className="inline-flex items-center justify-center h-6 w-6 rounded-md bg-amber-100 text-amber-700 border border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800"
+                              title={observacoes
+                                .map((o: any) => `${formatIdadeRompimento(o.idade_dias, analysis?.tipo)}: ${o.texto}`)
+                                .join("\n")}
+                            >
+                              <StickyNote className="h-3.5 w-3.5" />
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <StatusBadge status={overallStatus} />
                       </TableCell>
@@ -339,10 +377,15 @@ const RupturesPage = () => {
                                       toast.error("Você não tem permissão para realizar rompimentos.");
                                     }
                                   }}
-                                  className={`inline-flex items-center justify-center whitespace-nowrap rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors ${chipColor} ${s.status !== 'ignorado' && (canCompleteRupture || s.status === 'concluido' || s.status === 'sem_expediente') ? 'cursor-pointer' : 'cursor-default'}`}
-                                  title={canCompleteRupture || s.status === 'concluido' || s.status === 'sem_expediente' ? `${formatIdadeRompimento(s.idade_dias, analysis?.tipo)} — ${statusLabel} — ${formatDate(s.data_prevista)}` : "Visualização restrita"}
+                                  className={`relative inline-flex items-center justify-center whitespace-nowrap rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors ${chipColor} ${s.status !== 'ignorado' && (canCompleteRupture || s.status === 'concluido' || s.status === 'sem_expediente') ? 'cursor-pointer' : 'cursor-default'}`}
+                                  title={canCompleteRupture || s.status === 'concluido' || s.status === 'sem_expediente'
+                                    ? `${formatIdadeRompimento(s.idade_dias, analysis?.tipo)} — ${statusLabel} — ${formatDate(s.data_prevista)}${s.observacao ? `\nObservação: ${s.observacao}` : ""}`
+                                    : "Visualização restrita"}
                                 >
                                   {formatIdadeRompimento(s.idade_dias, analysis?.tipo)}
+                                  {s.observacao && (
+                                    <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-amber-500 ring-2 ring-background" />
+                                  )}
                                 </button>
                             );
                           })}

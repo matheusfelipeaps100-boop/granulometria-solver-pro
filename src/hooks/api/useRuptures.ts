@@ -13,6 +13,8 @@ export interface DBRuptureSchedule {
   responsavel_id: string | null;
   responsavel_nome: string | null;
   created_at: string;
+  // Só as observações do ensaio (lista de rompimentos)
+  tests?: Array<{ notas: string | null }>;
   batch?: {
     id: string;
     batch_code: string;
@@ -26,6 +28,10 @@ export interface DBRuptureSchedule {
     };
   };
 }
+
+// Observação escrita no ensaio de um rompimento (vazia → null)
+export const getObservacaoRompimento = (s: { tests?: Array<{ notas: string | null }> }) =>
+  s.tests?.map((t) => t.notas?.trim()).find(Boolean) ?? null;
 
 export interface DBRuptureTest {
   id: string;
@@ -70,7 +76,8 @@ export function useRuptures() {
             produced_at,
             status,
             analyses (nome, codigo, produto, tipo)
-          )
+          ),
+          tests:rupture_tests (notas)
         `)
         .order("data_prevista", { ascending: false });
 

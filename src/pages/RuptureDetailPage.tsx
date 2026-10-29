@@ -13,7 +13,7 @@ import { ArrowLeft, FlaskConical, CheckCircle2, XCircle, Save, Flag, AlertTriang
 import { toast } from "sonner";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { useRuptures, useScheduleDetail } from "@/hooks/api/useRuptures";
+import { useRuptures, useScheduleDetail, getObservacaoRompimento } from "@/hooks/api/useRuptures";
 import { useProfiles } from "@/hooks/api/useProfiles";
 import { MoldagemControlCard } from "@/components/rupture/MoldagemControlCard";
 import { hasActionPermission } from "@/lib/permissions";
@@ -52,7 +52,7 @@ const RuptureDetailPage = () => {
   const navigate = useNavigate();
   const { profile } = useAuth();
   const { profiles } = useProfiles();
-  const { completeRupture, isCompleting, finalizeWithCurrentTest, isFinalizing, updateRupture, isUpdating, markSemExpediente, isMarkingSemExpediente } = useRuptures();
+  const { schedules, completeRupture, isCompleting, finalizeWithCurrentTest, isFinalizing, updateRupture, isUpdating, markSemExpediente, isMarkingSemExpediente } = useRuptures();
   const { data: scheduleData, isLoading } = useScheduleDetail(scheduleId);
 
   const found = useMemo(() => {
@@ -65,6 +65,17 @@ const RuptureDetailPage = () => {
   }, [scheduleData]);
 
   const isLajeAnalysis = found?.analysis?.tipo === "laje";
+
+  // Observações escritas nos outros rompimentos do mesmo lote (ex.: 24 h quando se abre o 48 h)
+  const observacoesOutrasIdades = useMemo(() => {
+    const batchId = (found?.batch as any)?.id;
+    if (!batchId) return [];
+    return schedules
+      .filter((s: any) => s.batch_id === batchId && s.id !== scheduleId)
+      .map((s: any) => ({ idade_dias: s.idade_dias as number, texto: getObservacaoRompimento(s) }))
+      .filter((o): o is { idade_dias: number; texto: string } => !!o.texto)
+      .sort((a, b) => a.idade_dias - b.idade_dias);
+  }, [schedules, found, scheduleId]);
 
   const tiposVisiveis = useMemo<TipoAmostra[]>(() => {
     const norm = normalizeTipoAmostra(found?.analysis?.tipo);
@@ -771,22 +782,56 @@ const RuptureDetailPage = () => {
         );
       })}
 
-      {/* Observações — em destaque para não passar despercebida */}
-      <div className="space-y-2 rounded-lg border-2 border-l-8 border-amber-400 bg-amber-50 p-4 dark:border-amber-700 dark:bg-amber-950/30">
-        <Label className="flex items-center gap-2 text-sm font-black uppercase tracking-wider text-amber-800 dark:text-amber-300">
-          <StickyNote className="h-4 w-4" />
-          Observações
-          <span className="text-[11px] font-medium normal-case tracking-normal text-amber-700/80 dark:text-amber-400/80">(opcional)</span>
-        </Label>
-        <Textarea
-          placeholder="Registre observações sobre o ensaio..."
-          value={observacoes}
-          onChange={(e) => setObservacoes(e.target.value)}
-          rows={3}
-          disabled={isReadOnly}
-          className="border-amber-300 bg-white text-base font-semibold text-amber-950 disabled:cursor-default disabled:opacity-100 dark:border-amber-800 dark:bg-background dark:text-amber-100"
-        />
-      </div>
+      {/* Observações — em destaque só quando há texto (nesta idade ou em outra do lote) */}
+      {(() => {
+        const destaque = observacoes.trim().length > 0 || observacoesOutrasIdades.length > 0;
+        return (
+          <div className={cn(
+            "space-y-2 rounded-lg p-4",
+            destaque
+              ? "border-2 border-l-8 border-amber-400 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/30"
+              : "border bg-card"
+          )}>
+            <Label className={cn(
+              "flex items-center gap-2",
+              destaque
+                ? "text-sm font-black uppercase tracking-wider text-amber-800 dark:text-amber-300"
+                : "text-sm font-semibold text-foreground"
+            )}>
+              <StickyNote className={cn("h-4 w-4", !destaque && "text-muted-foreground")} />
+              Observações
+              <span className={cn(
+                "text-[11px] font-medium normal-case tracking-normal",
+                destaque ? "text-amber-700/80 dark:text-amber-400/80" : "text-muted-foreground"
+              )}>
+                (opcional)
+              </span>
+            </Label>
+            {observacoesOutrasIdades.length > 0 && (
+              <div className="space-y-1 rounded-md border border-amber-300 bg-white/70 px-3 py-2 dark:border-amber-800 dark:bg-background/60">
+                {observacoesOutrasIdades.map((o) => (
+                  <p key={o.idade_dias} className="text-sm text-amber-950 dark:text-amber-100">
+                    <span className="font-black">{formatIdadeRompimento(o.idade_dias, found?.analysis?.tipo)}:</span>{" "}
+                    <span className="font-semibold">{o.texto}</span>
+                  </p>
+                ))}
+              </div>
+            )}
+            <Textarea
+              placeholder="Registre observações sobre o ensaio..."
+              value={observacoes}
+              onChange={(e) => setObservacoes(e.target.value)}
+              rows={3}
+              disabled={isReadOnly}
+              className={cn(
+                "disabled:cursor-default disabled:opacity-100",
+                observacoes.trim().length > 0 &&
+                  "border-amber-300 bg-white text-base font-semibold text-amber-950 dark:border-amber-800 dark:bg-background dark:text-amber-100"
+              )}
+            />
+          </div>
+        );
+      })()}
 
 
       {/* Correlação Peso x Resistência - Gráfico melhorado */}
