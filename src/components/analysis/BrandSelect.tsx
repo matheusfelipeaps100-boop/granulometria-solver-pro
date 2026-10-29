@@ -18,9 +18,10 @@ interface BrandSelectProps {
   value?: string | null;
   onChange: (id: string | null) => void;
   placeholder?: string;
+  noneLabel?: string;
 }
 
-export function BrandSelect({ materials, value, onChange, placeholder }: BrandSelectProps) {
+export function BrandSelect({ materials, value, onChange, placeholder, noneLabel = "Não informado" }: BrandSelectProps) {
   const [open, setOpen] = useState(false);
   const brands = materials;
 
@@ -57,7 +58,7 @@ export function BrandSelect({ materials, value, onChange, placeholder }: BrandSe
                 }}
               >
                 <Check className={cn("mr-2 h-4 w-4", !value ? "opacity-100" : "opacity-0")} />
-                Não informado
+                {noneLabel}
               </CommandItem>
               {brands.map((brand) => (
                 <CommandItem

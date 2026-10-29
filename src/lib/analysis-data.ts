@@ -52,6 +52,10 @@ export interface AnalysisFormData {
   aditivo_lote?: string;
   aditivo_diluicao?: string;
   aditivo_observacao?: string;
+  // Aço da laje (por pista, opcional): material cadastrado ou descrição livre
+  aco_material_id?: string;
+  aco_quantidade_kg?: number;
+  aco_descricao?: string;
 }
 
 export interface AnalysisMaterial {

@@ -28,6 +28,7 @@ const TIPOS_MATERIAL = [
   { label: "Granilha", value: "granilha" },
   { label: "Cimento", value: "cimento" },
   { label: "Aditivo", value: "aditivo" },
+  { label: "Aço", value: "aco" },
   { label: "Outro", value: "outro" },
 ];
 

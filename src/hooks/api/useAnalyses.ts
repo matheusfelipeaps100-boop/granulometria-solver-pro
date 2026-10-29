@@ -97,6 +97,9 @@ export function useAnalyses() {
             aditivo_lote: dosage?.aditivo_lote || undefined,
             aditivo_diluicao: dosage?.aditivo_diluicao || undefined,
             aditivo_observacao: dosage?.aditivo_observacao || undefined,
+            aco_material_id: dosage?.aco_material_id || undefined,
+            aco_quantidade_kg: dosage?.aco_quantidade_kg != null ? Number(dosage.aco_quantidade_kg) : undefined,
+            aco_descricao: dosage?.aco_descricao || undefined,
             materiais_selecionados: allMats.map((am: any) => {
               const massaKg = Number(am.massa_kg) || 0;
               // Se massa_kg foi salvo, usa direto; senão reconstrói via dosagem
@@ -285,6 +288,14 @@ export function useAnalyses() {
           aditivo_lote: formData.aditivo_lote || null,
           aditivo_diluicao: formData.aditivo_diluicao || null,
           aditivo_observacao: formData.aditivo_observacao || null,
+          // Aço só entra quando informado (colunas da migration 030)
+          ...(formData.aco_material_id || formData.aco_quantidade_kg || formData.aco_descricao
+            ? {
+                aco_material_id: formData.aco_material_id || null,
+                aco_quantidade_kg: formData.aco_quantidade_kg || null,
+                aco_descricao: formData.aco_descricao || null,
+              }
+            : {}),
         }]);
         if (dosError) throw dosError;
 
@@ -590,6 +601,9 @@ export function useAnalysis(codigo: string | null) {
         aditivo_lote: dosage?.aditivo_lote || undefined,
         aditivo_diluicao: dosage?.aditivo_diluicao || undefined,
         aditivo_observacao: dosage?.aditivo_observacao || undefined,
+        aco_material_id: dosage?.aco_material_id || undefined,
+        aco_quantidade_kg: dosage?.aco_quantidade_kg != null ? Number(dosage.aco_quantidade_kg) : undefined,
+        aco_descricao: dosage?.aco_descricao || undefined,
         materiais_selecionados: (fullData.analysis_materials || []).map((am: any) => ({
           material_id: am.material_id,
           nome: am.materials?.nome || "",

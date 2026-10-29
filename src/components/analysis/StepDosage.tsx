@@ -104,6 +104,11 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
     () => dbMaterials.filter((m) => m.tipo === 'aditivo' || m.nome.toLowerCase().includes('aditivo')),
     [dbMaterials]
   );
+  const acoMaterials = useMemo(
+    () => dbMaterials.filter((m) => m.tipo === 'aco'),
+    [dbMaterials]
+  );
+  const isLaje = data.tipo_analise === "laje";
 
   // Auto-sincroniza custos de cimento e aditivo com o material ativo cadastrado.
   // Não depende de data.custo_cimento_ton/custo_aditivo_lt para não sobrescrever
@@ -483,6 +488,51 @@ export function StepDosage({ data, onChange }: StepDosageProps) {
                   </div>
                 </div>
               </div>
+
+              {/* Aço da laje — por pista, opcional */}
+              {isLaje && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1 h-3 leading-none">
+                      Aço <span className="font-medium normal-case tracking-normal">(por pista, opcional)</span>
+                    </Label>
+                    <BrandSelect
+                      materials={acoMaterials}
+                      value={data.aco_material_id}
+                      onChange={(id) => onChange({ aco_material_id: id ?? undefined })}
+                      placeholder="Nenhum / digitar descrição"
+                      noneLabel="Nenhum / digitar descrição"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1 h-3 leading-none">
+                      Quantidade de aço
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        className="h-10 font-black bg-background border border-border/50 focus-visible:ring-primary shadow-none pr-9 text-sm"
+                        value={data.aco_quantidade_kg ?? ""}
+                        onChange={(e) => {
+                          const kg = parseFloat(e.target.value.replace(",", "."));
+                          onChange({ aco_quantidade_kg: kg > 0 ? kg : undefined });
+                        }}
+                      />
+                      <span className="absolute right-2.5 top-3 text-[9px] font-bold text-muted-foreground uppercase">kg</span>
+                    </div>
+                  </div>
+                  {!data.aco_material_id && (
+                    <Input
+                      className="sm:col-span-2 h-10 text-sm"
+                      placeholder="Descrição do aço (ex.: CP-175 Ø5 mm)"
+                      value={data.aco_descricao ?? ""}
+                      onChange={(e) => onChange({ aco_descricao: e.target.value || undefined })}
+                    />
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
 
