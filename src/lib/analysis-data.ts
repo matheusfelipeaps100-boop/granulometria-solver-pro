@@ -2,7 +2,7 @@
 // Analysis Interfaces & Types (Remove mock data — use API hooks instead)
 // =============================================================================
 
-import type { SieveData } from "./granulometry-engine";
+import type { GradationResult, SieveData } from "./granulometry-engine";
 
 // ── Product Interface ──
 export interface Product {
@@ -167,6 +167,42 @@ export function getLimitesPadrao(tipo?: string): Array<{ sieve_id: number; limit
   // referência associada) → nenhuma faixa é aplicada automaticamente.
   if (!tipo) return [];
   return LIMITES_BLOCO_PADRAO;
+}
+
+type LimiteCurva = { sieve_id: number; limite_min: number; limite_max: number };
+
+// Faixa usada na curva combinada — mesma regra na Granulometria e no Resultado.
+// Laje usa sempre a faixa fixa (LIMITES_LAJE_PADRAO), independente do preset
+// carregado; bloco/paver/cp seguem a cascata DNA → limites salvos → normativo.
+export function resolverLimitesCurva(
+  data: Pick<AnalysisFormData, "tipo_analise" | "limites_curva">,
+  dnaLimites?: LimiteCurva[]
+): LimiteCurva[] {
+  if (data.tipo_analise === "laje") return getLimitesPadrao("laje");
+  if (dnaLimites?.length) return dnaLimites;
+  if (data.limites_curva?.length) return data.limites_curva;
+  return getLimitesPadrao(data.tipo_analise);
+}
+
+// Exclusivo para LAJE PROTENDIDA: o gráfico mostra % PASSANTE, não % retido
+// acumulado. limite_min/limite_max são invertidos e trocados de posição (o
+// mínimo em retido vira o máximo em passante) e `referencia` vem da curva fixa
+// CURVA_REFERENCIA_LAJE. Bloco/paver recebem a curva sem alteração.
+export function prepararCurvaParaGrafico(
+  curveResults: GradationResult[],
+  tipoDosagem: TipoDosagem
+): Array<GradationResult & { referencia?: number }> {
+  if (tipoDosagem !== "WET_CASTING_PROTENDIDO") return curveResults;
+  return curveResults.map((r) => {
+    const refRetido = CURVA_REFERENCIA_LAJE[r.sieve_id];
+    return {
+      ...r,
+      pct_acumulado: 1 - r.pct_acumulado,
+      limite_min: r.limite_max != null ? 1 - r.limite_max : undefined,
+      limite_max: r.limite_min != null ? 1 - r.limite_min : undefined,
+      referencia: refRetido != null ? 1 - refRetido : undefined,
+    };
+  });
 }
 
 // TODO: Load from Supabase using useProfiles() hook

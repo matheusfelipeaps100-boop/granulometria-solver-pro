@@ -43,10 +43,10 @@ import {
 } from "@/lib/laje-optimizer";
 import {
   PENEIRAS_PADRAO,
-  getLimitesPadrao,
   getConfigMisturador,
   getTipoDosagem,
-  CURVA_REFERENCIA_LAJE,
+  resolverLimitesCurva,
+  prepararCurvaParaGrafico,
   type AnalysisFormData,
   type AnalysisMaterial,
 } from "@/lib/analysis-data";
@@ -167,13 +167,7 @@ export function StepGranulometry({ data, onChange, readOnly }: StepGranulometryP
   // cada traço testado, quando o pedido é uma única referência fixa para
   // todos os traços de laje. Para bloco/paver/cp a cascata original (DB →
   // preset salvo na análise → fallback normativo) continua idêntica.
-  const limits = data.tipo_analise === "laje"
-    ? getLimitesPadrao("laje")
-    : dna?.limites?.length
-      ? dna.limites
-      : data.limites_curva?.length
-        ? data.limites_curva
-        : getLimitesPadrao(data.tipo_analise);
+  const limits = resolverLimitesCurva(data, dna?.limites);
 
   // Dimensão máxima do agregado permitida pelo projeto: override manual na
   // análise → valor do DNA carregado → indefinido (não checa se ausente).
@@ -213,19 +207,10 @@ export function StepGranulometry({ data, onChange, readOnly }: StepGranulometryP
   // (a faixa de estudo ali é "clampada" em 0%/100%, perdendo a simetria).
   // GranulometryChart usa esse campo no lugar da média quando presente;
   // bloco/paver nunca o enviam, então continuam com o cálculo de sempre.
-  const curveResultsParaGrafico = useMemo(() => {
-    if (tipoDosagem !== "WET_CASTING_PROTENDIDO") return curveResults;
-    return curveResults.map((r) => {
-      const refRetido = CURVA_REFERENCIA_LAJE[r.sieve_id];
-      return {
-        ...r,
-        pct_acumulado: 1 - r.pct_acumulado,
-        limite_min: r.limite_max != null ? 1 - r.limite_max : undefined,
-        limite_max: r.limite_min != null ? 1 - r.limite_min : undefined,
-        referencia: refRetido != null ? 1 - refRetido : undefined,
-      };
-    });
-  }, [curveResults, tipoDosagem]);
+  const curveResultsParaGrafico = useMemo(
+    () => prepararCurvaParaGrafico(curveResults, tipoDosagem),
+    [curveResults, tipoDosagem]
+  );
 
   // MF por material
   const mfPerMaterial = useMemo(

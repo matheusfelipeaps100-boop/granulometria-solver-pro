@@ -19,23 +19,14 @@ import { SaveStandardTraceModal } from "./SaveStandardTraceModal";
 import {
   TIPOS_ANALISE,
   ANALISTAS,
-  PENEIRAS_PADRAO,
-  getLimitesPadrao,
   getAnalysesListPath,
+  getTipoDosagem,
+  resolverLimitesCurva,
+  prepararCurvaParaGrafico,
   type AnalysisFormData,
 } from "@/lib/analysis-data";
 import { useStandardCurves } from "@/hooks/api/useStandardCurves";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Area,
-  ComposedChart,
-} from "recharts";
+import { GranulometryChart } from "./GranulometryChart";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { cn, calcularCustoMaterial, calcularCustoTracoCompleto } from "@/lib/utils";
@@ -57,11 +48,13 @@ export function StepResult({ data }: StepResultProps) {
   const { materials: dbMaterials } = useMaterials();
   const { curves: dbCurves } = useStandardCurves();
 
+  // Mesma seleção de DNA da etapa de Granulometria: laje e análise sem tipo
+  // não caem na primeira curva do banco (que é de bloco).
   const dna = useMemo(() => {
     const curve =
       dbCurves.find((c) => c.id === data.dna_selecionado) ??
       dbCurves.find((c) => c.tipo_produto === data.tipo_analise && c.standard_curve_items?.length) ??
-      dbCurves[0];
+      (data.tipo_analise === "laje" || !data.tipo_analise ? undefined : dbCurves[0]);
     if (!curve) return undefined;
     return {
       id: curve.id,
@@ -74,7 +67,7 @@ export function StepResult({ data }: StepResultProps) {
     };
   }, [dbCurves, data.dna_selecionado, data.tipo_analise]);
 
-  const limitesDna = dna?.limites?.length ? dna.limites : getLimitesPadrao(data.tipo_analise);
+  const limitesDna = resolverLimitesCurva(data, dna?.limites);
   const tipoLabel = TIPOS_ANALISE.find((t) => t.value === data.tipo_analise)?.label ?? "—";
   const analistaLabel = (data.analista || ANALISTAS.find((a) => a.id === data.analista)?.nome) ?? "—";
 
@@ -141,17 +134,12 @@ export function StepResult({ data }: StepResultProps) {
     });
   }, [data, totalKgMateriais]);
 
-  // Gráfico em % passante (100 − % retido acumulado): a curva sobe do Fundo até a
-  // maior peneira. Limites iguais a 0 são válidos — só falta faixa quando vierem nulos.
-  const toPassante = (v: number) => Math.round((1 - v) * 10000) / 100;
-  const chartData = curveResults.map((r) => {
-    const temFaixa = r.limite_min != null && r.limite_max != null;
-    return {
-      label: PENEIRAS_PADRAO.find((p) => p.sieve_id === r.sieve_id)?.label ?? "",
-      acumulado: toPassante(r.pct_acumulado),
-      faixa: temFaixa ? [toPassante(r.limite_max!), toPassante(r.limite_min!)] : undefined,
-    };
-  });
+  // Mesmo gráfico da etapa de Granulometria (laje em % passante com curva de referência)
+  const tipoDosagem = getTipoDosagem(data.tipo_analise);
+  const curveResultsParaGrafico = useMemo(
+    () => prepararCurvaParaGrafico(curveResults, tipoDosagem),
+    [curveResults, tipoDosagem]
+  );
 
   const handleExportPDF = async () => {
     setGeneratingPdf(true);
@@ -423,46 +411,30 @@ export function StepResult({ data }: StepResultProps) {
                 <span className="h-2 w-2 rounded-full bg-destructive" />
                 Atual
               </div>
-              {dna && (
-                <div className="flex items-center gap-1">
-                  <span className="h-1 w-4 bg-blue-400/40 rounded" />
-                  Faixa
-                </div>
+              {limitesDna.length > 0 && (
+                <>
+                  <div className="flex items-center gap-1">
+                    <span className="h-2 w-2 rounded-full bg-amber-400" />
+                    Ideal
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="h-1 w-4 bg-blue-400/40 rounded" />
+                    Faixa
+                  </div>
+                </>
               )}
             </div>
           </div>
         </CardHeader>
         <CardContent>
           {/* Exibe o gráfico sempre que a soma das massas retidas for maior que zero */}
-          <ResponsiveContainer width="100%" height={280}>
-            <ComposedChart data={chartData} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
-              <XAxis dataKey="label" fontSize={10} tick={{ fill: "hsl(var(--muted-foreground))" }} interval={0} reversed />
-              <YAxis domain={[0, 100]} fontSize={10} unit="%" tick={{ fill: "hsl(var(--muted-foreground))" }} />
-              <Tooltip />
-              {dna && (
-                <Area
-                  type="monotone"
-                  dataKey="faixa"
-                  stroke="hsl(195 85% 55%)"
-                  strokeWidth={1}
-                  strokeDasharray="4 3"
-                  fill="hsl(195 85% 55% / 0.15)"
-                  fillOpacity={1}
-                  isAnimationActive={false}
-                  name="Faixa"
-                />
-              )}
-              <Line
-                type="monotone"
-                dataKey="acumulado"
-                stroke="hsl(var(--destructive))"
-                strokeWidth={3}
-                dot={{ r: 4, fill: "hsl(var(--destructive))", stroke: "hsl(var(--card))", strokeWidth: 2 }}
-                name="Atual"
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
+          <GranulometryChart
+            curveResults={curveResultsParaGrafico}
+            hasLimits={limitesDna.length > 0}
+            tipoDosagem={tipoDosagem}
+            compact
+            height={280}
+          />
         </CardContent>
       </Card>
 

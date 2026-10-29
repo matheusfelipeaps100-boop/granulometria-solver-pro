@@ -30,6 +30,8 @@ interface GranulometryChartProps {
   // Modelo granulométrico usado — muda o rótulo exibido para deixar claro
   // que Laje Protendida usa um modelo próprio, não a curva de vibroprensados.
   tipoDosagem?: TipoDosagem;
+  // Altura fixa do gráfico; quando informada, todos os rótulos do eixo X aparecem
+  height?: number;
 }
 
 const TITULO_POR_TIPO: Record<TipoDosagem, string> = {
@@ -65,7 +67,7 @@ const AVISO_POR_TIPO: Record<TipoDosagem, string> = {
     "Curva de referência baseada no único traço real de fábrica em produção e funcionando (Concreart), com faixa de estudo de ±5 pontos percentuais. Não é uma faixa normativa da ABNT nem estatisticamente validada — é uma referência inicial baseada num traço real aprovado.",
 };
 
-export function GranulometryChart({ curveResults, hasLimits, compact = false, tipoDosagem = "VIBROPRESSADO" }: GranulometryChartProps) {
+export function GranulometryChart({ curveResults, hasLimits, compact = false, tipoDosagem = "VIBROPRESSADO", height }: GranulometryChartProps) {
   const chartData = useMemo(() => {
     return curveResults.map((r) => {
       const limiteMin = r.limite_min != null ? Math.round(r.limite_min * 10000) / 100 : undefined;
@@ -132,7 +134,7 @@ export function GranulometryChart({ curveResults, hasLimits, compact = false, ti
     );
   };
 
-  const chartHeight = compact ? 180 : 320;
+  const chartHeight = height ?? (compact ? 180 : 320);
 
   const chartContent = (
     <>
@@ -143,6 +145,7 @@ export function GranulometryChart({ curveResults, hasLimits, compact = false, ti
             dataKey="label"
             fontSize={10}
             tick={{ fill: "hsl(var(--muted-foreground))" }}
+            interval={height ? 0 : "preserveEnd"}
             reversed
           />
           <YAxis
