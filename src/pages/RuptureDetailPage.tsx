@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, FlaskConical, CheckCircle2, XCircle, Save, Flag, AlertTriangle, Eye } from "lucide-react";
+import { ArrowLeft, FlaskConical, CheckCircle2, XCircle, Save, Flag, AlertTriangle, Eye, StickyNote } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -771,15 +771,20 @@ const RuptureDetailPage = () => {
         );
       })}
 
-      {/* Observações */}
-      <div className="space-y-2">
-        <Label>Observações (opcional)</Label>
+      {/* Observações — em destaque para não passar despercebida */}
+      <div className="space-y-2 rounded-lg border-2 border-l-8 border-amber-400 bg-amber-50 p-4 dark:border-amber-700 dark:bg-amber-950/30">
+        <Label className="flex items-center gap-2 text-sm font-black uppercase tracking-wider text-amber-800 dark:text-amber-300">
+          <StickyNote className="h-4 w-4" />
+          Observações
+          <span className="text-[11px] font-medium normal-case tracking-normal text-amber-700/80 dark:text-amber-400/80">(opcional)</span>
+        </Label>
         <Textarea
           placeholder="Registre observações sobre o ensaio..."
           value={observacoes}
           onChange={(e) => setObservacoes(e.target.value)}
           rows={3}
           disabled={isReadOnly}
+          className="border-amber-300 bg-white text-base font-semibold text-amber-950 disabled:cursor-default disabled:opacity-100 dark:border-amber-800 dark:bg-background dark:text-amber-100"
         />
       </div>
 
