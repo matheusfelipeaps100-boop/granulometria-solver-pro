@@ -141,15 +141,17 @@ export function StepResult({ data }: StepResultProps) {
     });
   }, [data, totalKgMateriais]);
 
-  const chartData = curveResults.map((r) => ({
-    label: PENEIRAS_PADRAO.find((p) => p.sieve_id === r.sieve_id)?.label ?? "",
-    acumulado: Math.round(r.pct_acumulado * 10000) / 100,
-    limiteMin: r.limite_min ? Math.round(r.limite_min * 10000) / 100 : undefined,
-    limiteMax: r.limite_max ? Math.round(r.limite_max * 10000) / 100 : undefined,
-    dnAlvo: r.limite_min && r.limite_max
-      ? Math.round(((r.limite_min + r.limite_max) / 2) * 10000) / 100
-      : undefined,
-  }));
+  // Gráfico em % passante (100 − % retido acumulado): a curva sobe do Fundo até a
+  // maior peneira. Limites iguais a 0 são válidos — só falta faixa quando vierem nulos.
+  const toPassante = (v: number) => Math.round((1 - v) * 10000) / 100;
+  const chartData = curveResults.map((r) => {
+    const temFaixa = r.limite_min != null && r.limite_max != null;
+    return {
+      label: PENEIRAS_PADRAO.find((p) => p.sieve_id === r.sieve_id)?.label ?? "",
+      acumulado: toPassante(r.pct_acumulado),
+      faixa: temFaixa ? [toPassante(r.limite_max!), toPassante(r.limite_min!)] : undefined,
+    };
+  });
 
   const handleExportPDF = async () => {
     setGeneratingPdf(true);
@@ -422,16 +424,10 @@ export function StepResult({ data }: StepResultProps) {
                 Atual
               </div>
               {dna && (
-                <>
-                  <div className="flex items-center gap-1">
-                    <span className="h-2 w-2 rounded-full bg-amber-400" />
-                    Ideal
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span className="h-1 w-4 bg-blue-400/40 rounded" />
-                    Faixa
-                  </div>
-                </>
+                <div className="flex items-center gap-1">
+                  <span className="h-1 w-4 bg-blue-400/40 rounded" />
+                  Faixa
+                </div>
               )}
             </div>
           </div>
@@ -441,15 +437,21 @@ export function StepResult({ data }: StepResultProps) {
           <ResponsiveContainer width="100%" height={280}>
             <ComposedChart data={chartData} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
-              <XAxis dataKey="label" fontSize={10} tick={{ fill: "hsl(var(--muted-foreground))" }} reversed />
+              <XAxis dataKey="label" fontSize={10} tick={{ fill: "hsl(var(--muted-foreground))" }} interval={0} reversed />
               <YAxis domain={[0, 100]} fontSize={10} unit="%" tick={{ fill: "hsl(var(--muted-foreground))" }} />
               <Tooltip />
               {dna && (
-                <>
-                  <Area type="monotone" dataKey="limiteMax" stroke="none" fill="hsl(210 100% 60% / 0.12)" fillOpacity={1} isAnimationActive={false} />
-                  <Area type="monotone" dataKey="limiteMin" stroke="none" fill="hsl(var(--card))" fillOpacity={1} isAnimationActive={false} />
-                  <Line type="monotone" dataKey="dnAlvo" stroke="hsl(35 92% 50%)" strokeWidth={2} strokeDasharray="8 4" dot={false} name="Ideal" />
-                </>
+                <Area
+                  type="monotone"
+                  dataKey="faixa"
+                  stroke="hsl(195 85% 55%)"
+                  strokeWidth={1}
+                  strokeDasharray="4 3"
+                  fill="hsl(195 85% 55% / 0.15)"
+                  fillOpacity={1}
+                  isAnimationActive={false}
+                  name="Faixa"
+                />
               )}
               <Line
                 type="monotone"
