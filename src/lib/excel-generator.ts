@@ -250,6 +250,69 @@ export async function generateMonthlyReportExcel(data: MonthlyReportExcelData): 
   await downloadWorkbook(workbook, `relatorio_mensal_${data.periodoLabel.replace("/", "-")}.xlsx`);
 }
 
+export interface CustoProdutoExcelRow {
+  produto: string;
+  lotes: number;
+  concreto_m3: number;
+  total: number;
+  por_m3: number | null;
+}
+
+export interface CustoLoteExcelRow {
+  lote: string;
+  analise: string;
+  produto: string;
+  data: string;
+  origem: string;
+  tracos: number;
+  concreto_m3: number;
+  por_m3: number | null;
+  por_metro: number | null;
+  total: number;
+}
+
+export async function generateCostReportExcel(
+  segmentoLabel: string,
+  periodoLabel: string,
+  produtos: CustoProdutoExcelRow[],
+  lotes: CustoLoteExcelRow[]
+): Promise<void> {
+  const workbook = new ExcelJS.Workbook();
+  const moeda = '"R$" #,##0.00';
+
+  const sheetProd = workbook.addWorksheet("Custo por Produto");
+  sheetProd.columns = [
+    { header: "Produto", key: "produto", width: 30 },
+    { header: "Lotes", key: "lotes", width: 8 },
+    { header: "Concreto (m³)", key: "concreto_m3", width: 14 },
+    { header: "Total (R$)", key: "total", width: 14, style: { numFmt: moeda } },
+    { header: "R$/m³", key: "por_m3", width: 12, style: { numFmt: moeda } },
+  ];
+  sheetProd.getRow(1).font = { bold: true };
+  produtos.forEach((r) => sheetProd.addRow(r));
+
+  const sheetLotes = workbook.addWorksheet("Lotes");
+  sheetLotes.columns = [
+    { header: "Lote", key: "lote", width: 18 },
+    { header: "Análise", key: "analise", width: 26 },
+    { header: "Produto", key: "produto", width: 24 },
+    { header: "Data", key: "data", width: 12 },
+    { header: "Origem", key: "origem", width: 10 },
+    { header: "Traços", key: "tracos", width: 8 },
+    { header: "Concreto (m³)", key: "concreto_m3", width: 14 },
+    { header: "R$/m³", key: "por_m3", width: 12, style: { numFmt: moeda } },
+    { header: "R$/m", key: "por_metro", width: 12, style: { numFmt: moeda } },
+    { header: "Total (R$)", key: "total", width: 14, style: { numFmt: moeda } },
+  ];
+  sheetLotes.getRow(1).font = { bold: true };
+  lotes.forEach((r) => sheetLotes.addRow(r));
+
+  await downloadWorkbook(
+    workbook,
+    `custos_${segmentoLabel.toLowerCase().replace(/[^a-z0-9]+/g, "_")}_${periodoLabel.replace("/", "-")}.xlsx`
+  );
+}
+
 export interface PistaMetricsExcelRow {
   data: string;
   lote: string;
