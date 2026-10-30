@@ -569,6 +569,18 @@ const RuptureDetailPage = () => {
               <p className="text-muted-foreground">Meta</p>
               <p className="font-medium">≥ {analysis?.resistencia_prevista ?? "—"} MPa</p>
             </div>
+            {(batch as any).pista && (
+              <>
+                <div>
+                  <p className="text-muted-foreground">Pista</p>
+                  <p className="font-medium">{(batch as any).pista}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Fios</p>
+                  <p className="font-medium">{(batch as any).fios ?? "—"}</p>
+                </div>
+              </>
+            )}
           </div>
         </CardContent>
       </Card>
