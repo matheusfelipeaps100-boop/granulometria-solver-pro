@@ -6,6 +6,7 @@ export const ROUTE_PERMISSIONS: Record<string, UserRole[]> = {
   "/": ["ADMIN", "PRODUCAO", "VENDAS", "GERENTE", "LABORATORIO"],
   "/analyses": ["ADMIN", "VENDAS", "GERENTE", "LABORATORIO"],
   "/analyses/new": ["ADMIN", "LABORATORIO"],
+  "/ruptures-laje": ["ADMIN", "PRODUCAO", "VENDAS", "GERENTE", "LABORATORIO"],
   "/analyses-laje": ["ADMIN", "VENDAS", "GERENTE", "LABORATORIO"],
   "/analyses-laje/new": ["ADMIN", "LABORATORIO"],
   "/materials": ["ADMIN", "LABORATORIO"],

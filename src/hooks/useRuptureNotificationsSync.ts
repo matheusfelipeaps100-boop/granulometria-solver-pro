@@ -1,4 +1,4 @@
-import { formatIdadeRompimento } from "@/lib/analysis-data";
+import { formatIdadeRompimento, getRupturesListPath } from "@/lib/analysis-data";
 import { useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
@@ -134,7 +134,7 @@ export function useRuptureNotificationsSync() {
           tipo,
           titulo,
           mensagem,
-          link: "/ruptures",
+          link: getRupturesListPath(s.batch?.analyses?.tipo),
           dados: {
             schedule_id: s.id,
             batch_code: batchCode,

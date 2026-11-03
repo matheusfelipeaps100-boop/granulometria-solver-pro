@@ -100,7 +100,17 @@ const App = () => (
             } />
             <Route path="/ruptures" element={
               <ProtectedRoute allowedRoles={["ADMIN", "PRODUCAO", "VENDAS", "GERENTE", "LABORATORIO"]}>
-                <RupturesPage />
+                <RupturesPage categoria="bloco_paver" />
+              </ProtectedRoute>
+            } />
+            <Route path="/ruptures-laje" element={
+              <ProtectedRoute allowedRoles={["ADMIN", "PRODUCAO", "VENDAS", "GERENTE", "LABORATORIO"]}>
+                <RupturesPage categoria="laje" />
+              </ProtectedRoute>
+            } />
+            <Route path="/ruptures-laje/:scheduleId" element={
+              <ProtectedRoute allowedRoles={["ADMIN", "LABORATORIO", "PRODUCAO", "VENDAS", "GERENTE"]}>
+                <RuptureDetailPage />
               </ProtectedRoute>
             } />
             <Route path="/ruptures/:scheduleId" element={

@@ -22,7 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
 import { useRuptures, getObservacaoRompimento } from "@/hooks/api/useRuptures";
-import { TIPOS_ANALISE, formatIdadeRompimento } from "@/lib/analysis-data";
+import { TIPOS_ANALISE, formatIdadeRompimento, getCategoriaAnalise, getRuptureDetailPath, type CategoriaAnalise } from "@/lib/analysis-data";
 import { hasActionPermission } from "@/lib/permissions";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -48,7 +48,7 @@ const STATUS_OPTIONS = [
 
 const dueTodayColor = "border-purple-300 text-purple-700 bg-purple-50 hover:bg-purple-100";
 
-const RupturesPage = () => {
+const RupturesPage = ({ categoria }: { categoria: CategoriaAnalise }) => {
   const { schedules, isLoadingSchedules, releaseEarly, isReleasing, exemptFromTesting, isExempting } = useRuptures();
   const { profile } = useAuth();
   const navigate = useNavigate();
@@ -56,10 +56,10 @@ const RupturesPage = () => {
   const canCompleteRupture = profile ? hasActionPermission(profile.role, "rupture:complete") : false;
   const canReleaseEarlyPermission = profile ? hasActionPermission(profile.role, "rupture:early_release") : false;
 
-  const [search, setSearch] = usePersistedState("ruptures:search", "");
-  const [filterStatuses, setFilterStatuses] = usePersistedState<string[]>("ruptures:filterStatuses", []);
-  const [dateFilter, setDateFilter] = usePersistedState<DateFilter>("ruptures:dateFilter", getDefaultDateFilter());
-  const [soComObservacao, setSoComObservacao] = usePersistedState("ruptures:soComObservacao", false);
+  const [search, setSearch] = usePersistedState(`ruptures:${categoria}:search`, "");
+  const [filterStatuses, setFilterStatuses] = usePersistedState<string[]>(`ruptures:${categoria}:filterStatuses`, []);
+  const [dateFilter, setDateFilter] = usePersistedState<DateFilter>(`ruptures:${categoria}:dateFilter`, getDefaultDateFilter());
+  const [soComObservacao, setSoComObservacao] = usePersistedState(`ruptures:${categoria}:soComObservacao`, false);
   
   // States of early release modal
   const [releaseModalOpen, setReleaseModalOpen] = useState(false);
@@ -83,6 +83,7 @@ const RupturesPage = () => {
     const batched: Record<string, any> = {};
 
     schedules.forEach((s) => {
+      if (getCategoriaAnalise(s.batch?.analyses?.tipo) !== categoria) return;
       const bId = s.batch_id;
       if (!batched[bId]) {
         batched[bId] = {
@@ -111,7 +112,7 @@ const RupturesPage = () => {
       const dateB = b.batch?.produced_at ?? "";
       return dateB.localeCompare(dateA);
     });
-  }, [schedules, today]);
+  }, [schedules, today, categoria]);
 
   // All schedules flat (for stats)
   const allSchedules = useMemo(
@@ -213,7 +214,9 @@ const RupturesPage = () => {
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Rompimentos</h1>
+        <h1 className="text-2xl font-bold text-foreground">
+          {categoria === "laje" ? "Rompimentos Laje" : "Rompimentos Bloco/Paver"}
+        </h1>
         <p className="text-sm text-muted-foreground">Cronograma e ensaios de rompimento</p>
       </div>
 
@@ -372,7 +375,7 @@ const RupturesPage = () => {
                                   onClick={() => {
                                     if (s.status === 'ignorado') return;
                                     if (s.status === 'concluido' || s.status === 'sem_expediente' || canCompleteRupture) {
-                                      navigate(`/ruptures/${s.id}`);
+                                      navigate(getRuptureDetailPath(categoria, s.id));
                                     } else {
                                       toast.error("Você não tem permissão para realizar rompimentos.");
                                     }
@@ -433,7 +436,7 @@ const RupturesPage = () => {
                             size="icon"
                             onClick={() => {
                               const target = [...sorted].reverse().find(s => s.status === 'concluido') ?? sorted[0];
-                              navigate(`/ruptures/${target.id}`);
+                              navigate(getRuptureDetailPath(categoria, target.id));
                             }}
                             title="Ver Detalhes"
                           >

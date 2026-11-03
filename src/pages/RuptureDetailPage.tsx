@@ -11,14 +11,14 @@ import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ArrowLeft, FlaskConical, CheckCircle2, XCircle, Save, Flag, AlertTriangle, Eye, StickyNote } from "lucide-react";
 import { toast } from "sonner";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useRuptures, useScheduleDetail, getObservacaoRompimento } from "@/hooks/api/useRuptures";
 import { useProfiles } from "@/hooks/api/useProfiles";
 import { MoldagemControlCard } from "@/components/rupture/MoldagemControlCard";
 import { hasActionPermission } from "@/lib/permissions";
 import { useTechnicalSettings } from "@/hooks/api/useTechnicalSettings";
-import { TIPOS_ANALISE, formatIdadeRompimento } from "@/lib/analysis-data";
+import { TIPOS_ANALISE, formatIdadeRompimento, getRupturesListPath, getRuptureDetailPath } from "@/lib/analysis-data";
 import { calcTensao, calcRuptureStats, AREAS_PADRAO, calcTensaoPaver, calcRuptureStatsPaver, calcTensaoLaje, calcRuptureStatsLaje, getMetaForAge, aplicarResultadoLaje } from "@/lib/granulometry-engine";
 
 import { cn } from "@/lib/utils";
@@ -65,6 +65,19 @@ const RuptureDetailPage = () => {
   }, [scheduleData]);
 
   const isLajeAnalysis = found?.analysis?.tipo === "laje";
+
+  // Sem o lote carregado (ex.: "não encontrado"), a categoria vem do prefixo da URL
+  const { pathname } = useLocation();
+  const listPath = found
+    ? getRupturesListPath(found.analysis?.tipo)
+    : pathname.startsWith("/ruptures-laje") ? "/ruptures-laje" : "/ruptures";
+
+  // Mantém a sidebar coerente: corrige o prefixo se a URL não bate com o tipo do lote
+  useEffect(() => {
+    if (!found || !scheduleId) return;
+    const correto = getRuptureDetailPath(found.analysis?.tipo, scheduleId);
+    if (pathname !== correto) navigate(correto, { replace: true });
+  }, [found, scheduleId, pathname, navigate]);
 
   // Observações escritas nos outros rompimentos do mesmo lote (ex.: 24 h quando se abre o 48 h)
   const observacoesOutrasIdades = useMemo(() => {
@@ -291,7 +304,7 @@ const RuptureDetailPage = () => {
   if (!found) {
     return (
       <div className="space-y-6 animate-fade-in">
-        <Button variant="ghost" onClick={() => navigate("/ruptures")} className="gap-2">
+        <Button variant="ghost" onClick={() => navigate(listPath)} className="gap-2">
           <ArrowLeft className="h-4 w-4" /> Voltar
         </Button>
         <Card>
@@ -381,7 +394,7 @@ const RuptureDetailPage = () => {
         description: `${found?.batch.batch_code} — ${found?.schedule.idade_dias} dias — Demais ensaios ignorados`,
       });
       setFinalizeModalOpen(false);
-      navigate("/ruptures");
+      navigate(listPath);
     } catch (error) {
       console.error(error);
       toast.error("Erro ao finalizar análise");
@@ -399,7 +412,7 @@ const RuptureDetailPage = () => {
         description: "Não entra nas médias nem na contagem de não conformidades.",
       });
       setSemExpedienteModalOpen(false);
-      navigate("/ruptures");
+      navigate(listPath);
     } catch (error) {
       console.error(error);
       toast.error("Erro ao marcar ensaio como sem expediente");
@@ -456,7 +469,7 @@ const RuptureDetailPage = () => {
       toast.success("Ensaio de rompimento salvo!", {
         description: `${found?.batch.batch_code} — ${found?.schedule.idade_dias} dias`,
       });
-      navigate("/ruptures");
+      navigate(listPath);
     } catch (error) {
       console.error(error);
       toast.error("Erro ao salvar rompimento");
@@ -514,7 +527,7 @@ const RuptureDetailPage = () => {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Back */}
-      <Button variant="ghost" onClick={() => navigate("/ruptures")} className="gap-2">
+      <Button variant="ghost" onClick={() => navigate(listPath)} className="gap-2">
         <ArrowLeft className="h-4 w-4" /> Voltar aos Rompimentos
       </Button>
 
@@ -902,19 +915,19 @@ const RuptureDetailPage = () => {
       {/* Actions */}
       {isSemExpediente ? (
         <div className="flex justify-end">
-          <Button variant="outline" onClick={() => navigate("/ruptures")}>
+          <Button variant="outline" onClick={() => navigate(listPath)}>
             <ArrowLeft className="h-4 w-4 mr-2" /> Voltar aos Rompimentos
           </Button>
         </div>
       ) : isReadOnly ? (
         <div className="flex justify-end">
-          <Button variant="outline" onClick={() => navigate("/ruptures")}>
+          <Button variant="outline" onClick={() => navigate(listPath)}>
             <ArrowLeft className="h-4 w-4 mr-2" /> Voltar aos Rompimentos
           </Button>
         </div>
       ) : isAdmin && isConcluido ? (
         <div className="flex flex-col sm:flex-row justify-end gap-3">
-          <Button variant="outline" onClick={() => navigate("/ruptures")} disabled={isUpdating}>
+          <Button variant="outline" onClick={() => navigate(listPath)} disabled={isUpdating}>
             Cancelar
           </Button>
           <Button onClick={handleUpdate} disabled={isUpdating} className="gap-2">
@@ -924,7 +937,7 @@ const RuptureDetailPage = () => {
         </div>
       ) : (
         <div className="flex flex-col sm:flex-row justify-end gap-3">
-          <Button variant="outline" onClick={() => navigate("/ruptures")} disabled={isCompleting || isFinalizing}>
+          <Button variant="outline" onClick={() => navigate(listPath)} disabled={isCompleting || isFinalizing}>
             Cancelar
           </Button>
           <Button
