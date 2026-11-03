@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,11 +11,12 @@ import { StepGranulometry } from "@/components/analysis/StepGranulometry";
 import { StepDosage } from "@/components/analysis/StepDosage";
 import { StepReview } from "@/components/analysis/StepReview";
 import { toast } from "sonner";
-import { getAnalysesListPath } from "@/lib/analysis-data";
+import { getAnalysesListPath, getAnalysisDetailPath } from "@/lib/analysis-data";
 
 export default function AnalysisDetailPage() {
   const { codigo } = useParams<{ codigo: string }>();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const { data: analysis, isLoading, isError } = useAnalysis(codigo || null);
   const { updateObservacoes } = useAnalyses();
   const { profile } = useAuth();
@@ -29,7 +30,14 @@ export default function AnalysisDetailPage() {
     setObservacoes(analysis?.observacoes || "");
   }, [analysis?.observacoes]);
 
-  const savedValue = analysis?.observacoes || "";
+  // Mantém a sidebar coerente: links antigos de laje em /analyses/:codigo (e o inverso) são corrigidos
+  useEffect(() => {
+    if (!analysis?.codigo) return;
+    const correto = getAnalysisDetailPath(analysis.tipo, analysis.codigo);
+    if (decodeURIComponent(pathname) !== decodeURIComponent(correto)) navigate(correto, { replace: true });
+  }, [analysis?.codigo, analysis?.tipo, pathname, navigate]);
+
+  const savedValue =analysis?.observacoes || "";
   const hasChanges = observacoes !== savedValue;
 
   const handleSaveObservacoes = async () => {

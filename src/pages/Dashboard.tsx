@@ -1,4 +1,4 @@
-import { formatIdadeRompimento } from "@/lib/analysis-data";
+import { formatIdadeRompimento, getAnalysisDetailPath } from "@/lib/analysis-data";
 import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -206,6 +206,7 @@ const Dashboard = () => {
   const realRecentAnalyses = useMemo(() => {
     return analyses.slice(0, 3).map(a => ({
       codigo: a.codigo,
+      tipo: a.tipo,
       produto: a.nome,
       data: new Date(a.created_at).toLocaleDateString('pt-BR'),
       status: a.status as any
@@ -545,7 +546,7 @@ const Dashboard = () => {
                       </TableCell>
                       <TableCell className="py-2.5 text-right">
                         <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-primary/10 hover:text-primary" asChild>
-                          <Link to="/analyses">
+                          <Link to={getAnalysisDetailPath(a.tipo, a.codigo)}>
                             <Eye className="h-3.5 w-3.5" />
                           </Link>
                         </Button>

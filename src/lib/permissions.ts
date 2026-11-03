@@ -52,7 +52,7 @@ export function hasRoutePermission(role: UserRole, path: string): boolean {
   }
   // Fallback: verifica se o path começa com algo permitido (para paths dinâmicos ex: /analyses/new)
   const parentPath = Object.keys(ROUTE_PERMISSIONS).find(
-    (p) => p !== "/" && path.startsWith(p)
+    (p) => p !== "/" && (path === p || path.startsWith(p + "/"))
   );
   if (parentPath) {
     return ROUTE_PERMISSIONS[parentPath].includes(role);

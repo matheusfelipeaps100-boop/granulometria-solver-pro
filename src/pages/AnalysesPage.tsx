@@ -35,7 +35,7 @@ import {
 import { Plus, Search, Eye, Pencil, Trash2, FileEdit, X, Check, CalendarDays, Copy } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
-import { TIPOS_ANALISE, getCategoriaAnalise, type CategoriaAnalise } from "@/lib/analysis-data";
+import { TIPOS_ANALISE, getCategoriaAnalise, getAnalysisDetailPath, type CategoriaAnalise } from "@/lib/analysis-data";
 import { useAnalysisDraftStore } from "@/store/useAnalysisDraftStore";
 import { useAnalyses } from "@/hooks/api/useAnalyses";
 import { useAuth } from "@/hooks/useAuth";
@@ -355,7 +355,7 @@ const AnalysesPage = ({ categoria }: AnalysesPageProps) => {
                             <Copy className="h-4 w-4 text-muted-foreground hover:text-foreground" />
                           </Button>
                         )}
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/analyses/${a.codigo}`)} title="Visualizar">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(getAnalysisDetailPath(a.tipo, a.codigo))} title="Visualizar">
                           <Eye className="h-4 w-4 text-muted-foreground hover:text-foreground" />
                         </Button>
                         {canDelete && (

@@ -63,6 +63,11 @@ const App = () => (
                 <NewAnalysisPage />
               </ProtectedRoute>
             } />
+            <Route path="/analyses-laje/:codigo" element={
+              <ProtectedRoute allowedRoles={["ADMIN", "VENDAS", "GERENTE", "LABORATORIO"]}>
+                <AnalysisDetailPage />
+              </ProtectedRoute>
+            } />
             <Route path="/analyses/:codigo" element={
               <ProtectedRoute allowedRoles={["ADMIN", "VENDAS", "GERENTE", "LABORATORIO"]}>
                 <AnalysisDetailPage />

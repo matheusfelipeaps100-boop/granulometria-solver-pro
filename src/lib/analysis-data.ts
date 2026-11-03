@@ -262,6 +262,9 @@ export const getProximoNomeAnalise = (
 export const getAnalysesListPath =(tipo?: string | null) =>
   tipo === "laje" ? "/analyses-laje" : "/analyses";
 
+export const getAnalysisDetailPath = (tipo: string | null | undefined, codigo: string) =>
+  `${getAnalysesListPath(tipo)}/${encodeURIComponent(codigo)}`;
+
 // Configuração centralizada da capacidade do misturador por tipo de análise
 export const CONFIG_MISTURADOR: Record<string, { capacidade_kg: number; volume_m3: number }> = {
   bloco_estrutural: { capacidade_kg: 550,  volume_m3: 0.55 },

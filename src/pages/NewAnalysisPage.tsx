@@ -341,7 +341,7 @@ const NewAnalysisPage = () => {
           </p>
         )}
         {hasLoadError && (
-          <Button variant="outline" onClick={() => navigate("/analyses")}>
+          <Button variant="outline" onClick={() => navigate(listPath)}>
             Voltar para análises
           </Button>
         )}
