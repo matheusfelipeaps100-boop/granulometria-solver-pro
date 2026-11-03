@@ -196,6 +196,7 @@ const Dashboard = () => {
       .slice(0, 3)
       .map(s => ({
         lote: s.batch?.batch_code || "—",
+        tipo: s.batch?.analyses?.tipo,
         produto: s.batch?.analyses?.nome || "—",
         idade: formatIdadeRompimento(s.idade_dias, s.batch?.analyses?.tipo),
         data: new Date(s.data_prevista + "T12:00:00").toLocaleDateString('pt-BR'),
@@ -461,11 +462,18 @@ const Dashboard = () => {
               <AlertTriangle className="h-4 w-4 text-[hsl(28,90%,52%)]" />
               Rompimentos Urgentes (Próximos)
             </CardTitle>
-            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-muted-foreground hover:text-primary gap-1" asChild>
-              <Link to="/ruptures">
-                Ver todos <ChevronRight className="h-3.5 w-3.5" />
-              </Link>
-            </Button>
+            <div className="flex items-center">
+              <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-muted-foreground hover:text-primary gap-1" asChild>
+                <Link to="/ruptures">
+                  Bloco/Paver <ChevronRight className="h-3.5 w-3.5" />
+                </Link>
+              </Button>
+              <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-muted-foreground hover:text-primary gap-1" asChild>
+                <Link to="/ruptures-laje">
+                  Laje <ChevronRight className="h-3.5 w-3.5" />
+                </Link>
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="pt-0">
             <div className="rounded-md border border-border overflow-hidden overflow-x-auto">
@@ -486,6 +494,9 @@ const Dashboard = () => {
                         <span className="font-mono text-[11px] font-semibold text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded">
                           {r.lote}
                         </span>
+                        {r.tipo === "laje" && (
+                          <span className="ml-1.5 text-[10px] font-semibold uppercase text-primary">Laje</span>
+                        )}
                       </TableCell>
                       <TableCell className="py-2.5 text-sm font-medium">{r.produto}</TableCell>
                       <TableCell className="py-2.5 text-sm">{r.idade}</TableCell>
