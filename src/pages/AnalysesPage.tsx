@@ -161,7 +161,9 @@ const AnalysesPage = ({ categoria }: AnalysesPageProps) => {
   const hasDraft = currentStep > 1 || !!formData.tipo_analise || !!formData.nome;
   // Rascunho sem tipo definido aparece nas duas telas; com tipo, só na tela da categoria dele
   const showDraftBanner = hasDraft && (!formData.tipo_analise || getCategoriaAnalise(formData.tipo_analise) === categoria);
-  const newAnalysisPath = `/analyses/new?categoria=${categoria}`;
+  // Laje tem rota própria para manter "Análises Laje" ativo na sidebar
+  const newAnalysisBase = categoria === "laje" ? "/analyses-laje/new" : "/analyses/new";
+  const newAnalysisPath = `${newAnalysisBase}?categoria=${categoria}`;
 
   // Duplicar: abre o wizard com o traço da análise de origem já preenchido.
   // Se houver rascunho em andamento, pede confirmação antes de descartá-lo.
@@ -169,7 +171,7 @@ const AnalysesPage = ({ categoria }: AnalysesPageProps) => {
 
   const startDuplicate = (codigo: string) => {
     clearDraft();
-    navigate(`/analyses/new?from=${encodeURIComponent(codigo)}`);
+    navigate(`${newAnalysisBase}?from=${encodeURIComponent(codigo)}`);
   };
 
   const handleDuplicate = (codigo: string) => {
@@ -199,7 +201,7 @@ const AnalysesPage = ({ categoria }: AnalysesPageProps) => {
             size="sm"
             variant="default"
             className="gap-1.5"
-            onClick={() => navigate(formData.tipo_analise ? "/analyses/new" : newAnalysisPath)}
+            onClick={() => navigate(formData.tipo_analise ? newAnalysisBase : newAnalysisPath)}
           >
             Continuar
           </Button>

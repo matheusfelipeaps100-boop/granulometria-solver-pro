@@ -247,12 +247,12 @@ export const isNomeAnaliseAutomatico = (nome?: string | null, categoria?: Catego
 };
 
 export const getProximoNomeAnalise = (
-  analyses: { nome?: string | null; tipo_analise?: string | null }[],
+  analyses: { nome?: string | null; tipo?: string | null; tipo_analise?: string | null }[],
   categoria: CategoriaAnalise
 ) => {
   const regex = NOME_AUTO_REGEX[categoria];
   const maior = analyses.reduce((max, a) => {
-    if (getCategoriaAnalise(a.tipo_analise) !== categoria) return max;
+    if (getCategoriaAnalise(a.tipo ?? a.tipo_analise) !== categoria) return max;
     const match = a.nome?.trim().match(regex);
     return match ? Math.max(max, Number(match[1])) : max;
   }, 0);
