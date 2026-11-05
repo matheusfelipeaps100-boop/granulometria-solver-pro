@@ -18,7 +18,7 @@ import { useProduction, type ReceitaRealItem } from "@/hooks/api/useProduction";
 import { useMaterials } from "@/hooks/api/useMaterials";
 import type { StoredAnalysis } from "@/hooks/api/useAnalyses";
 import { getConfigMisturador } from "@/lib/analysis-data";
-import { calcularCustoMaterial } from "@/lib/utils";
+import { buildReceitaLaje, massaTraco } from "@/lib/receita-laje";
 
 interface RegisterProductionModalProps {
   open: boolean;
@@ -114,36 +114,9 @@ export function RegisterProductionModal({ open, onOpenChange, analysis }: Regist
   // Laje: receita prevista de 1 traço, com custo unitário de cada material
   const receitaLaje = useMemo(() => {
     if (!analysis || !isLaje) return [];
-    const fd = analysis.formData;
-    const cimento = fd.consumo_alvo_m3 || 0;
-    const acoDb = dbMaterials.find((m) => m.id === fd.aco_material_id);
-    const custoAcoKg = acoDb
-      ? calcularCustoMaterial({
-          custo_valor: acoDb.custo_valor ?? acoDb.custo_tonelada ?? 0,
-          custo_unidade: acoDb.custo_unidade || "kg",
-          quantidade: 1,
-          densidade: acoDb.densidade ?? undefined,
-        })
-      : 0;
-    return [
-      { key: "cimento", material: "Cimento", unidade: "kg" as const, previsto: cimento, custoUnit: (fd.custo_cimento_ton || 0) / 1000, destaque: true },
-      ...(fd.materiais_selecionados ?? []).map((m: any, i: number) => ({
-        key: `mat-${i}`,
-        material: m.nome,
-        unidade: "kg" as const,
-        previsto: m.proporcao_kg ?? 0,
-        custoUnit: (m.custo_tonelada ?? 0) / 1000,
-        destaque: false,
-      })),
-      { key: "agua", material: "Água", unidade: "L" as const, previsto: cimento * (fd.relacao_ac || 0), custoUnit: 0, destaque: false },
-      { key: "aditivo", material: "Aditivo", unidade: "mL" as const, previsto: fd.aditivos_ml || 0, custoUnit: (fd.custo_aditivo_lt || 0) / 1000, destaque: false },
-      { key: "aco", material: "Aço", unidade: "kg" as const, previsto: fd.aco_quantidade_kg || 0, custoUnit: custoAcoKg, destaque: false },
-    ];
+    const acoDb = dbMaterials.find((m) => m.id === analysis.formData.aco_material_id);
+    return buildReceitaLaje(analysis.formData, acoDb);
   }, [analysis, isLaje, dbMaterials]);
-
-  // Massa que vai ao misturador (aço fica fora: vai na pista)
-  const massaTraco = (itens: Array<{ key: string; unidade: string }>, valor: (i: any) => number) =>
-    itens.reduce((s, i) => (i.key === "aco" ? s : s + (i.unidade === "mL" ? valor(i) / 1000 : valor(i))), 0);
 
   const totalTracoLaje = massaTraco(receitaLaje, (i) => i.previsto);
   const nTracos = Math.max(1, Math.floor(Number(numTracos) || 1));

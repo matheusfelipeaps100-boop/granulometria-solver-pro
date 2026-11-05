@@ -227,6 +227,28 @@ export function useProduction() {
     },
   });
 
+  // Receita real da pista de laje: pode ser informada/corrigida depois do registro
+  const updateBatchReceitaRealMutation = useMutation({
+    mutationFn: async ({ id, ...receita }: {
+      id: string;
+      num_tracos: number;
+      receita_real: ReceitaRealItem[] | null;
+    }) => {
+      const { data, error } = await supabase
+        .from("production_batches")
+        .update(receita)
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["production_batches", orgId] });
+    },
+  });
+
   const updateBatchMoldagemMutation = useMutation({
     mutationFn: async ({ id, ...moldagem }: {
       id: string;
@@ -277,6 +299,8 @@ export function useProduction() {
     isUpdatingMoldagem: updateBatchMoldagemMutation.isPending,
     updateBatchPista: updateBatchPistaMutation.mutateAsync,
     isUpdatingPista: updateBatchPistaMutation.isPending,
+    updateBatchReceitaReal: updateBatchReceitaRealMutation.mutateAsync,
+    isUpdatingReceitaReal: updateBatchReceitaRealMutation.isPending,
     isCreating: createBatchMutation.isPending,
     isDeleting: deleteBatchMutation.isPending,
     isUpdatingBatchCode: updateBatchCodeMutation.isPending,

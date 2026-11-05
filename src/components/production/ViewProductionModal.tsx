@@ -21,6 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Pencil, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { ReceitaLajeSection } from "./ReceitaLajeSection";
 import { ViewRuptureResultModal } from "../rupture/ViewRuptureResultModal";
 
 interface ViewProductionModalProps {
@@ -152,7 +153,7 @@ export function ViewProductionModal({ open, onOpenChange, analysis, batch }: Vie
   };
 
   if (!analysis) return null;
-  const tipoLabel = TIPOS_ANALISE.find((t) => t.value === analysis.tipo_analise)?.label ?? "—";
+  const tipoLabel = TIPOS_ANALISE.find((t) => t.value === (analysis.tipo ?? analysis.formData?.tipo_analise))?.label ?? "—";
 
   // Receita calculada diretamente dos dados da análise, sem calcDosage
   const recipe = useMemo(() => {
@@ -511,68 +512,12 @@ export function ViewProductionModal({ open, onOpenChange, analysis, batch }: Vie
                       </p>
                     </div>
                   </div>
-
-                  {/* Receita real utilizada na pista (informada no registro do lote) */}
-                  {batch.receita_real && batch.receita_real.length > 0 && (
-                    <div className="space-y-2 pt-1">
-                      <h4 className="font-semibold text-muted-foreground text-[10px] uppercase tracking-widest">
-                        Receita Real Utilizada
-                        <span className="normal-case tracking-normal font-medium"> · {batch.num_tracos ?? 1} traço(s)</span>
-                      </h4>
-                      <div className="rounded-md border overflow-hidden">
-                        <table className="w-full text-[11px]">
-                          <thead>
-                            <tr className="bg-muted/50 border-b">
-                              <th className="text-left py-1 px-3 font-bold">Material</th>
-                              <th className="text-right py-1 px-3 font-bold">Previsto</th>
-                              <th className="text-right py-1 px-3 font-bold">Real</th>
-                              <th className="text-right py-1 px-3 font-bold">Dif.</th>
-                              <th className="text-right py-1 px-3 font-bold">Custo</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y">
-                            {batch.receita_real.map((i) => {
-                              const casas = i.unidade === "mL" ? 1 : 2;
-                              const fmtNum = (v: number) =>
-                                v.toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas });
-                              const dif = i.real != null ? i.real - i.previsto : null;
-                              return (
-                                <tr key={i.material}>
-                                  <td className="py-1 px-3">{i.material}</td>
-                                  <td className="py-1 px-3 text-right text-muted-foreground whitespace-nowrap">{fmtNum(i.previsto)} {i.unidade}</td>
-                                  <td className="py-1 px-3 text-right font-bold whitespace-nowrap">{i.real != null ? `${fmtNum(i.real)} ${i.unidade}` : "—"}</td>
-                                  <td className={
-                                    dif == null || Math.abs(dif) < 0.005
-                                      ? "py-1 px-3 text-right text-muted-foreground"
-                                      : dif > 0 ? "py-1 px-3 text-right font-bold text-destructive" : "py-1 px-3 text-right font-bold text-blue-600"
-                                  }>
-                                    {dif == null ? "—" : `${dif > 0 ? "+" : ""}${fmtNum(dif)}`}
-                                  </td>
-                                  <td className="py-1 px-3 text-right whitespace-nowrap">
-                                    {i.custo != null ? `R$ ${i.custo.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—"}
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                            {batch.receita_real.some((i) => i.custo != null) && (
-                              <tr className="bg-muted/30 font-black">
-                                <td className="py-1.5 px-3 uppercase" colSpan={4}>Custo total</td>
-                                <td className="py-1.5 px-3 text-right whitespace-nowrap">
-                                  R$ {batch.receita_real
-                                    .reduce((s, i) => s + (i.custo ?? 0), 0)
-                                    .toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </td>
-                              </tr>
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
                 </div>
               )}
 
-              {recipe && (
+              {batch.pista && <ReceitaLajeSection analysis={analysis} batch={batch} canEdit={canEditPista} />}
+
+              {!batch.pista && recipe && (
                 <div className="pt-2">
                   <h4 className="font-semibold text-foreground mb-2 text-xs uppercase tracking-wider">Receita Utilizada</h4>
                   <div className="rounded-md border bg-muted/20 overflow-hidden">
@@ -612,7 +557,7 @@ export function ViewProductionModal({ open, onOpenChange, analysis, batch }: Vie
 
               <h4 className="font-semibold text-foreground pt-2">Cronograma de Rompimentos</h4>
               <div className="grid grid-cols-4 gap-2">
-                {batch.rupture_schedules?.map((s) => {
+                {[...(batch.rupture_schedules ?? [])].sort((x, y) => x.idade_dias - y.idade_dias).map((s) => {
                   const isConcluido = s.status === "concluido";
                   return (
                     <button
@@ -631,7 +576,7 @@ export function ViewProductionModal({ open, onOpenChange, analysis, batch }: Vie
                           : "opacity-80 cursor-default"
                       )}
                     >
-                      <p className="text-lg font-bold text-foreground">{formatIdadeRompimento(s.idade_dias, analysis.tipo_analise)}</p>
+                      <p className="text-lg font-bold text-foreground">{formatIdadeRompimento(s.idade_dias, analysis.tipo ?? analysis.formData?.tipo_analise)}</p>
                       <p className="text-[10px] text-muted-foreground">{s.data_prevista}</p>
                       <StatusBadge status={s.status} className="mt-1 h-4 text-[9px]" />
                     </button>
