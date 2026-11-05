@@ -181,7 +181,7 @@ export function ViewProductionModal({ open, onOpenChange, analysis, batch }: Vie
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className={cn(batch?.pista ? "sm:max-w-3xl" : "sm:max-w-lg", "max-h-[90vh] overflow-y-auto")}>
         <DialogHeader>
           <DialogTitle>Detalhes  {analysis.codigo}</DialogTitle>
         </DialogHeader>
@@ -201,7 +201,7 @@ export function ViewProductionModal({ open, onOpenChange, analysis, batch }: Vie
         )}
 
         <div className="space-y-4">
-          <div className="rounded-md border p-4 space-y-2 text-sm">
+          <div className="rounded-md border p-5 space-y-3 text-sm">
             <h4 className="font-semibold text-foreground">Análise</h4>
             <div className="grid grid-cols-2 gap-2">
               <div><span className="text-muted-foreground">Código:</span> <strong>{analysis.codigo}</strong></div>
@@ -235,7 +235,7 @@ export function ViewProductionModal({ open, onOpenChange, analysis, batch }: Vie
           </div>
 
           {batch ? (
-            <div className="rounded-md border p-4 space-y-2 text-sm">
+            <div className="rounded-md border p-5 space-y-3 text-sm">
               <h4 className="font-semibold text-foreground">Lote de Produção</h4>
               <div className="grid grid-cols-2 gap-2">
                 <div className="col-span-2 flex items-center gap-2">
@@ -356,20 +356,20 @@ export function ViewProductionModal({ open, onOpenChange, analysis, batch }: Vie
               {batch.pista && (
                 <div className="space-y-4">
                   <div className="grid grid-cols-3 gap-3">
-                    <div className="rounded-lg border bg-muted/20 p-3">
+                    <div className="rounded-lg border bg-muted/20 p-4">
                       <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Operador</p>
                       <p className="font-bold text-sm mt-1 truncate">{batch.operador_nome}</p>
                     </div>
-                    <div className="rounded-lg border bg-muted/20 p-3">
+                    <div className="rounded-lg border bg-muted/20 p-4">
                       <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Máquina</p>
                       <p className="font-bold text-sm mt-1 truncate">{batch.maquina}</p>
                     </div>
-                    <div className="rounded-lg border bg-muted/20 p-3">
+                    <div className="rounded-lg border bg-muted/20 p-4">
                       <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Status</p>
                       <div className="mt-1"><StatusBadge status={batch.status} /></div>
                     </div>
                   </div>
-                  <div className="rounded-lg border bg-muted/20 p-3 w-1/3 min-w-[8rem]">
+                  <div className="rounded-lg border bg-muted/20 p-4 w-1/3 min-w-[8rem]">
                     <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Volume da Batelada</p>
                     <p className="font-black text-lg mt-1">
                       {batch.volume_produzido} <span className="text-xs font-bold text-muted-foreground">L</span>
@@ -470,15 +470,15 @@ export function ViewProductionModal({ open, onOpenChange, analysis, batch }: Vie
                     </div>
                   ) : (
                   <div className="grid grid-cols-4 gap-3">
-                    <div className="rounded-lg border p-3">
+                    <div className="rounded-lg border p-4">
                       <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Pista</p>
                       <p className="font-black text-xl mt-1">{batch.pista}</p>
                     </div>
-                    <div className="rounded-lg border p-3">
+                    <div className="rounded-lg border p-4">
                       <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Fios</p>
                       <p className="font-black text-xl mt-1">{batch.fios ?? "—"}</p>
                     </div>
-                    <div className="rounded-lg border p-3">
+                    <div className="rounded-lg border p-4">
                       <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Concreto</p>
                       <p className="font-black text-xl mt-1">
                         {batch.volume_concreto_m3 ?? "—"}
@@ -487,7 +487,7 @@ export function ViewProductionModal({ open, onOpenChange, analysis, batch }: Vie
                         )}
                       </p>
                     </div>
-                    <div className="rounded-lg border p-3">
+                    <div className="rounded-lg border p-4">
                       <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Perda</p>
                       <p className="font-black text-xl mt-1">
                         {(batch.metros_perda ?? 0).toFixed(2).replace(".", ",")}
