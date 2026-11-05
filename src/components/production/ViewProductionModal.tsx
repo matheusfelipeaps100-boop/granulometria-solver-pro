@@ -181,7 +181,7 @@ export function ViewProductionModal({ open, onOpenChange, analysis, batch }: Vie
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={cn(batch?.pista ? "sm:max-w-3xl" : "sm:max-w-lg", "max-h-[90vh] overflow-y-auto")}>
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Detalhes  {analysis.codigo}</DialogTitle>
         </DialogHeader>
